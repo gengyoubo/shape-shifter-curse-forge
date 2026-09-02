@@ -1,4 +1,0 @@
-{
-  "type": "apoli:prevent_game_event",
-  "event": "minecraft:step"
-}

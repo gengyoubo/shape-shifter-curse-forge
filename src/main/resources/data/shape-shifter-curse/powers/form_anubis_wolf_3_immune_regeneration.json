@@ -1,7 +1,0 @@
-{
-  "type": "apoli:effect_immunity",
-  "effects": [
-    "minecraft:regeneration",
-    "minecraft:instant_health"
-  ]
-}

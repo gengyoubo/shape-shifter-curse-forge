@@ -1,7 +1,0 @@
-{
-    "type": "shape-shifter-curse:scare_villager",
-    "condition": {
-        "type": "apoli:constant",
-        "value": true
-    }
-}

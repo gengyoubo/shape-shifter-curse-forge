@@ -1,7 +1,0 @@
-{
-    "type": "apoli:prevent_sprinting",
-    "condition": {
-        "type": "apoli:constant",
-        "value": true
-    }
-}

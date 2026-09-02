@@ -1,9 +1,0 @@
-{
-  "load_priority": 0,
-
-  "name": "shape-shifter-curse.technical_form.model_name",
-  "layer": "origins:origin",
-  "form": "shape-shifter-curse:technical_form",
-
-  "wide_only": true
-}

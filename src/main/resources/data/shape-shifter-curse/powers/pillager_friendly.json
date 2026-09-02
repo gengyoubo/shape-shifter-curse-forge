@@ -1,7 +1,0 @@
-{
-    "type": "shape-shifter-curse:pillager_friendly",
-    "condition": {
-        "type": "apoli:constant",
-        "value": true
-    }
-}

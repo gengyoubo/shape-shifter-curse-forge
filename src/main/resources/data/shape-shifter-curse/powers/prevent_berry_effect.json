@@ -1,7 +1,0 @@
-{
-    "type": "shape-shifter-curse:prevent_berry_effect",
-    "condition": {
-        "type": "apoli:constant",
-        "value": true
-    }
-}
