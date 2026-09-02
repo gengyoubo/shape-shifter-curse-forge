@@ -37,6 +37,7 @@ public final class FormManager {
                 data.setFormId(target.id().toString());
                 data.setFormGroupId(target.groupId().toString());
                 data.setFormTier(target.tier());
+                player.refreshDimensions();
             }
             data.setContentEnabled(!FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(target.id()));
             return !target.id().toString().equals(currentId);
@@ -89,6 +90,7 @@ public final class FormManager {
             data.setFormGroupId(groupId);
             data.setFormTier(tier);
             data.setContentEnabled(enabled);
+            player.refreshDimensions();
         });
     }
 }
