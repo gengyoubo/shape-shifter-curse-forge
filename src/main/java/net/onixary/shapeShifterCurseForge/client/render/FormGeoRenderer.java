@@ -18,6 +18,10 @@ public final class FormGeoRenderer extends GeoObjectRenderer<FormGeoAnimatable> 
         this.animatable = formAnimatable;
     }
 
+    public void setInventoryPreview(boolean inventoryPreview) {
+        this.formAnimatable.setInventoryPreview(inventoryPreview);
+    }
+
     @Override
     public long getInstanceId(FormGeoAnimatable animatable) {
         Player player = animatable.getPlayer();

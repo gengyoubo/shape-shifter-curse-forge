@@ -14,6 +14,7 @@ import software.bernie.geckolib.core.object.PlayState;
 public final class FormGeoAnimatable implements GeoAnimatable {
     private final AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
     private Player player;
+    private boolean inventoryPreview;
 
     public void setPlayer(Player player) {
         this.player = player;
@@ -21,6 +22,14 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     public Player getPlayer() {
         return player;
+    }
+
+    public void setInventoryPreview(boolean inventoryPreview) {
+        this.inventoryPreview = inventoryPreview;
+    }
+
+    public boolean isInventoryPreview() {
+        return inventoryPreview;
     }
 
     @Override

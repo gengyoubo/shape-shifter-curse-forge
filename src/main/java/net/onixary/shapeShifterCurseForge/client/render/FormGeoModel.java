@@ -58,14 +58,15 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         }
 
         float partialTick = animationState.getPartialTick();
-        float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
-        // InventoryScreen adjusts yHeadRot/yBodyRot for its mouse-following preview without
-        // changing the player's camera yaw.  Use the renderer-facing head yaw so the form head
-        // follows the same pose in-world and in the inventory.
-        float headYaw = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
-        float headPitch = player.getViewXRot(partialTick);
+        boolean inventoryPreview = animatable.isInventoryPreview();
+        // InventoryScreen temporarily writes the current rotations only.  Its previous-frame
+        // rotations still belong to the world player, so interpolation tears the head away from
+        // the body.  The preview must use the values set for this render call verbatim.
+        float bodyYaw = inventoryPreview ? player.yBodyRot : Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
+        float headYaw = inventoryPreview ? player.yHeadRot : Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
+        float headPitch = inventoryPreview ? player.getXRot() : player.getViewXRot(partialTick);
         float age = player.tickCount + partialTick;
-        float movement = (float) Math.min(1.0D,
+        float movement = inventoryPreview ? 0.0F : (float) Math.min(1.0D,
                 Math.sqrt(player.getDeltaMovement().horizontalDistanceSqr()) * 8.0D);
         if (!player.onGround() || player.isFallFlying() || player.isSwimming()) {
             movement = 0.0F;
@@ -75,9 +76,10 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         float armSwing = Mth.cos(stride) * 0.95F * movement;
         float legSwing = Mth.cos(stride) * 1.40F * movement;
 
+        // Vanilla's PlayerModel receives netHeadYaw = headYaw - bodyYaw.
         setRotation("bipedHead", headPitch * DEG_TO_RAD,
-                Mth.wrapDegrees(bodyYaw - headYaw) * DEG_TO_RAD, 0.0F);
-        setRotation("bipedBody", player.isCrouching() ? 0.50F : 0.0F, 0.0F, 0.0F);
+                Mth.wrapDegrees(headYaw - bodyYaw) * DEG_TO_RAD, 0.0F);
+        setRotation("bipedBody", !inventoryPreview && player.isCrouching() ? 0.50F : 0.0F, 0.0F, 0.0F);
         setRotation("bipedRightArm", -armSwing, 0.0F, 0.0F);
         setRotation("bipedLeftArm", armSwing, 0.0F, 0.0F);
         setRotation("bipedRightLeg", legSwing, 0.0F, 0.0F);

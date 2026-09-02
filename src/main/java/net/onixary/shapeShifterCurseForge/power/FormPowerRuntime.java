@@ -64,6 +64,13 @@ public final class FormPowerRuntime {
             case "apoli:fall_flying" -> actor.isFallFlying();
             case "apoli:swimming" -> actor.isSwimming();
             case "apoli:on_fire" -> actor.isOnFire();
+            case "apoli:collided_horizontally" -> actor.horizontalCollision;
+            case "apoli:constant" -> !condition.has("value") || condition.get("value").getAsBoolean();
+            case "apoli:entity_group" -> target instanceof LivingEntity living
+                    && "undead".equals(stringValue(condition, "group", "")) && living.getMobType() == net.minecraft.world.entity.MobType.UNDEAD;
+            case "apoli:in_block" -> matchesBlockAt(actor, actor.blockPosition(), condition.getAsJsonObject("block_condition"));
+            case "apoli:block_collision" -> matchesBlockCollision(actor, condition);
+            case "shape-shifter-curse:check_accessory", "shape-shifter-curse:has_accessory" -> false;
             case "shape-shifter-curse:has_mana" -> FormActivePowerService.hasMana(actor,
                     floatValue(condition, "mana", 0.0F));
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);
@@ -125,6 +132,8 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:fire_arrow" -> fireArrow(actor, action);
             case "shape-shifter-curse:explosion_damage_entity" -> explosionDamage(actor, action);
             case "shape-shifter-curse:spawn_particles_in_circle" -> spawnParticlesInCircle(actor, action);
+            case "shape-shifter-curse:summon_anubis_wolf_minion", "shape-shifter-curse:bi_summon_anubis_wolf_minion"
+                    -> AnubisMinionService.summon(actor, target == null ? actor : target, action);
             case "shape-shifter-curse:set_falling_distance" -> actor.fallDistance = floatValue(action, "distance", 0.0F);
             default -> {
                 // More specialised actions (projectiles, block placement, mana, and custom entities)
@@ -295,12 +304,28 @@ public final class FormPowerRuntime {
         if (blockCondition == null) {
             return actor.onGround();
         }
-        if (!"apoli:block".equals(FormPowerRegistry.typeOf(blockCondition))) {
-            return true;
+        return matchesBlockAt(actor, actor.blockPosition().below(), blockCondition);
+    }
+
+    private static boolean matchesBlockAt(Player actor, BlockPos pos, JsonObject condition) {
+        if (condition == null) return !actor.level().getBlockState(pos).isAir();
+        String type = FormPowerRegistry.typeOf(condition);
+        if ("apoli:in_tag".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
+            return id != null && actor.level().getBlockState(pos).is(TagKey.create(Registries.BLOCK, id));
         }
-        ResourceLocation id = ResourceLocation.tryParse(stringValue(blockCondition, "block", ""));
+        if (!"apoli:block".equals(type)) return true;
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "block", ""));
         Block block = id == null ? null : BuiltInRegistries.BLOCK.get(id);
-        return block != null && actor.level().getBlockState(actor.blockPosition().below()).is(block);
+        return block != null && actor.level().getBlockState(pos).is(block);
+    }
+
+    private static boolean matchesBlockCollision(Player actor, JsonObject condition) {
+        if (!actor.horizontalCollision) return false;
+        Vec3 direction = actor.getLookAngle();
+        BlockPos pos = BlockPos.containing(actor.getX() + direction.x * 0.45D + doubleValue(condition, "offset_x", 0.0D),
+                actor.getY() + 0.2D, actor.getZ() + direction.z * 0.45D + doubleValue(condition, "offset_z", 0.0D));
+        return matchesBlockAt(actor, pos, condition.getAsJsonObject("block_condition"));
     }
 
     private static void applyEffect(LivingEntity recipient, JsonObject effectData) {

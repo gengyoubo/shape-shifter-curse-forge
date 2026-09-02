@@ -1,0 +1,90 @@
+package net.onixary.shapeShifterCurseForge.power;
+
+import com.google.gson.JsonObject;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/** Server-side implementations for continuous movement and defensive form powers. */
+public final class MovementPowerService {
+    private static final Map<UUID, Integer> DODGE_COOLDOWNS = new HashMap<>();
+    private static final Map<UUID, Boolean> DODGE_RIGHT = new HashMap<>();
+
+    private MovementPowerService() { }
+
+    public static void tick(Player player) {
+        DODGE_COOLDOWNS.computeIfPresent(player.getUUID(), (id, ticks) -> ticks <= 1 ? null : ticks - 1);
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            switch (FormPowerRegistry.typeOf(power)) {
+                case "shape-shifter-curse:projectile_dodge" -> dodgeProjectiles(player, power);
+                case "shape-shifter-curse:powder_snow_walker" -> walkPowderSnow(player);
+                case "shape-shifter-curse:slowdown_percent" -> resistWebSlowdown(player, power);
+                case "shape-shifter-curse:water_flexibility" -> applyWaterFlexibility(player, power);
+                case "shape-shifter-curse:soul_speed" -> applySoulSpeed(player, power);
+                default -> { }
+            }
+        });
+    }
+
+    private static void dodgeProjectiles(Player player, JsonObject power) {
+        if (DODGE_COOLDOWNS.containsKey(player.getUUID())
+                || !FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) return;
+        double range = FormPowerRuntime.doubleValue(power, "range", 5.0D);
+        double triggerDistance = FormPowerRuntime.doubleValue(power, "trigger_distance", 4.0D);
+        for (Projectile projectile : player.level().getEntitiesOfClass(Projectile.class,
+                player.getBoundingBox().inflate(range), candidate -> candidate.getOwner() != player && !candidate.isRemoved())) {
+            Vec3 velocity = projectile.getDeltaMovement();
+            if (velocity.lengthSqr() < 0.01D || projectile.position().distanceTo(player.position()) > triggerDistance) continue;
+            Vec3 towardPlayer = player.position().subtract(projectile.position()).normalize();
+            if (velocity.normalize().dot(towardPlayer) <= 0.7D) continue;
+            boolean right = !DODGE_RIGHT.getOrDefault(player.getUUID(), false);
+            DODGE_RIGHT.put(player.getUUID(), right);
+            Vec3 horizontal = new Vec3(velocity.x, 0.0D, velocity.z).normalize();
+            Vec3 dodge = right ? new Vec3(-horizontal.z, 0.0D, horizontal.x) : new Vec3(horizontal.z, 0.0D, -horizontal.x);
+            player.push(dodge.x * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D), 0.0D,
+                    dodge.z * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D));
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
+            DODGE_COOLDOWNS.put(player.getUUID(), Math.max(1, FormPowerRuntime.intValue(power, "cooldown", 20)));
+            break;
+        }
+    }
+
+    private static void walkPowderSnow(Player player) {
+        if (player.getBlockStateOn().is(Blocks.POWDER_SNOW) || player.level().getBlockState(player.blockPosition()).is(Blocks.POWDER_SNOW)) {
+            player.setDeltaMovement(player.getDeltaMovement().x, Math.max(player.getDeltaMovement().y, 0.0D), player.getDeltaMovement().z);
+            player.resetFallDistance();
+        }
+    }
+
+    private static void resistWebSlowdown(Player player, JsonObject power) {
+        BlockPos pos = player.blockPosition();
+        if (!player.level().getBlockState(pos).is(Blocks.COBWEB) && !player.level().getBlockState(pos.below()).is(Blocks.COBWEB)) return;
+        double multiplier = FormPowerRuntime.doubleValue(power, "multiplier", 1.0D);
+        if (multiplier <= 0.0D) {
+            Vec3 motion = player.getDeltaMovement();
+            player.setDeltaMovement(motion.x * 4.0D, Math.max(motion.y, -0.05D), motion.z * 4.0D);
+        }
+    }
+
+    private static void applyWaterFlexibility(Player player, JsonObject power) {
+        if (!player.isInWater() || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+        double flex = FormPowerRuntime.doubleValue(power, "water_flex", 0.5D);
+        Vec3 motion = player.getDeltaMovement();
+        player.setDeltaMovement(motion.x * (1.0D + flex * 0.12D), motion.y, motion.z * (1.0D + flex * 0.12D));
+    }
+
+    private static void applySoulSpeed(Player player, JsonObject power) {
+        if (!player.getBlockStateOn().is(Blocks.SOUL_SAND) && !player.getBlockStateOn().is(Blocks.SOUL_SOIL)) return;
+        double boost = 0.03D * Math.min(FormPowerRuntime.intValue(power, "level", 1),
+                FormPowerRuntime.intValue(power, "max_level", 3));
+        Vec3 motion = player.getDeltaMovement();
+        player.setDeltaMovement(motion.x * (1.0D + boost), motion.y, motion.z * (1.0D + boost));
+    }
+}

@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -48,13 +49,19 @@ public final class FormClientRenderEvents {
 
         FormGeoRenderer renderer = RENDERERS.computeIfAbsent(form.id(), ignored -> new FormGeoRenderer(model, texture));
         renderer.setPlayer(player);
+        // Both survival and creative inventories render their player preview full-bright.  This
+        // is stable across the two screen classes, unlike instanceof InventoryScreen.
+        boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
+                && event.getPackedLight() == LightTexture.FULL_BRIGHT;
+        renderer.setInventoryPreview(inventoryPreview);
 
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         // RenderPlayerEvent.Pre runs before LivingEntityRenderer applies the normal player
         // transforms.  Reproduce those transforms before the feature-style form transforms
         // used by the Fabric renderer, otherwise the Gecko model is vertically inverted.
-        float bodyYaw = Mth.rotLerp(event.getPartialTick(), player.yBodyRotO, player.yBodyRot);
+        float bodyYaw = inventoryPreview ? player.yBodyRot
+                : Mth.rotLerp(event.getPartialTick(), player.yBodyRotO, player.yBodyRot);
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - bodyYaw));
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         poseStack.translate(0.0D, -1.501D, 0.0D);

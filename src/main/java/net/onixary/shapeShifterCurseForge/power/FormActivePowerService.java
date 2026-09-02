@@ -18,6 +18,7 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<ResourceLocation, Double>> RESOURCES = new HashMap<>();
     private static final Map<UUID, Map<String, Float>> MANA = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
+    private static final Map<UUID, Boolean> CROUCHING = new HashMap<>();
     private static final Map<UUID, Integer> JUMPS = new HashMap<>();
     private static final Map<UUID, Integer> GROUND_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> LEVITATE_TICKS = new HashMap<>();
@@ -59,8 +60,18 @@ public final class FormActivePowerService {
         }
         boolean wasSprinting = SPRINTING.getOrDefault(player.getUUID(), false);
         SPRINTING.put(player.getUUID(), player.isSprinting());
+        boolean wasCrouching = CROUCHING.getOrDefault(player.getUUID(), false);
+        CROUCHING.put(player.getUUID(), player.isCrouching());
         if (player.isSprinting() && !wasSprinting && player instanceof ServerPlayer serverPlayer) {
             triggerActive(serverPlayer, "key.sprint");
+        }
+        if (wasSprinting && player.isCrouching() && !wasCrouching && player instanceof ServerPlayer serverPlayer) {
+            FormPowerRegistry.visitActive(serverPlayer, (id, power) -> {
+                if ("shape-shifter-curse:action_on_sprinting_to_sneaking".equals(FormPowerRegistry.typeOf(power))
+                        && FormPowerRuntime.test(serverPlayer, serverPlayer, power.getAsJsonObject("entity_condition"))) {
+                    FormPowerRuntime.execute(serverPlayer, serverPlayer, power.getAsJsonObject("entity_action"));
+                }
+            });
         }
         Map<String, Boolean> keys = PRESSED_KEYS.get(player.getUUID());
         if (keys == null) {
