@@ -11,10 +11,15 @@ import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public final class FormGeoAnimatable implements GeoAnimatable {
     private final AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
     private Player player;
     private boolean inventoryPreview;
+    private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
 
     public void setPlayer(Player player) {
         this.player = player;
@@ -30,6 +35,19 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     public boolean isInventoryPreview() {
         return inventoryPreview;
+    }
+
+    public float animationTime(FormAnimationSystem.Selection selection, float partialTick) {
+        if (player == null || selection == null || inventoryPreview) {
+            return 0.0F;
+        }
+        double now = player.tickCount + partialTick;
+        AnimationTimeline timeline = timelines.computeIfAbsent(player.getUUID(), ignored -> new AnimationTimeline());
+        if (!selection.id().equals(timeline.animationId)) {
+            timeline.animationId = selection.id();
+            timeline.startedAt = now;
+        }
+        return (float) ((now - timeline.startedAt) / 20.0D * selection.speed());
     }
 
     @Override
@@ -48,5 +66,10 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     @Override
     public double getTick(Object animatable) {
         return player == null ? 0.0D : player.tickCount + Minecraft.getInstance().getFrameTime();
+    }
+
+    private static final class AnimationTimeline {
+        private String animationId;
+        private double startedAt;
     }
 }

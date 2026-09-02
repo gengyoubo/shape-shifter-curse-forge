@@ -57,6 +57,13 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             return;
         }
 
+        resetTransform("bipedHead");
+        resetTransform("bipedBody");
+        resetTransform("bipedLeftArm");
+        resetTransform("bipedRightArm");
+        resetTransform("bipedLeftLeg");
+        resetTransform("bipedRightLeg");
+
         float partialTick = animationState.getPartialTick();
         boolean inventoryPreview = animatable.isInventoryPreview();
         // InventoryScreen temporarily writes the current rotations only.  Its previous-frame
@@ -93,6 +100,11 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         setRotation("leftWing", 0.0F, 0.0F, flutter);
         setRotation("rightWing", 0.0F, 0.0F, -flutter);
         setRotation("tail", 0.0F, Mth.sin(age * 0.20F) * 0.10F, 0.0F);
+
+        FormAnimationSystem.Selection selection = FormAnimationSystem.select(player);
+        if (selection != null) {
+            BedrockAnimationPlayer.apply(this, selection, animatable.animationTime(selection, partialTick));
+        }
     }
 
     private void setRotation(String boneName, float x, float y, float z) {
@@ -100,6 +112,17 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             bone.setRotX(x);
             bone.setRotY(y);
             bone.setRotZ(z);
+        });
+    }
+
+    private void resetTransform(String boneName) {
+        getBone(boneName).ifPresent(bone -> {
+            bone.setPosX(0.0F);
+            bone.setPosY(0.0F);
+            bone.setPosZ(0.0F);
+            bone.setScaleX(1.0F);
+            bone.setScaleY(1.0F);
+            bone.setScaleZ(1.0F);
         });
     }
 }
