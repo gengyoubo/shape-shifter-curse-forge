@@ -77,6 +77,13 @@ processResources {
         exclude 'data/**'
     }
 
+    // The original Origins/Apoli JSON is consumed by the Forge-native form-power loader.
+    // Keep only the two directories that describe form-to-power assignments and powers.
+    from(sharedResources) {
+        include 'data/shape-shifter-curse/origins/**'
+        include 'data/shape-shifter-curse/powers/**'
+    }
+
     filesMatching('META-INF/mods.toml') {
         expand 'version': project.version,
                 'minecraft_version': project.minecraft_version,

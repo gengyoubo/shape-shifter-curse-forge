@@ -32,6 +32,14 @@ public final class ModNetwork {
                 SyncFormPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                1,
+                ActivePowerKeyPacket.class,
+                ActivePowerKeyPacket::encode,
+                ActivePowerKeyPacket::decode,
+                ActivePowerKeyPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {

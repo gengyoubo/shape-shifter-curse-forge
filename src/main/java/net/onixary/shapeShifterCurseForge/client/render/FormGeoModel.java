@@ -59,7 +59,10 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
 
         float partialTick = animationState.getPartialTick();
         float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
-        float headYaw = player.getViewYRot(partialTick);
+        // InventoryScreen adjusts yHeadRot/yBodyRot for its mouse-following preview without
+        // changing the player's camera yaw.  Use the renderer-facing head yaw so the form head
+        // follows the same pose in-world and in the inventory.
+        float headYaw = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
         float headPitch = player.getViewXRot(partialTick);
         float age = player.tickCount + partialTick;
         float movement = (float) Math.min(1.0D,
@@ -72,7 +75,8 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         float armSwing = Mth.cos(stride) * 0.95F * movement;
         float legSwing = Mth.cos(stride) * 1.40F * movement;
 
-        setRotation("bipedHead", headPitch * DEG_TO_RAD, (bodyYaw - headYaw) * DEG_TO_RAD, 0.0F);
+        setRotation("bipedHead", headPitch * DEG_TO_RAD,
+                Mth.wrapDegrees(bodyYaw - headYaw) * DEG_TO_RAD, 0.0F);
         setRotation("bipedBody", player.isCrouching() ? 0.50F : 0.0F, 0.0F, 0.0F);
         setRotation("bipedRightArm", -armSwing, 0.0F, 0.0F);
         setRotation("bipedLeftArm", armSwing, 0.0F, 0.0F);
