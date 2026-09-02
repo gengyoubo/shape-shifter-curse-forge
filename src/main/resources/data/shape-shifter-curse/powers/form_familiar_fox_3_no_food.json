@@ -1,0 +1,30 @@
+{
+    "type": "apoli:modify_food",
+    "food_modifiers": [
+        {
+            "operation": "set_total",
+            "value": 0.0
+        }
+    ],
+    "saturation_modifiers": [
+        {
+            "operation": "set_total",
+            "value": 0.0
+        }
+    ],
+    "item_condition": {
+        "type": "apoli:and",
+        "conditions": [
+            {
+                "type": "apoli:food"
+            },
+            {
+                "type": "apoli:ingredient",
+                "ingredient": {
+                    "tag": "shape-shifter-curse:ignore_diet"
+                },
+                "inverted": true
+            }
+        ]
+    }
+}

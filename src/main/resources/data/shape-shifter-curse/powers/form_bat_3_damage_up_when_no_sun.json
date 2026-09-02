@@ -1,0 +1,61 @@
+{
+    "type": "apoli:multiple",
+    "normal": {
+        "type": "apoli:conditioned_attribute",
+        "condition": {
+            "type": "apoli:exposed_to_sun",
+            "inverted": true
+        },
+        "modifier": {
+            "attribute": "minecraft:generic.attack_damage",
+            "name": "Extra Attack Damage Normal",
+            "operation": "addition",
+            "value": 1.0
+        },
+        "tick_rate": 1
+    },
+    "barehand": {
+        "type": "apoli:conditioned_attribute",
+        "condition": {
+            "type": "apoli:and",
+            "conditions": [
+                {
+                    "type": "apoli:exposed_to_sun",
+                    "inverted": true
+                },
+                {
+                    "type": "apoli:or",
+                    "conditions": [
+                        {
+                            "type": "apoli:inventory",
+                            "process_mode": "items",
+                            "item_condition": {
+                                "type": "shape-shifter-curse:is_weapon"
+                            },
+                            "slots": [
+                                "weapon.mainhand"
+                            ],
+                            "inverted": true
+                        },
+                        {
+                            "type": "apoli:inventory",
+                            "process_mode": "items",
+                            "comparison": "==",
+                            "compare_to": 0,
+                            "slots": [
+                                "weapon.mainhand"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "modifier": {
+            "attribute": "minecraft:generic.attack_damage",
+            "name": "Extra Attack Damage Normal",
+            "operation": "addition",
+            "value": 5.0
+        },
+        "tick_rate": 1
+    }
+}

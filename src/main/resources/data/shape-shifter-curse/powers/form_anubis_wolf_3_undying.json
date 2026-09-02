@@ -1,0 +1,45 @@
+{
+  "type": "shape-shifter-curse:virtual_totem",
+  "virtual_totem_type": "shape-shifter-curse:form_anubis_wolf_3_undying",
+  "totem_stack": {
+    "item": "minecraft:air",
+    "count": 1
+  },
+  "entity_actions": [
+    {
+      "type": "shape-shifter-curse:summon_anubis_wolf_minion",
+      "minion_level": 3,
+      "count": 2,
+      "max_minion_count": 4,
+      "cooldown": 0
+    }
+  ],
+  "totem_health": 10,
+  "totem_status_effects": [
+    {
+      "effect": "minecraft:wither",
+      "duration": 440,
+      "amplifier": 1,
+      "show_particles": false,
+      "show_icon": true
+    },
+    {
+      "effect": "minecraft:fire_resistance",
+      "duration": 800,
+      "amplifier": 0,
+      "show_particles": false,
+      "show_icon": true
+    },
+    {
+      "effect": "minecraft:weakness",
+      "duration": 2400,
+      "amplifier": 0,
+      "show_particles": false,
+      "show_icon": true
+    }
+  ],
+  "cooldown": 9000,
+  "hud_render": {
+    "should_render": false
+  }
+}

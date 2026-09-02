@@ -1,0 +1,21 @@
+{
+    "powers": [
+        "shape-shifter-curse:form_familiar_fox_0_sprint_speed_up",
+        "shape-shifter-curse:form_familiar_fox_0_water_speed_down",
+        "shape-shifter-curse:form_snow_fox_0_triple_jump",
+        "shape-shifter-curse:form_snow_fox_0_desert_health",
+        "shape-shifter-curse:form_instinct_use_catalyst",
+        "shape-shifter-curse:form_instinct_use_golden_apple",
+        "shape-shifter-curse:form_familiar_fox_instinct_moving_on_snow",
+        "shape-shifter-curse:form_familiar_fox_instinct_eat_berry",
+        "shape-shifter-curse:form_familiar_fox_instinct_biome",
+        "shape-shifter-curse:form_familiar_fox_sound_key"
+    ],
+    "icon": {
+        "item": "minecraft:player_head"
+    },
+    "order": 0,
+    "unchoosable": true,
+    "impact": 0,
+    "loading_priority": 0
+}

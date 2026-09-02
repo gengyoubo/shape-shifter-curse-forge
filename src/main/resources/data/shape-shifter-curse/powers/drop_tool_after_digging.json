@@ -1,0 +1,28 @@
+{
+    "type": "apoli:action_on_block_break",
+    "entity_action": {
+        "type": "apoli:drop_inventory",
+        "item_condition": {
+            "type": "apoli:and",
+            "conditions": [
+                {
+                    "type": "apoli:harvest_level",
+                    "comparison": ">=",
+                    "compare_to": 1
+                },
+                {
+                    "type": "shape-shifter-curse:is_morph_scale_item",
+                    "inverted": true
+                }
+            ]
+        },
+        "slots": [
+            "weapon.mainhand"
+        ]
+    },
+    "block_condition": {
+        "type": "apoli:blast_resistance",
+        "comparison": ">",
+        "compare_to": 0.2
+    }
+}

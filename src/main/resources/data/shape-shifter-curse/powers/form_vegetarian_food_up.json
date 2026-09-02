@@ -1,0 +1,75 @@
+{
+    "type": "apoli:modify_food",
+    "food_modifiers": [
+        {
+            "name": "increase food points",
+            "operation": "addition",
+            "value": 2.0
+        },
+        {
+            "name": "increase food points",
+            "operation": "min_base",
+            "value": 4.0
+        },
+        {
+            "name": "increase food points",
+            "operation": "multiply_base",
+            "value": 0.2
+        }
+    ],
+    "saturation_modifiers": [
+        {
+            "name": "increase food points",
+            "operation": "min_total",
+            "value": 0.6
+        }
+    ],
+    "item_condition": {
+        "type": "apoli:and",
+        "conditions": [
+            {
+                "type": "apoli:or",
+                "conditions": [
+                    {
+                        "type": "apoli:and",
+                        "conditions": [
+                            {
+                                "type": "apoli:ingredient",
+                                "ingredient": {
+                                    "tag": "shape-shifter-curse:meat"
+                                },
+                                "inverted": true
+                            },
+                            {
+                                "type": "apoli:meat",
+                                "inverted": true
+                            }
+                        ]
+                    },
+                    {
+                        "type": "shape-shifter-curse:is_vegan_ex",
+                        "default": false
+                    }
+                ]
+            },
+            {
+                "type": "apoli:ingredient",
+                "ingredient": {
+                    "tag": "shape-shifter-curse:ignore_diet"
+                },
+                "inverted": true
+            },
+            {
+                "type": "apoli:ingredient",
+                "ingredient": {
+                    "tag": "shape-shifter-curse:ignore_vc_eat"
+                },
+                "inverted": true
+            },
+            {
+                "type": "shape-shifter-curse:is_morph_scale_food",
+                "inverted": true
+            }
+        ]
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "type": "apoli:modify_break_speed",
+    "condition": {
+        "type": "apoli:creative_flying"
+    },
+    "modifier": {
+        "operation": "multiply_base",
+        "value": -0.8
+    }
+}

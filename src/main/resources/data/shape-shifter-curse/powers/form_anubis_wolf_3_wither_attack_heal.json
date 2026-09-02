@@ -1,0 +1,37 @@
+{
+    "type": "apoli:action_on_hit",
+    "bientity_action": {
+        "type": "apoli:and",
+        "actions": [
+            {
+                "type": "apoli:actor_action",
+                "action": {
+                    "type": "apoli:and",
+                    "actions": [
+                        {
+                            "type": "apoli:heal",
+                            "amount": 3
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "bientity_condition": {
+        "type": "apoli:actor_condition",
+        "condition": {
+            "type": "apoli:and",
+            "conditions": [
+                {
+                    "type": "apoli:status_effect",
+                    "effect": "minecraft:wither"
+                }
+            ]
+        }
+    },
+    "damage_condition": {
+        "type": "apoli:amount",
+        "comparison": ">",
+        "compare_to": 1
+    }
+}

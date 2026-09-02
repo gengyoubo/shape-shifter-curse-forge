@@ -1,0 +1,22 @@
+{
+  "load_priority": 0,
+
+  "name": "shape-shifter-curse.form_ocelot_0.model_name",
+  "layer": "origins:origin",
+  "form": "shape-shifter-curse:form_ocelot_0",
+
+  "wide_only": true,
+
+  "model": "shape-shifter-curse:geo/form/form_ocelot_0.geo.json",
+  "texture": "shape-shifter-curse:textures/form/form_ocelot_0/form_ocelot_0.png",
+  "texture_mask": "shape-shifter-curse:textures/form/form_ocelot_0/form_ocelot_0_colormask.png",
+
+  "animation_system": "shape-shifter-curse:default",
+  "animation_system_config": {
+    "tail": {
+      "chain": {
+        "tail": [0, 1]
+      }
+    }
+  }
+}

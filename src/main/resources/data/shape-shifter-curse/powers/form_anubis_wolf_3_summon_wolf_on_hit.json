@@ -1,0 +1,10 @@
+{
+  "type": "apoli:action_on_hit",
+  "bientity_action": {
+    "type": "shape-shifter-curse:bi_summon_anubis_wolf_minion",
+    "minion_level": 3,
+    "count": 2,
+    "max_minion_count": 2,
+    "cooldown": 600
+  }
+}

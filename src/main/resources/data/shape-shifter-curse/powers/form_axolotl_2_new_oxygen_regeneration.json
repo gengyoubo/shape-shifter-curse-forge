@@ -1,0 +1,28 @@
+{
+    "type": "apoli:action_over_time",
+    "entity_action": {
+        "type": "apoli:heal",
+        "amount": 1
+    },
+    "interval": 200,
+    "condition": {
+        "type": "apoli:and",
+        "conditions": [
+            {
+                "type": "apoli:food_level",
+                "comparison": ">=",
+                "compare_to": 6
+            },
+            {
+                "type": "apoli:health",
+                "comparison": "<",
+                "compare_to": 32
+            },
+            {
+                "type": "apoli:air",
+                "comparison": ">",
+                "compare_to": 150
+            }
+        ]
+    }
+}

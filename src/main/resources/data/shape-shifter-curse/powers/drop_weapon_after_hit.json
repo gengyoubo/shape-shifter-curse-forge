@@ -1,0 +1,35 @@
+{
+    "type": "apoli:self_action_on_hit",
+    "entity_action": {
+        "type": "apoli:drop_inventory",
+        "item_condition": {
+            "type": "apoli:and",
+            "conditions": [
+                {
+                    "type": "apoli:or",
+                    "conditions": [
+                        {
+                            "type": "apoli:ingredient",
+                            "ingredient": {
+                                "tag": "shape-shifter-curse:melee_weapons"
+                            }
+                        },
+                        {
+                            "type": "apoli:ingredient",
+                            "ingredient": {
+                                "tag": "shape-shifter-curse:tools"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "shape-shifter-curse:is_morph_scale_item",
+                    "inverted": true
+                }
+            ]
+        },
+        "slots": [
+            "weapon.mainhand"
+        ]
+    }
+}

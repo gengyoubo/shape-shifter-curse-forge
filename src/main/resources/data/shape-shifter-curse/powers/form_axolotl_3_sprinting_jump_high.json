@@ -1,0 +1,30 @@
+{
+    "type": "apoli:modify_jump",
+    "modifier": {
+        "name": "Bonus jump force while sneaking",
+        "operation": "multiply_base",
+        "value": 0.1
+    },
+    "condition": {
+        "type": "apoli:and",
+        "conditions": [
+            {
+                "type": "apoli:sprinting"
+            },
+            {
+                "type": "apoli:fluid_height",
+                "fluid": "minecraft:water",
+                "comparison": "<=",
+                "compare_to": 0
+            },
+            {
+                "type": "apoli:on_block"
+            },
+            {
+                "type": "apoli:air",
+                "comparison": ">",
+                "compare_to": 0
+            }
+        ]
+    }
+}

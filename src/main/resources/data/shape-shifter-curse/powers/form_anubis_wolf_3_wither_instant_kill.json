@@ -1,0 +1,33 @@
+{
+  "type": "apoli:action_on_hit",
+  "bientity_action": {
+    "type": "apoli:target_action",
+    "action": {
+      "type": "apoli:damage",
+      "amount": 10,
+      "damage_type": "minecraft:player_attack"
+    }
+  },
+  "bientity_condition": {
+    "type": "apoli:and",
+    "conditions": [
+      {
+        "type": "apoli:target_condition",
+        "condition": {
+          "type": "apoli:and",
+          "conditions": [
+            {
+              "type": "apoli:health",
+              "comparison": "<",
+              "compare_to": 10
+            },
+            {
+              "type": "apoli:status_effect",
+              "effect": "minecraft:wither"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

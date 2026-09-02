@@ -1,0 +1,32 @@
+{
+    "type": "apoli:item_on_item",
+    "using_item_condition": {
+        "type": "apoli:ingredient",
+        "ingredient": {
+            "item": "minecraft:amethyst_block"
+        }
+    },
+    "on_item_condition": {
+        "type": "apoli:ingredient",
+        "ingredient": {
+            "item": "minecraft:amethyst_block"
+        }
+    },
+    "result": {
+        "item": "minecraft:amethyst_shard",
+        "amount": 3
+    },
+    "using_item_action": {
+        "type": "apoli:consume",
+        "amount": 1
+    },
+    "on_item_action": {
+        "type": "apoli:consume",
+        "amount": 1
+    },
+    "entity_action": {
+        "type": "apoli:play_sound",
+        "sound": "minecraft:block.amethyst_block.break",
+        "volume": 0.45
+    }
+}

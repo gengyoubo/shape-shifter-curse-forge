@@ -1,0 +1,35 @@
+{
+    "type": "apoli:conditioned_attribute",
+    "condition": {
+        "type": "apoli:or",
+        "conditions": [
+            {
+                "type": "apoli:inventory",
+                "process_mode": "items",
+                "item_condition": {
+                    "type": "shape-shifter-curse:is_weapon"
+                },
+                "slots": [
+                    "weapon.mainhand"
+                ],
+                "inverted": true
+            },
+            {
+                "type": "apoli:inventory",
+                "process_mode": "items",
+                "comparison": "==",
+                "compare_to": 0,
+                "slots": [
+                    "weapon.mainhand"
+                ]
+            }
+        ]
+    },
+    "modifier": {
+        "attribute": "minecraft:generic.attack_damage",
+        "name": "Extra Attack Damage",
+        "operation": "addition",
+        "value": 7.0
+    },
+    "tick_rate": 1
+}

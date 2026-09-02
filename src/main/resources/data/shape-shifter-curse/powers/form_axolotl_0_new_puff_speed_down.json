@@ -1,0 +1,30 @@
+{
+    "type": "apoli:conditioned_attribute",
+    "modifier": {
+        "attribute": "minecraft:generic.movement_speed",
+        "operation": "multiply_total",
+        "value": -0.2,
+        "name": "Decreased speed on sand"
+    },
+    "tick_rate": 20,
+    "condition": {
+        "type": "apoli:or",
+        "conditions": [
+            {
+                "type": "apoli:on_block",
+                "block_condition": {
+                    "type": "apoli:in_tag",
+                    "tag": "shape-shifter-curse:puff_block"
+                }
+            },
+            {
+                "type": "apoli:on_block",
+                "block_condition": {
+                    "type": "apoli:block_state",
+                    "property": "snowy",
+                    "value": true
+                }
+            }
+        ]
+    }
+}

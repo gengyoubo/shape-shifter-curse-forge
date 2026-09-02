@@ -1,0 +1,18 @@
+{
+    "powers": [
+        "shape-shifter-curse:hold_breath",
+        "shape-shifter-curse:form_axolotl_0_new_puff_speed_down",
+        "shape-shifter-curse:form_axolotl_0_swim_speed",
+        "shape-shifter-curse:form_axolotl_instinct_in_water",
+        "shape-shifter-curse:form_axolotl_instinct_biome",
+        "shape-shifter-curse:form_instinct_use_catalyst",
+        "shape-shifter-curse:form_instinct_use_golden_apple",
+        "shape-shifter-curse:form_axolotl_sound_key"
+    ],
+    "icon": {
+        "item": "minecraft:player_head"
+    },
+    "order": 0,
+    "unchoosable": true,
+    "impact": 0
+}

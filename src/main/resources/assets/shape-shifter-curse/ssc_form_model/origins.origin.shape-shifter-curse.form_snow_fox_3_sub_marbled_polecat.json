@@ -1,0 +1,63 @@
+{
+  "load_priority": 0,
+
+  "name": "shape-shifter-curse.form_snow_fox_3_sub_marbled_polecat.model_name",
+  "layer": "origins:origin",
+  "form": "shape-shifter-curse:form_snow_fox_3_sub_marbled_polecat",
+
+  "wide_only": true,
+
+  "model": "shape-shifter-curse:geo/form/form_snow_fox_3_sub_marbled_polecat.geo.json",
+  "texture": "shape-shifter-curse:textures/form/form_snow_fox_3_sub_marbled_polecat/form_snow_fox_3_sub_marbled_polecat.png",
+  "texture_mask": "shape-shifter-curse:textures/form/form_snow_fox_3_sub_marbled_polecat/form_snow_fox_3_sub_marbled_polecat_colormask.png",
+
+  "hidden": [
+    "leftLeg",
+    "rightLeg",
+    "rightPants",
+    "leftPants",
+    "leftSleeve",
+    "rightSleeve",
+    "leftArm",
+    "rightArm",
+    "body",
+    "jacket",
+    "head",
+    "hat"
+  ],
+
+  "animation_system": "shape-shifter-curse:default",
+  "animation_system_config": {
+    "extra_parts_map": {
+      "lowerBody": "lowerBody",
+      "neckMount": "neckMount",
+      "tailMount": "tailMount"
+    },
+    "tail": {
+      "chain": {
+        "tail": [0, 1, 2, 3, 4, 5]
+      }
+    },
+    "head_tail": {
+      "chain": {
+        "ear_a": [0],
+        "ear_b": [0]
+      }
+    },
+    "neck_config": {
+      "chain": {
+        "neck": [0, 1, 2]
+      },
+      "head": "ik_head",
+      "yaw_axis": "-y",
+      "pitch_axis": "x",
+      "yaw_weights": [0.18, 0.27, 0.32, 0.23],
+      "pitch_weights": [0.10, 0.22, 0.33, 0.35],
+      "yaw_total": 1.0,
+      "pitch_total": 1.0,
+      "max_yaw_deg": 120.0,
+      "max_pitch_up_deg": 70.0,
+      "max_pitch_down_deg": 60.0
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+    "type": "apoli:modify_jump",
+    "modifier": {
+        "operation": "addition",
+        "value": 0.2
+    },
+    "entity_action": {
+        "type": "apoli:and",
+        "actions": [
+            {
+                "type": "apoli:execute_command",
+                "command": "particle cloud ~ ~ ~ 0.3 0.3 0.3 0.01 16 normal @a"
+            }
+        ]
+    }
+}

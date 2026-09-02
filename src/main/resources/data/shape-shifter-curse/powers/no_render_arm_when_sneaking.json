@@ -1,0 +1,11 @@
+{
+    "type": "shape-shifter-curse:no_render_arm",
+    "condition": {
+        "type": "apoli:and",
+        "conditions": [
+            {
+                "type": "apoli:sneaking"
+            }
+        ]
+    }
+}

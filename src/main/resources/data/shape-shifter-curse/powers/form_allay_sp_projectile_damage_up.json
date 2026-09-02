@@ -1,0 +1,7 @@
+{
+    "type": "apoli:modify_projectile_damage",
+    "modifier": {
+        "operation": "addition",
+        "value": 6.0
+    }
+}

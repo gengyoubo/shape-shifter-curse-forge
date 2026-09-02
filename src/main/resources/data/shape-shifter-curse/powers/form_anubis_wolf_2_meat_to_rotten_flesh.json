@@ -1,0 +1,19 @@
+{
+  "type": "shape-shifter-curse:modify_entity_loot",
+  "from_item_condition": {
+    "type": "apoli:and",
+    "conditions": [
+      {
+        "type": "apoli:food"
+      },
+      {
+        "type": "apoli:ingredient",
+        "ingredient": {
+          "tag": "shape-shifter-curse:raw_meat"
+        }
+      }
+    ]
+  },
+  "chance": 0.2,
+  "target_item": "minecraft:rotten_flesh"
+}

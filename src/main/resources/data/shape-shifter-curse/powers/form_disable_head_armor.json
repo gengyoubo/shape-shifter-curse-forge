@@ -1,0 +1,24 @@
+{
+    "type": "apoli:restrict_armor",
+    "head": {
+      "type": "apoli:and",
+      "conditions": [
+        {
+          "type": "apoli:armor_value",
+          "comparison": ">",
+          "compare_to": -1
+        },
+        {
+          "type": "shape-shifter-curse:is_morph_scale_item",
+          "inverted": true
+        },
+        {
+          "type": "apoli:ingredient",
+          "ingredient": {
+            "tag": "shape-shifter-curse:ignore_armor_restriction"
+          },
+          "inverted": true
+        }
+      ]
+    }
+}

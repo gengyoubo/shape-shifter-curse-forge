@@ -1,0 +1,27 @@
+{
+    "type": "apoli:action_on_hit",
+    "bientity_action": {
+        "type": "apoli:target_action",
+        "action": {
+            "type": "apoli:and",
+            "actions": [
+                {
+                    "type": "apoli:heal",
+                    "amount": 20.0
+                },
+                {
+                    "type": "apoli:play_sound",
+                    "sound": "minecraft:entity.ender_eye.death"
+                }
+            ]
+        }
+    },
+    "bientity_condition": {
+        "type": "apoli:target_condition",
+        "condition": {
+            "type": "apoli:in_tag",
+            "tag": "shape-shifter-curse:illager"
+        }
+    },
+    "cooldown": 10
+}

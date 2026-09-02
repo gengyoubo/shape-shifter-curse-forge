@@ -1,0 +1,13 @@
+{
+    "type": "apoli:self_action_on_hit",
+    "entity_action": {
+        "type": "apoli:heal",
+        "amount": 2.0
+    },
+    "damage_condition": {
+        "type": "apoli:amount",
+        "comparison": ">=",
+        "compare_to": 4.0
+    },
+    "cooldown": 10
+}

@@ -1,0 +1,32 @@
+{
+  "load_priority": 0,
+
+  "name": "shape-shifter-curse.form_bat_2.model_name",
+  "layer": "origins:origin",
+  "form": "shape-shifter-curse:form_bat_2",
+
+  "wide_only": true,
+
+  "model": "shape-shifter-curse:geo/form/form_bat_2.geo.json",
+  "texture": "shape-shifter-curse:textures/form/form_bat_2/form_bat_2.png",
+  "texture_mask": "shape-shifter-curse:textures/form/form_bat_2/form_bat_2_colormask.png",
+  "hidden": [
+    "leftArm",
+    "rightArm",
+    "leftLeg",
+    "rightLeg",
+    "leftSleeve",
+    "rightSleeve",
+    "rightPants",
+    "leftPants"
+  ],
+
+  "animation_system": "shape-shifter-curse:default",
+  "animation_system_config": {
+    "tail": {
+      "chain": {
+        "tail": [0, 1, 2, 3]
+      }
+    }
+  }
+}

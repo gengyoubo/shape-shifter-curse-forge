@@ -1,0 +1,112 @@
+{
+  "type": "apoli:multiple",
+
+  "bare_paw_attack": {
+    "type": "apoli:conditioned_attribute",
+    "condition": {
+      "type": "apoli:or",
+      "conditions": [
+        {
+          "type": "apoli:inventory",
+          "process_mode": "items",
+          "item_condition": {
+            "type": "shape-shifter-curse:is_weapon"
+          },
+          "slots": [
+            "weapon.mainhand"
+          ],
+          "inverted": true
+        },
+        {
+          "type": "apoli:inventory",
+          "process_mode": "items",
+          "comparison": "==",
+          "compare_to": 0,
+          "slots": [
+            "weapon.mainhand"
+          ]
+        }
+      ]
+    },
+    "modifier": {
+      "attribute": "minecraft:generic.attack_damage",
+      "name": "Extra Attack Damage",
+      "operation": "addition",
+      "value": 9.0
+    },
+    "tick_rate": 1
+  },
+
+  "sneaking_jump_clash": {
+    "type": "shape-shifter-curse:sneaking_jump_clash",
+    "bientity_action": {
+      "type": "apoli:and",
+      "actions": [
+        {
+          "type": "apoli:add_velocity",
+          "z": 2.0
+        },
+        {
+          "type": "apoli:target_action",
+          "action": {
+            "type": "apoli:and",
+            "actions": [
+              {
+                "type": "apoli:spawn_particles",
+                "particle": "minecraft:crit",
+                "count": 8,
+                "speed": 0.0,
+                "force": true,
+                "spread": {
+                  "x": 0.5,
+                  "y": 0.5,
+                  "z": 0.5
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "apoli:actor_action",
+          "action": {
+            "type": "apoli:and",
+            "actions": [
+              {
+                "type": "apoli:add_velocity",
+                "z": -0.3,
+                "space": "local_horizontal_normalized"
+              },
+              {
+                "type": "apoli:play_sound",
+                "sound": "minecraft:entity.goat.ram_impact",
+                "volume": 0.5,
+                "pitch": 1.2
+              },
+              {
+                "type": "apoli:play_sound",
+                "sound": "minecraft:entity.player.attack.sweep",
+                "volume": 0.5,
+                "pitch": 1.0
+              },
+              {
+                "type": "apoli:spawn_particles",
+                "particle": "minecraft:sweep_attack",
+                "count": 3,
+                "speed": 0.0,
+                "force": true,
+                "spread": {
+                  "x": 0.5,
+                  "y": 0.5,
+                  "z": 0.5
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "check_duration": 15,
+    "expansion_distance": 1.0,
+    "damage": 9
+  }
+}

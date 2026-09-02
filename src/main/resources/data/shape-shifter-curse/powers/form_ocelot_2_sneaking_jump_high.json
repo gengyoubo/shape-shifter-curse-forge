@@ -1,0 +1,21 @@
+{
+    "type": "apoli:modify_jump",
+    "modifier": {
+        "name": "Bonus jump force while sneaking",
+        "operation": "multiply_base",
+        "value": 0.15
+    },
+    "condition": {
+        "type": "apoli:and",
+        "conditions": [
+            {
+                "type": "apoli:sneaking"
+            },
+            {
+                "type": "apoli:food_level",
+                "comparison": ">=",
+                "compare_to": 6
+            }
+        ]
+    }
+}

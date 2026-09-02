@@ -1,0 +1,8 @@
+{
+    "type": "apoli:modify_exhaustion",
+    "modifier": {
+        "name": "Less exhaustion",
+        "value": -0.4,
+        "operation": "multiply_base"
+    }
+}

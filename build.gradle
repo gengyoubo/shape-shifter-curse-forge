@@ -63,27 +63,8 @@ dependencies {
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${project.minecraft_version}:${project.geckolib_version}")
 }
 
-def sharedResources = file('fabric/src/main/resources')
-
 processResources {
     inputs.property 'version', project.version
-
-    from(sharedResources) {
-        exclude 'fabric.mod.json'
-        exclude '**/*.mixins.json'
-        exclude '**/*.refmap.json'
-        exclude '**/*.accesswidener'
-        exclude 'net/**'
-        // Fabric/Origins 数据尚未迁移为 Forge 原生数据，避免被 Forge 误解析。
-        exclude 'data/**'
-    }
-
-    // The original Origins/Apoli JSON is consumed by the Forge-native form-power loader.
-    // Keep only the two directories that describe form-to-power assignments and powers.
-    from(sharedResources) {
-        include 'data/shape-shifter-curse/origins/**'
-        include 'data/shape-shifter-curse/powers/**'
-    }
 
     filesMatching('META-INF/mods.toml') {
         expand 'version': project.version,

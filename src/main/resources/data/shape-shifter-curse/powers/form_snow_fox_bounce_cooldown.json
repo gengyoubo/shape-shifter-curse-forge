@@ -1,0 +1,7 @@
+{
+    "type": "apoli:cooldown",
+    "cooldown": 10,
+    "hud_render": {
+        "should_render": false
+    }
+}

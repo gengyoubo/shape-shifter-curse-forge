@@ -1,0 +1,13 @@
+{
+    "type": "shape-shifter-curse:add_sustained_instinct",
+    "instinct_effect_id": "shape-shifter-curse:form_ocelot_biome",
+    "value": 0.003,
+    "duration": 1,
+    "condition": {
+        "type": "apoli:biome",
+        "condition": {
+            "type": "apoli:in_tag",
+            "tag": "minecraft:is_jungle"
+        }
+    }
+}

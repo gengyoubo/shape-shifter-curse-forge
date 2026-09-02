@@ -1,0 +1,25 @@
+{
+    "type": "apoli:modify_damage_dealt",
+    "bientity_condition": {
+        "type": "apoli:target_condition",
+        "condition": {
+            "type": "apoli:and",
+            "conditions": [
+                {
+                    "type": "apoli:entity_group",
+                    "group": "undead"
+                }
+            ]
+        }
+    },
+    "damage_condition": {
+        "type": "apoli:amount",
+        "comparison": ">=",
+        "compare_to": 3
+    },
+    "modifier": {
+        "name": "Undead damage down",
+        "operation": "add_base_late",
+        "value": -2.0
+    }
+}
