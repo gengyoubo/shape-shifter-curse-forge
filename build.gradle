@@ -73,6 +73,8 @@ processResources {
         exclude '**/*.refmap.json'
         exclude '**/*.accesswidener'
         exclude 'net/**'
+        // Fabric/Origins 数据尚未迁移为 Forge 原生数据，避免被 Forge 误解析。
+        exclude 'data/**'
     }
 
     filesMatching('META-INF/mods.toml') {
