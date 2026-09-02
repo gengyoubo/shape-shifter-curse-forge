@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.client;
 
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -31,6 +32,13 @@ public final class FormKeyInputEvents {
                 ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket(key.getName(), pressed));
                 LAST_STATE.put(key, pressed);
             }
+        }
+        KeyMapping jump = Minecraft.getInstance().options.keyJump;
+        boolean pressed = jump.isDown();
+        boolean previous = LAST_STATE.getOrDefault(jump, false);
+        if (pressed != previous) {
+            ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket("key.jump", pressed));
+            LAST_STATE.put(jump, pressed);
         }
     }
 }

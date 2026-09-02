@@ -23,6 +23,18 @@ public interface IPlayerFormData {
 
     void setContentEnabled(boolean contentEnabled);
 
+    float getInstinctValue();
+
+    void setInstinctValue(float instinctValue);
+
+    float getInstinctRate();
+
+    void setInstinctRate(float instinctRate);
+
+    CompoundTag getInstinctEffects();
+
+    void setInstinctEffects(CompoundTag effects);
+
     void copyFrom(IPlayerFormData other);
 
     CompoundTag serializeNBT();

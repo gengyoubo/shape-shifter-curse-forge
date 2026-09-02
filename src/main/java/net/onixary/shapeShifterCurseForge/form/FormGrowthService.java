@@ -24,6 +24,17 @@ public final class FormGrowthService {
         };
     }
 
+    /** Instinct reaches its threshold independently of catalyst resistance. */
+    public static boolean advanceByInstinct(ServerPlayer player) {
+        FormDefinition current = FormManager.current(player);
+        if (current.hasFlag("no_instinct") || current.hasFlag("lock_instinct") || current.hasFlag("special_form")) {
+            return false;
+        }
+        FormGroup group = FormRegistry.getGroup(current.groupId());
+        FormDefinition target = group == null ? null : group.firstAtTier(current.tier() + 1);
+        return target != null && FormManager.setForm(player, target.id());
+    }
+
     private static boolean advance(ServerPlayer player, FormDefinition current, boolean powerful) {
         if (current.hasFlag("special_form") || current.hasFlag("catalyst_immune")
                 || (!powerful && current.hasFlag("catalyst_resist"))) {

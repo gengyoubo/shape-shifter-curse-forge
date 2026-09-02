@@ -8,8 +8,13 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.food.FoodProperties;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.BlockEvent;
@@ -34,6 +39,7 @@ public final class FormPowerEvents {
 
         refreshAttributes(player);
         FormActivePowerService.tick(player);
+        InstinctService.tick((net.minecraft.server.level.ServerPlayer) player);
         BatAttachService.tick(player);
         FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, power));
     }
@@ -41,6 +47,7 @@ public final class FormPowerEvents {
     @SubscribeEvent
     public static void hurt(LivingHurtEvent event) {
         LivingEntity attacker = event.getSource().getEntity() instanceof LivingEntity living ? living : null;
+        Entity directEntity = event.getSource().getDirectEntity();
         if (event.getEntity() instanceof Player defender) {
             FormPowerRegistry.visitActive(defender, (id, power) -> {
                 String type = FormPowerRegistry.typeOf(power);
@@ -80,6 +87,17 @@ public final class FormPowerEvents {
                 }
             });
         }
+
+        if (directEntity instanceof Projectile projectile && projectile.getOwner() instanceof Player player) {
+            FormPowerRegistry.visitActive(player, (id, power) -> {
+                if (!"apoli:modify_projectile_damage".equals(FormPowerRegistry.typeOf(power))
+                        || !FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("condition"))
+                        || !matchesProjectile(projectile, power.getAsJsonObject("damage_condition"))) return;
+                event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
+                FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("target_action"));
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action"));
+            });
+        }
     }
 
     @SubscribeEvent
@@ -90,6 +108,7 @@ public final class FormPowerEvents {
         if (BatAttachService.detachForJump(player)) {
             return;
         }
+        FormActivePowerService.registerGroundJump(player);
         FormActivePowerService.triggerVanillaKey(player, "key.jump");
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
@@ -108,8 +127,37 @@ public final class FormPowerEvents {
     @SubscribeEvent
     public static void useItem(PlayerInteractEvent.RightClickItem event) {
         if (!event.getEntity().level().isClientSide) {
+            if (handleCustomEdible(event.getEntity())) {
+                event.setCanceled(true);
+                return;
+            }
+            if (preventsItemUse(event.getEntity())) {
+                event.setCanceled(true);
+                return;
+            }
             runInteraction(event.getEntity(), null, "apoli:action_on_item_use");
         }
+    }
+
+    @SubscribeEvent
+    public static void finishUsingItem(LivingEntityUseItemEvent.Finish event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) return;
+        ItemStack used = event.getItem();
+        FoodProperties food = used.getFoodProperties(player);
+        if (food == null) return;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"apoli:modify_food".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.matchesItem(used, power.getAsJsonObject("item_condition"))) return;
+            int before = food.getNutrition();
+            int after = (int) Math.round(FormPowerRuntime.applyModifier(before, power.getAsJsonObject("food_modifier")));
+            float saturationBefore = food.getSaturationModifier();
+            float saturationAfter = (float) FormPowerRuntime.applyModifier(saturationBefore,
+                    power.getAsJsonObject("saturation_modifier"));
+            player.getFoodData().setFoodLevel(Math.max(0, Math.min(20,
+                    player.getFoodData().getFoodLevel() + after - before)));
+            player.getFoodData().setSaturation(Math.max(0.0F, Math.min(player.getFoodData().getFoodLevel(),
+                    player.getFoodData().getSaturationLevel() + (after * saturationAfter) - (before * saturationBefore))));
+        });
     }
 
     @SubscribeEvent
@@ -163,20 +211,72 @@ public final class FormPowerEvents {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
             }
         }
+        if ("shape-shifter-curse:add_sustained_instinct".equals(FormPowerRegistry.typeOf(power))
+                && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+            InstinctService.add(player, FormPowerRuntime.stringValue(power, "instinct_effect_id", "shape-shifter-curse:unknown"),
+                    FormPowerRuntime.floatValue(power, "value", 0.0F), FormPowerRuntime.intValue(power, "duration", 1), false);
+        }
     }
 
     private static void runInteraction(Player player, LivingEntity target, String expectedType) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
+            JsonObject condition = power.has("bientity_condition") ? power.getAsJsonObject("bientity_condition")
+                    : power.getAsJsonObject("condition");
             if (expectedType.equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, target, power.getAsJsonObject("condition"))) {
+                    && FormPowerRuntime.test(player, target, condition)
+                    && (!power.has("item_condition")
+                    || FormPowerRuntime.matchesHeldItem(player, power.getAsJsonObject("item_condition")))) {
                 FormPowerRuntime.execute(player, target, power.getAsJsonObject("entity_action"));
+                FormPowerRuntime.executeHeldItemAction(player, power.getAsJsonObject("item_action"));
             }
         });
+    }
+
+    private static boolean preventsItemUse(Player player) {
+        final boolean[] prevents = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("apoli:prevent_item_use".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.matchesHeldItem(player, power.getAsJsonObject("item_condition"))) {
+                prevents[0] = true;
+            }
+        });
+        return prevents[0];
+    }
+
+    private static boolean handleCustomEdible(Player player) {
+        ItemStack stack = player.getMainHandItem();
+        final boolean[] consumed = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:custom_edible".equals(FormPowerRegistry.typeOf(power))
+                    || !matchesCustomFood(stack, power) || (!power.has("always_edible") || !power.get("always_edible").getAsBoolean())
+                    && player.getFoodData().getFoodLevel() >= 20) return;
+            player.getFoodData().eat(FormPowerRuntime.intValue(power, "hunger", 0),
+                    FormPowerRuntime.floatValue(power, "saturation_modifier", 0.0F));
+            FormPowerRuntime.consumeHeldItem(player, 1);
+            consumed[0] = true;
+        });
+        return consumed[0];
+    }
+
+    private static boolean matchesCustomFood(ItemStack stack, JsonObject power) {
+        if (!power.has("item_id_list") || !power.get("item_id_list").isJsonArray()) return false;
+        ResourceLocation stackId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        for (var entry : power.getAsJsonArray("item_id_list")) {
+            if (stackId.toString().equals(entry.getAsString())) return true;
+        }
+        return false;
     }
 
     private static void refreshAttributes(Player player) {
         FormPowerRegistry.all().forEach((id, definition) -> refreshAttribute(player, id, definition.data(), false));
         FormPowerRegistry.visitActive(player, (id, power) -> refreshAttribute(player, id, power, true));
+    }
+
+    private static boolean matchesProjectile(Projectile projectile, JsonObject condition) {
+        if (condition == null) return true;
+        if (!"apoli:projectile".equals(FormPowerRegistry.typeOf(condition))) return true;
+        ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
+        return id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
     }
 
     private static void refreshAttribute(Player player, ResourceLocation powerId, JsonObject power, boolean active) {

@@ -10,12 +10,18 @@ public final class PlayerFormData implements IPlayerFormData {
     private static final String FORM_GROUP_ID_KEY = "FormGroupId";
     private static final String FORM_TIER_KEY = "FormTier";
     private static final String CONTENT_ENABLED_KEY = "ContentEnabled";
+    private static final String INSTINCT_VALUE_KEY = "InstinctValue";
+    private static final String INSTINCT_RATE_KEY = "InstinctRate";
+    private static final String INSTINCT_EFFECTS_KEY = "InstinctEffects";
 
     private String formId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String previousFormId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String formGroupId = "shape-shifter-curse:base_form";
     private int formTier = -1;
     private boolean contentEnabled;
+    private float instinctValue;
+    private float instinctRate;
+    private CompoundTag instinctEffects = new CompoundTag();
 
     @Override
     public String getFormId() {
@@ -65,6 +71,18 @@ public final class PlayerFormData implements IPlayerFormData {
         this.contentEnabled = contentEnabled;
     }
 
+    @Override public float getInstinctValue() { return instinctValue; }
+
+    @Override public void setInstinctValue(float instinctValue) { this.instinctValue = Math.max(0.0F, instinctValue); }
+
+    @Override public float getInstinctRate() { return instinctRate; }
+
+    @Override public void setInstinctRate(float instinctRate) { this.instinctRate = instinctRate; }
+
+    @Override public CompoundTag getInstinctEffects() { return instinctEffects.copy(); }
+
+    @Override public void setInstinctEffects(CompoundTag effects) { instinctEffects = effects == null ? new CompoundTag() : effects.copy(); }
+
     @Override
     public void copyFrom(IPlayerFormData other) {
         setFormId(other.getFormId());
@@ -72,6 +90,9 @@ public final class PlayerFormData implements IPlayerFormData {
         setFormGroupId(other.getFormGroupId());
         setFormTier(other.getFormTier());
         setContentEnabled(other.isContentEnabled());
+        setInstinctValue(other.getInstinctValue());
+        setInstinctRate(other.getInstinctRate());
+        setInstinctEffects(other.getInstinctEffects());
     }
 
     @Override
@@ -82,6 +103,9 @@ public final class PlayerFormData implements IPlayerFormData {
         tag.putString(FORM_GROUP_ID_KEY, formGroupId);
         tag.putInt(FORM_TIER_KEY, formTier);
         tag.putBoolean(CONTENT_ENABLED_KEY, contentEnabled);
+        tag.putFloat(INSTINCT_VALUE_KEY, instinctValue);
+        tag.putFloat(INSTINCT_RATE_KEY, instinctRate);
+        tag.put(INSTINCT_EFFECTS_KEY, instinctEffects.copy());
         return tag;
     }
 
@@ -102,5 +126,8 @@ public final class PlayerFormData implements IPlayerFormData {
         if (tag.contains(CONTENT_ENABLED_KEY)) {
             setContentEnabled(tag.getBoolean(CONTENT_ENABLED_KEY));
         }
+        if (tag.contains(INSTINCT_VALUE_KEY)) setInstinctValue(tag.getFloat(INSTINCT_VALUE_KEY));
+        if (tag.contains(INSTINCT_RATE_KEY)) setInstinctRate(tag.getFloat(INSTINCT_RATE_KEY));
+        if (tag.contains(INSTINCT_EFFECTS_KEY)) setInstinctEffects(tag.getCompound(INSTINCT_EFFECTS_KEY));
     }
 }
