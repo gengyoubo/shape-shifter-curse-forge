@@ -2,7 +2,6 @@ package net.onixary.shapeShifterCurseForge.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -14,6 +13,12 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
 
@@ -45,8 +50,7 @@ public final class FormCommand {
                                 }))
                         .then(Commands.literal("set")
                                 .then(Commands.argument("form", ResourceLocationArgument.id())
-                                        .suggests((context, builder) -> SharedSuggestionProvider.suggestResource(
-                                                FormRegistry.forms().keySet(), builder))
+                                        .suggests((context, builder) -> suggestForms(builder))
                                         .executes(context -> {
                                             ServerPlayer player = context.getSource().getPlayerOrException();
                                             ResourceLocation formId = ResourceLocationArgument.getId(context, "form");
@@ -79,5 +83,14 @@ public final class FormCommand {
 
     private static int move(ServerPlayer player, boolean next) {
         return (next ? FormManager.next(player) : FormManager.previous(player)) ? SINGLE_SUCCESS : 0;
+    }
+
+    private static CompletableFuture<Suggestions> suggestForms(SuggestionsBuilder builder) {
+        String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
+        FormRegistry.forms().keySet().stream()
+                .map(ResourceLocation::toString)
+                .filter(id -> id.toLowerCase(Locale.ROOT).startsWith(remaining))
+                .forEach(builder::suggest);
+        return builder.buildFuture();
     }
 }
