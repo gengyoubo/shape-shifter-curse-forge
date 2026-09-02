@@ -12,6 +12,8 @@ import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
+import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class FormAbilityEvents {
@@ -114,7 +116,16 @@ public final class FormAbilityEvents {
             multiplier = 2.0F;
         }
 
-        float target = 0.6F * multiplier;
+        final float[] powerMultiplier = {multiplier};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:modify_step_height".equals(FormPowerRegistry.typeOf(power))
+                    || (player.isCrouching() && power.has("affect_sneak") && !power.get("affect_sneak").getAsBoolean())
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            powerMultiplier[0] = Math.max(powerMultiplier[0],
+                    FormPowerRuntime.floatValue(power, "step_height_scale", 1.0F));
+        });
+
+        float target = 0.6F * powerMultiplier[0];
         if (Math.abs(player.maxUpStep() - target) > 0.001F) {
             player.setMaxUpStep(target);
         }

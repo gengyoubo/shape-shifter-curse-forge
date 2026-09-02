@@ -3,7 +3,10 @@ package net.onixary.shapeShifterCurseForge.power;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -11,26 +14,37 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.food.FoodProperties;
+import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.MobEffectEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.entity.player.CriticalHitEvent;
 import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.entity.ProjectileImpactEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
 /** Server event bridge for the high-frequency Apoli power families used by the forms. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class FormPowerEvents {
     private FormPowerEvents() {
     }
+
+    private static final Map<UUID, Map<ResourceLocation, Float>> FOOD_HEAL_REMAINDERS = new HashMap<>();
 
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
@@ -43,9 +57,62 @@ public final class FormPowerEvents {
         InstinctService.tick((net.minecraft.server.level.ServerPlayer) player);
         BatAttachService.tick(player);
         MovementPowerService.tick(player);
+        adjustFoodHealTimer(player);
         FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, power));
         applyClimbing(player);
         maintainBreathingAndImmunity(player);
+    }
+
+    @SubscribeEvent
+    public static void playerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        Player player = event.player;
+        final float[] multiplier = {1.0F};
+        final boolean[] modified = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:modify_footstep_sound_speed".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            boolean sprintOverride = power.has("adjust_run_individually")
+                    && power.get("adjust_run_individually").getAsBoolean() && player.isSprinting();
+            float value = FormPowerRuntime.floatValue(power,
+                    sprintOverride ? "run_speed_multiplier" : "speed_multiplier", 1.0F);
+            if (value > 0.0F) {
+                multiplier[0] = value;
+                modified[0] = true;
+            }
+        });
+        if (modified[0]) player.nextStep = player.moveDist + 1.0F / multiplier[0];
+    }
+
+    @SubscribeEvent
+    public static void potionEffectAdded(MobEffectEvent.Added event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
+                || !(event.getEffectSource() instanceof net.minecraft.world.entity.projectile.ThrownPotion
+                || event.getEffectSource() instanceof net.minecraft.world.entity.AreaEffectCloud)) return;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:action_on_splash_potion_take_effect".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) {
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+            }
+        });
+    }
+
+    @SubscribeEvent
+    public static void waterPotionImpact(ProjectileImpactEvent event) {
+        if (!(event.getEntity() instanceof net.minecraft.world.entity.projectile.ThrownPotion potion)
+                || potion.level().isClientSide
+                || net.minecraft.world.item.alchemy.PotionUtils.getPotion(potion.getItem())
+                != net.minecraft.world.item.alchemy.Potions.WATER) return;
+        for (Player player : potion.level().getEntitiesOfClass(Player.class,
+                potion.getBoundingBox().inflate(4.0D), candidate -> candidate.isAlive())) {
+            FormPowerRegistry.visitActive(player, (id, power) -> {
+                if ("shape-shifter-curse:action_on_splash_potion_take_effect".equals(FormPowerRegistry.typeOf(power))
+                        && power.has("trigger_on_no_effect") && power.get("trigger_on_no_effect").getAsBoolean()
+                        && FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) {
+                    FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+                }
+            });
+        }
     }
 
     @SubscribeEvent
@@ -55,6 +122,10 @@ public final class FormPowerEvents {
         if (event.getEntity() instanceof Player defender) {
             FormPowerRegistry.visitActive(defender, (id, power) -> {
                 String type = FormPowerRegistry.typeOf(power);
+                if ("shape-shifter-curse:virtual_shield".equals(type)
+                        && blocksWithVirtualShield(defender, event, power)) {
+                    event.setCanceled(true);
+                }
                 if ("apoli:modify_damage_taken".equals(type)
                         && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("condition"))) {
                     event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
@@ -66,6 +137,18 @@ public final class FormPowerEvents {
                 if ("apoli:action_when_hit".equals(type)
                         && attacker != null && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("damage_condition"))) {
                     FormPowerRuntime.execute(defender, attacker, power.getAsJsonObject("entity_action"));
+                }
+                if ("shape-shifter-curse:burn_damage_modifier".equals(type)
+                        && event.getSource().is(DamageTypeTags.IS_FIRE)
+                        && defender.isOnFire()
+                        && !defender.hasEffect(MobEffects.FIRE_RESISTANCE)
+                        && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("condition"))) {
+                    event.setAmount(event.getAmount() + FormPowerRuntime.floatValue(power, "modifier", 0.0F));
+                    FormPowerRuntime.execute(defender, defender, power.getAsJsonObject("action"));
+                }
+                if ("shape-shifter-curse:modify_instant_damage_scale".equals(type)
+                        && isInstantMagic(event.getSource())) {
+                    event.setAmount(event.getAmount() * FormPowerRuntime.floatValue(power, "scale", 1.0F));
                 }
             });
         }
@@ -89,15 +172,6 @@ public final class FormPowerEvents {
                     FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("target_action_on_critical_hit"));
                     FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action_on_critical_hit"));
                 }
-                if ("shape-shifter-curse:critical_damage_modifier".equals(type) && player.fallDistance > 0.0F
-                        && !player.onGround()) {
-                    event.setAmount(event.getAmount() * FormPowerRuntime.floatValue(power, "multiplier", 1.0F));
-                    FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
-                }
-                if ("shape-shifter-curse:burn_damage_modifier".equals(type) && event.getEntity().isOnFire()) {
-                    event.setAmount(event.getAmount() + FormPowerRuntime.floatValue(power, "modifier", 0.0F));
-                    FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("action"));
-                }
             });
         }
 
@@ -111,6 +185,33 @@ public final class FormPowerEvents {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action"));
             });
         }
+    }
+
+    @SubscribeEvent
+    public static void attack(LivingAttackEvent event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
+                || !"sweetBerryBush".equals(event.getSource().getMsgId())) return;
+        final boolean[] immune = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:prevent_berry_effect".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                immune[0] = true;
+            }
+        });
+        if (immune[0]) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void criticalHit(CriticalHitEvent event) {
+        Player player = event.getEntity();
+        if (player.level().isClientSide || !event.isVanillaCritical()) return;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:critical_damage_modifier".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, event.getTarget(), power.getAsJsonObject("condition"))) return;
+            event.setDamageModifier(event.getDamageModifier()
+                    * FormPowerRuntime.floatValue(power, "multiplier", 1.0F));
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
+        });
     }
 
     @SubscribeEvent
@@ -143,7 +244,17 @@ public final class FormPowerEvents {
         final float[] distance = {event.getDistance()};
         final float[] multiplier = {event.getDamageMultiplier()};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:modfiy_fall_damage".equals(FormPowerRegistry.typeOf(power))) return;
+            String type = FormPowerRegistry.typeOf(power);
+            if ("shape-shifter-curse:falling_protection".equals(type)
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                distance[0] = Math.max(0.0F, distance[0] - FormPowerRuntime.floatValue(power, "fall_distance", 0.0F));
+            }
+            if ("apoli:modify_falling".equals(type)
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    && power.has("take_fall_damage") && !power.get("take_fall_damage").getAsBoolean()) {
+                multiplier[0] = 0.0F;
+            }
+            if (!"shape-shifter-curse:modfiy_fall_damage".equals(type)) return;
             distance[0] = (float) applyFallModifiers(distance[0], power, "modifier_fall_distance", "modifiers_fall_distance");
             multiplier[0] = (float) applyFallModifiers(multiplier[0], power, "modifier_damage_multiplier", "modifiers_damage_multiplier");
         });
@@ -313,11 +424,56 @@ public final class FormPowerEvents {
         FormPowerRegistry.visitActive(player, (id, power) -> refreshAttribute(player, id, power, true));
     }
 
+    private static void adjustFoodHealTimer(Player player) {
+        if (player.getFoodData().getFoodLevel() < 18 || player.getHealth() >= player.getMaxHealth()) return;
+        Map<ResourceLocation, Float> remainders = FOOD_HEAL_REMAINDERS.computeIfAbsent(
+                player.getUUID(), ignored -> new HashMap<>());
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:modify_food_heal".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            int rate = Math.max(1, FormPowerRuntime.intValue(power, "modify_food_timer_tick_rate", 20));
+            if (player.tickCount % rate != 0) return;
+            float pending = remainders.getOrDefault(id, 0.0F)
+                    + FormPowerRuntime.floatValue(power, "food_timer_add_amount", 1.0F);
+            int adjustment = pending > 0.0F ? (int) Math.floor(pending) : (int) Math.ceil(pending);
+            remainders.put(id, pending - adjustment);
+            FoodData food = player.getFoodData();
+            food.tickTimer = Math.max(0, food.tickTimer + adjustment);
+        });
+    }
+
     private static boolean matchesProjectile(Projectile projectile, JsonObject condition) {
         if (condition == null) return true;
         if (!"apoli:projectile".equals(FormPowerRegistry.typeOf(condition))) return true;
         ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
         return id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
+    }
+
+    private static boolean isInstantMagic(net.minecraft.world.damagesource.DamageSource source) {
+        String id = source.getMsgId();
+        return "magic".equals(id) || "indirectMagic".equals(id);
+    }
+
+    private static boolean blocksWithVirtualShield(Player defender, LivingHurtEvent event, JsonObject power) {
+        if (!FormPowerRuntime.test(defender, event.getSource().getEntity(),
+                power.getAsJsonObject("active_shield_condition"))) return false;
+        var source = event.getSource();
+        if (source.is(DamageTypeTags.BYPASSES_SHIELD)) return false;
+        if (source.getDirectEntity() instanceof AbstractArrow arrow && arrow.getPierceLevel() > 0) return false;
+        Vec3 sourcePosition = source.getSourcePosition();
+        if (sourcePosition == null) return false;
+        Vec3 incoming = sourcePosition.vectorTo(defender.position()).normalize();
+        Vec3 facing = defender.getLookAngle();
+        if (new Vec3(incoming.x, 0.0D, incoming.z).dot(new Vec3(facing.x, 0.0D, facing.z)) >= 0.0D) {
+            return false;
+        }
+        FormPowerRuntime.execute(defender, defender, power.getAsJsonObject("taken_damage_action"));
+        if (source.getEntity() instanceof LivingEntity living && living.canDisableShield()) {
+            FormPowerRuntime.execute(defender, defender, power.getAsJsonObject("shield_break_action"));
+        } else {
+            FormPowerRuntime.execute(defender, defender, power.getAsJsonObject("normal_damage_action"));
+        }
+        return true;
     }
 
     private static double applyFallModifiers(double value, JsonObject power, String single, String plural) {

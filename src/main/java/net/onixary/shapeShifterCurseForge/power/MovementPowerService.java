@@ -28,6 +28,8 @@ public final class MovementPowerService {
                 case "shape-shifter-curse:slowdown_percent" -> resistWebSlowdown(player, power);
                 case "shape-shifter-curse:water_flexibility" -> applyWaterFlexibility(player, power);
                 case "shape-shifter-curse:soul_speed" -> applySoulSpeed(player, power);
+                case "shape-shifter-curse:attract_by_entity" -> attractEntity(player, power);
+                case "apoli:modify_falling" -> modifyFalling(player, power);
                 default -> { }
             }
         });
@@ -86,5 +88,40 @@ public final class MovementPowerService {
                 FormPowerRuntime.intValue(power, "max_level", 3));
         Vec3 motion = player.getDeltaMovement();
         player.setDeltaMovement(motion.x * (1.0D + boost), motion.y, motion.z * (1.0D + boost));
+    }
+
+    private static void modifyFalling(Player player, JsonObject power) {
+        if (player.onGround() || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+        double velocity = FormPowerRuntime.doubleValue(power, "velocity", 0.0D);
+        Vec3 motion = player.getDeltaMovement();
+        if (velocity >= 0.0D && motion.y < 0.0D) {
+            player.setDeltaMovement(motion.x, Math.max(motion.y, -velocity), motion.z);
+        }
+    }
+
+    private static void attractEntity(Player player, JsonObject power) {
+        if (!player.onGround() || player.isPassenger()) return;
+        double radius = FormPowerRuntime.doubleValue(power, "attraction_radius", 8.0D);
+        double stop = FormPowerRuntime.doubleValue(power, "stop_radius", 1.0D);
+        Entity closest = null;
+        double closestDistance = Double.MAX_VALUE;
+        for (Entity candidate : player.level().getEntities(player, player.getBoundingBox().inflate(radius),
+                entity -> entity.isAlive() && !entity.isSpectator()
+                        && FormPowerRuntime.test(player, entity, power.getAsJsonObject("entity_condition")))) {
+            double distance = candidate.distanceToSqr(player);
+            if (distance > stop * stop && distance < closestDistance) {
+                closest = candidate;
+                closestDistance = distance;
+            }
+        }
+        if (closest == null) return;
+        Vec3 direction = new Vec3(closest.getX() - player.getX(), 0.0D, closest.getZ() - player.getZ()).normalize();
+        double speed = FormPowerRuntime.doubleValue(power, "attraction_speed", 0.1D);
+        if (player.getLookAngle().dot(direction) < 0.0D) speed = FormPowerRuntime.doubleValue(power, "escape_attraction_speed", 0.025D);
+        Vec3 motion = player.getDeltaMovement();
+        player.setDeltaMovement(direction.x * speed, motion.y, direction.z * speed);
+        FormPowerRuntime.execute(player, closest instanceof net.minecraft.world.entity.LivingEntity living ? living : player,
+                power.getAsJsonObject("entity_action"));
+        FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action"));
     }
 }
