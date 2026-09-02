@@ -7,6 +7,22 @@ public interface IPlayerFormData {
 
     void setFormId(String formId);
 
+    String getPreviousFormId();
+
+    void setPreviousFormId(String formId);
+
+    String getFormGroupId();
+
+    void setFormGroupId(String formGroupId);
+
+    int getFormTier();
+
+    void setFormTier(int formTier);
+
+    boolean isContentEnabled();
+
+    void setContentEnabled(boolean contentEnabled);
+
     void copyFrom(IPlayerFormData other);
 
     CompoundTag serializeNBT();

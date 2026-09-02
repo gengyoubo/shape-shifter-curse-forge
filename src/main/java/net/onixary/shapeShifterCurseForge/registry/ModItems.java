@@ -1,11 +1,14 @@
 package net.onixary.shapeShifterCurseForge.registry;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.items.BookOfShapeShifterItem;
+import net.onixary.shapeShifterCurseForge.items.TooltipItem;
 
 public final class ModItems {
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(
@@ -15,17 +18,35 @@ public final class ModItems {
 
     public static final RegistryObject<Item> BOOK_OF_SHAPE_SHIFTER = ITEMS.register(
             "book_of_shape_shifter",
-            () -> new Item(new Item.Properties().stacksTo(1))
+            () -> new BookOfShapeShifterItem(new Item.Properties())
     );
 
+    public static final RegistryObject<Item> UNTREATED_MOONDUST = ITEMS.register(
+            "untreated_moondust", () -> new TooltipItem(
+                    new Item.Properties(),
+                    "item.shape-shifter-curse.untreated_moondust.tooltip",
+                    ChatFormatting.GRAY));
+
+    public static final RegistryObject<Item> MOONDUST_MATRIX = ITEMS.register(
+            "moondust_matrix", () -> new TooltipItem(
+                    new Item.Properties().stacksTo(64),
+                    "item.shape-shifter-curse.moondust_matrix.tooltip",
+                    ChatFormatting.GRAY));
+
     public static final RegistryObject<Item> MOONDUST_CRYSTAL_SHARD = ITEMS.register(
-            "moondust_crystal_shard", () -> new Item(new Item.Properties()));
+            "moondust_crystal_shard", () -> new TooltipItem(
+                    new Item.Properties().stacksTo(64),
+                    "item.shape-shifter-curse.moondust_crystal_shard.tooltip",
+                    ChatFormatting.YELLOW));
 
     public static final RegistryObject<Item> ECTOPLASM_RAG = ITEMS.register(
             "ectoplasm_rag", () -> new Item(new Item.Properties()));
 
     public static final RegistryObject<Item> FIRE_CHARM_PAPER = ITEMS.register(
-            "fire_charm_paper", () -> new Item(new Item.Properties()));
+            "fire_charm_paper", () -> new TooltipItem(
+                    new Item.Properties().stacksTo(64),
+                    "item.shape-shifter-curse.fire_charm_paper.tooltip",
+                    ChatFormatting.YELLOW));
 
     public static final RegistryObject<Item> ICON_CURSED_MOON = ITEMS.register(
             "icon_cursed_moon", () -> new Item(new Item.Properties().stacksTo(1)));

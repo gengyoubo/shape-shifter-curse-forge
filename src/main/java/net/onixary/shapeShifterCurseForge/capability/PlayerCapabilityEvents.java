@@ -8,6 +8,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class PlayerCapabilityEvents {
@@ -37,5 +38,34 @@ public final class PlayerCapabilityEvents {
                 )
         );
         event.getOriginal().invalidateCaps();
+    }
+
+    @SubscribeEvent
+    public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            ModNetwork.sendFormSync(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void playerRespawned(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            ModNetwork.sendFormSync(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void playerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            ModNetwork.sendFormSync(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void startTracking(PlayerEvent.StartTracking event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer tracker
+                && event.getTarget() instanceof net.minecraft.server.level.ServerPlayer target) {
+            ModNetwork.sendFormSyncTo(target, tracker);
+        }
     }
 }

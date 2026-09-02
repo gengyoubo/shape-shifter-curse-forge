@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 import net.onixary.shapeShifterCurseForge.registry.ModCreativeModeTabs;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
@@ -18,6 +19,7 @@ public final class ShapeShifterCurseForge {
         ModItems.ITEMS.register(modBus);
         ModBlocks.BLOCKS.register(modBus);
         ModCreativeModeTabs.TABS.register(modBus);
+        FormManager.initialize();
         ModNetwork.initialize();
     }
 }
