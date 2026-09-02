@@ -9,6 +9,8 @@ import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.items.BookOfShapeShifterItem;
 import net.onixary.shapeShifterCurseForge.items.TooltipItem;
+import net.onixary.shapeShifterCurseForge.items.FormGrowthItem;
+import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
 
 public final class ModItems {
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(
@@ -56,6 +58,18 @@ public final class ModItems {
 
     public static final RegistryObject<Item> SILK_DEW = ITEMS.register(
             "silk_dew", () -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> CATALYST = ITEMS.register(
+            "catalyst", () -> new FormGrowthItem(new Item.Properties(), FormGrowthService.Mode.CATALYST));
+
+    public static final RegistryObject<Item> POWERFUL_CATALYST = ITEMS.register(
+            "powerful_catalyst", () -> new FormGrowthItem(new Item.Properties(), FormGrowthService.Mode.POWERFUL_CATALYST));
+
+    public static final RegistryObject<Item> INHIBITOR = ITEMS.register(
+            "inhibitor", () -> new FormGrowthItem(new Item.Properties(), FormGrowthService.Mode.INHIBITOR));
+
+    public static final RegistryObject<Item> POWERFUL_INHIBITOR = ITEMS.register(
+            "powerful_inhibitor", () -> new FormGrowthItem(new Item.Properties(), FormGrowthService.Mode.POWERFUL_INHIBITOR));
 
     public static final RegistryObject<Item> MOONDUST_CRYSTAL_GRIT_ITEM = ITEMS.register(
             "moondust_crystal_grit", () -> new BlockItem(

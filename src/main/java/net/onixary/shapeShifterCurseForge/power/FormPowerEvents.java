@@ -12,6 +12,7 @@ import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -33,6 +34,7 @@ public final class FormPowerEvents {
 
         refreshAttributes(player);
         FormActivePowerService.tick(player);
+        BatAttachService.tick(player);
         FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, power));
     }
 
@@ -72,6 +74,10 @@ public final class FormPowerEvents {
                         && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("damage_condition"))) {
                     FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("entity_action"));
                 }
+                if ("shape-shifter-curse:enhanced_falling_attack".equals(type) && player.fallDistance > 0.0F) {
+                    FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("target_action_on_critical_hit"));
+                    FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action_on_critical_hit"));
+                }
             });
         }
     }
@@ -79,6 +85,9 @@ public final class FormPowerEvents {
     @SubscribeEvent
     public static void jump(LivingEvent.LivingJumpEvent event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) {
+            return;
+        }
+        if (BatAttachService.detachForJump(player)) {
             return;
         }
         FormActivePowerService.triggerVanillaKey(player, "key.jump");
@@ -106,7 +115,20 @@ public final class FormPowerEvents {
     @SubscribeEvent
     public static void useBlock(PlayerInteractEvent.RightClickBlock event) {
         if (!event.getEntity().level().isClientSide) {
+            if (BatAttachService.toggleOrAttach((net.minecraft.server.level.ServerPlayer) event.getEntity(),
+                    event.getPos(), event.getFace())) {
+                event.setCanceled(true);
+                return;
+            }
             runInteraction(event.getEntity(), null, "apoli:action_on_block_use");
+        }
+    }
+
+    @SubscribeEvent
+    public static void breakBlock(BlockEvent.BreakEvent event) {
+        if (event.getPlayer() instanceof net.minecraft.server.level.ServerPlayer player) {
+            // A right-clicked attachment always detaches safely when its supporting block changes.
+            BatAttachService.tick(player);
         }
     }
 

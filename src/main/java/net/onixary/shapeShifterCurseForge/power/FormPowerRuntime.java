@@ -85,6 +85,9 @@ public final class FormPowerRuntime {
             case "apoli:play_sound" -> playSound(actor, action);
             case "shape-shifter-curse:consume_mana" -> FormActivePowerService.consumeMana(actor,
                     floatValue(action, "mana", 0.0F));
+            case "shape-shifter-curse:fire_web_bullet" -> WebPowerActions.fireBullet(actor, action);
+            case "shape-shifter-curse:web_bridge" -> WebPowerActions.buildBridge(actor, action);
+            case "shape-shifter-curse:set_falling_distance" -> actor.fallDistance = floatValue(action, "distance", 0.0F);
             default -> {
                 // More specialised actions (projectiles, block placement, mana, and custom entities)
                 // are intentionally retained in the registry and gain handlers incrementally.
@@ -223,8 +226,12 @@ public final class FormPowerRuntime {
         double x = doubleValue(action, "x", 0.0D);
         double y = doubleValue(action, "y", 0.0D);
         double z = doubleValue(action, "z", 0.0D);
-        if ("local".equals(stringValue(action, "space", ""))) {
+        String space = stringValue(action, "space", "");
+        if ("local".equals(space) || "local_horizontal_normalized".equals(space)) {
             Vec3 forward = actor.getLookAngle();
+            if ("local_horizontal_normalized".equals(space)) {
+                forward = new Vec3(forward.x, 0.0D, forward.z).normalize();
+            }
             Vec3 side = new Vec3(forward.z, 0.0D, -forward.x).normalize();
             actor.push(side.x * x + forward.x * z, y, side.z * x + forward.z * z);
         } else {

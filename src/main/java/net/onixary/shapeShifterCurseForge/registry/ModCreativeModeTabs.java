@@ -26,6 +26,10 @@ public final class ModCreativeModeTabs {
                         output.accept(ModItems.ICON_CURSED_MOON.get());
                         output.accept(ModItems.WEB_PROJECTILE.get());
                         output.accept(ModItems.SILK_DEW.get());
+                        output.accept(ModItems.CATALYST.get());
+                        output.accept(ModItems.POWERFUL_CATALYST.get());
+                        output.accept(ModItems.INHIBITOR.get());
+                        output.accept(ModItems.POWERFUL_INHIBITOR.get());
                         output.accept(ModItems.MOONDUST_CRYSTAL_GRIT_ITEM.get());
                     })
                     .build());
