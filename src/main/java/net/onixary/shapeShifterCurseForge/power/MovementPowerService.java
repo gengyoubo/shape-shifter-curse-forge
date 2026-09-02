@@ -29,6 +29,7 @@ public final class MovementPowerService {
                 case "shape-shifter-curse:water_flexibility" -> applyWaterFlexibility(player, power);
                 case "shape-shifter-curse:soul_speed" -> applySoulSpeed(player, power);
                 case "shape-shifter-curse:attract_by_entity" -> attractEntity(player, power);
+                case "shape-shifter-curse:always_sprint_swimming" -> forceSprintSwimming(player, power);
                 case "apoli:modify_falling" -> modifyFalling(player, power);
                 default -> { }
             }
@@ -96,6 +97,13 @@ public final class MovementPowerService {
         Vec3 motion = player.getDeltaMovement();
         if (velocity >= 0.0D && motion.y < 0.0D) {
             player.setDeltaMovement(motion.x, Math.max(motion.y, -velocity), motion.z);
+        }
+    }
+
+    private static void forceSprintSwimming(Player player, JsonObject power) {
+        if (player.isInWater()
+                && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+            player.setSprinting(true);
         }
     }
 

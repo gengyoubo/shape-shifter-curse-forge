@@ -21,7 +21,7 @@ public final class FormAbilityEvents {
 
     private FormAbilityEvents() {
     }
-
+    @SuppressWarnings("removal")
     @SubscribeEvent
     public static void resize(EntityEvent.Size event) {
         if (!(event.getEntity() instanceof Player player)) {

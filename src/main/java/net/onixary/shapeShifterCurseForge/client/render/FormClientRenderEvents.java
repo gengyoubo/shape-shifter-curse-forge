@@ -77,6 +77,6 @@ public final class FormClientRenderEvents {
     }
 
     private static ResourceLocation resource(String path) {
-        return new ResourceLocation(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
+        return ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
     }
 }

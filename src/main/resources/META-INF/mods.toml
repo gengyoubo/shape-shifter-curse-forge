@@ -1,13 +1,13 @@
 modLoader="javafml"
 loaderVersion="[47,)"
 license="MIT"
-issueTrackerURL="https://github.com/onixary/shape-shifter-curse-fabric/issues"
+issueTrackerURL="https://github.com/gengyoubo/shape-shifter-curse-forge/issues"
 
 [[mods]]
 modId="${mod_id}"
 version="${version}"
 displayName="${mod_name}"
-authors="onixary, XuHaoNan"
+authors="gengyoubo,onixary,XuHaoNan"
 description='''A native Forge 1.20.1 migration of Shape Shifter Curse.'''
 
 [[dependencies.${mod_id}]]

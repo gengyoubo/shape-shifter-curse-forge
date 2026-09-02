@@ -16,7 +16,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     public FormGeoModel(ResourceLocation model, ResourceLocation texture) {
         this.model = model;
         this.texture = texture;
-        this.animation = new ResourceLocation(model.getNamespace(), "animations/missing.animation.json");
+        this.animation = ResourceLocation.fromNamespaceAndPath(model.getNamespace(), "animations/missing.animation.json");
     }
 
     @Override

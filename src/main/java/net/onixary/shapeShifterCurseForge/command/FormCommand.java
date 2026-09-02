@@ -2,6 +2,7 @@ package net.onixary.shapeShifterCurseForge.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -44,6 +45,8 @@ public final class FormCommand {
                                 }))
                         .then(Commands.literal("set")
                                 .then(Commands.argument("form", ResourceLocationArgument.id())
+                                        .suggests((context, builder) -> SharedSuggestionProvider.suggestResource(
+                                                FormRegistry.forms().keySet(), builder))
                                         .executes(context -> {
                                             ServerPlayer player = context.getSource().getPlayerOrException();
                                             ResourceLocation formId = ResourceLocationArgument.getId(context, "form");

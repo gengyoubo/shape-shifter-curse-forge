@@ -19,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.MobEffectEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
@@ -45,6 +46,7 @@ public final class FormPowerEvents {
     }
 
     private static final Map<UUID, Map<ResourceLocation, Float>> FOOD_HEAL_REMAINDERS = new HashMap<>();
+    private static final ThreadLocal<Boolean> SWEEP_DAMAGE = ThreadLocal.withInitial(() -> false);
 
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
@@ -202,6 +204,17 @@ public final class FormPowerEvents {
     }
 
     @SubscribeEvent
+    public static void heal(LivingHealEvent event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
+                || event.getAmount() <= 1.0F) return;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:modify_instant_health_scale".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            event.setAmount(event.getAmount() * FormPowerRuntime.floatValue(power, "scale", 1.0F));
+        });
+    }
+
+    @SubscribeEvent
     public static void criticalHit(CriticalHitEvent event) {
         Player player = event.getEntity();
         if (player.level().isClientSide || !event.isVanillaCritical()) return;
@@ -212,6 +225,35 @@ public final class FormPowerEvents {
                     * FormPowerRuntime.floatValue(power, "multiplier", 1.0F));
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
         });
+    }
+
+    @SubscribeEvent
+    public static void sweepingHit(LivingHurtEvent event) {
+        if (Boolean.TRUE.equals(SWEEP_DAMAGE.get())
+                || !(event.getSource().getEntity() instanceof Player player)
+                || event.getEntity() == player || !"player".equals(event.getSource().getMsgId())
+                || player.level().isClientSide) return;
+        final boolean[] enabled = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:always_sweeping".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("condition"))) {
+                enabled[0] = true;
+            }
+        });
+        if (!enabled[0]) return;
+
+        SWEEP_DAMAGE.set(true);
+        try {
+            float sweepDamage = Math.max(1.0F, event.getAmount() * 0.2F);
+            for (LivingEntity nearby : player.level().getEntitiesOfClass(LivingEntity.class,
+                    player.getBoundingBox().inflate(1.0D), candidate -> candidate != player
+                            && candidate != event.getEntity() && candidate.isAlive()
+                            && !player.isAlliedTo(candidate))) {
+                nearby.hurt(player.damageSources().playerAttack(player), sweepDamage);
+            }
+        } finally {
+            SWEEP_DAMAGE.set(false);
+        }
     }
 
     @SubscribeEvent

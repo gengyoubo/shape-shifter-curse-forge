@@ -58,7 +58,7 @@ public final class FormRegistry {
                 case 1 -> Set.of("starter_form");
                 case 3 -> Set.of("inhibitor_resist", "lock_instinct", "cursed_moon_final_form", "catalyst_resist", "can_transform_to_final_form");
                 case 4 -> Set.of("final_form", "inhibitor_immune", "no_instinct", "no_cursed_moon_effect");
-                default -> Set.of();
+                default -> Set.of("");
             });
             if (path.equals("bat") && tier >= 1) {
                 flags.add("night_vision");
@@ -118,7 +118,7 @@ public final class FormRegistry {
     }
 
     private static ResourceLocation id(String path) {
-        return new ResourceLocation(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
+        return ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
     }
 
     public static FormDefinition get(ResourceLocation id) {

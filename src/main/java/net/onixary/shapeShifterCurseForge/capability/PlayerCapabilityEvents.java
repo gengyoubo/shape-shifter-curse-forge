@@ -12,7 +12,7 @@ import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class PlayerCapabilityEvents {
-    private static final ResourceLocation PLAYER_FORM_ID = new ResourceLocation(
+    private static final ResourceLocation PLAYER_FORM_ID = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE,
             "player_form"
     );
