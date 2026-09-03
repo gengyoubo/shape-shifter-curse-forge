@@ -319,25 +319,23 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
      */
     private float[] smoothedNeckAngles(NeckConfig neck, Player player, float partialTick,
                                        boolean inventoryPreview, float fallbackYawDeg, float fallbackPitchDeg) {
-        Map<UUID, NeckState> states = inventoryPreview ? inventoryNeckStates : neckStates;
-        NeckState state = states.computeIfAbsent(player.getUUID(),
-                ignored -> new NeckState(fallbackYawDeg, fallbackPitchDeg));
-        float viewYaw = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
+        // Faithful port of Fabric's getLongNeckAngles: the target is the interpolated
+        // view yaw minus the interpolated body yaw (never headYaw taken directly), and
+        // yaw keeps Fabric's lerpAngleAwayFrom(..., 180) semantics verbatim.
+        float viewYaw = Mth.lerp(partialTick, player.yHeadRotO, player.yHeadRot);
         float targetPitch = inventoryPreview ? player.getXRot() : player.getViewXRot(partialTick);
         float bodyYaw = lerpAngle(partialTick, player.yBodyRotO, player.yBodyRot);
         float targetYaw = Mth.wrapDegrees(viewYaw - bodyYaw);
+        Map<UUID, NeckState> states = inventoryPreview ? inventoryNeckStates : neckStates;
+        NeckState state = states.computeIfAbsent(player.getUUID(),
+                ignored -> new NeckState(targetYaw, targetPitch));
         double renderTick = player.tickCount + partialTick;
         float deltaTicks = Mth.clamp((float) (renderTick - state.lastRenderTick), 0.0F, 1.0F);
         state.lastRenderTick = renderTick;
         if (deltaTicks > 0.0F) {
             float yawLerp = Mth.clamp(deltaTicks * 0.45F, 0.0F, 1.0F);
             float pitchLerp = Mth.clamp(deltaTicks * 0.35F, 0.0F, 1.0F);
-            // Fabric routes yaw through lerpAngleAwayFrom(..., 180) to avoid twisting
-            // past backwards, but combined with angle wrapping that detour fires exactly
-            // when facing backwards (backpedal): crossing +/-180 sends the neck on a
-            // near-full-rotation spin. The chain weights clamp to maxYawDeg downstream
-            // anyway, so take the plain shortest path like pitch does.
-            state.headYaw = lerpAngle(yawLerp, state.headYaw, targetYaw);
+            state.headYaw = lerpAngleAwayFrom(yawLerp, state.headYaw, targetYaw, 180.0F);
             state.headPitch = Mth.lerp(pitchLerp, state.headPitch, targetPitch);
             if (!Float.isFinite(state.headYaw)) {
                 state.headYaw = fallbackYawDeg;
@@ -383,6 +381,23 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
 
     private static float lerpAngle(float delta, float start, float end) {
         return start + Mth.wrapDegrees(end - start) * delta;
+    }
+
+    /** Verbatim port of Fabric LongNeckRenderUtils#lerpAngleAwayFrom. */
+    private static float lerpAngleAwayFrom(float delta, float start, float end, float avoidAngle) {
+        if (Math.abs(Mth.wrapDegrees(avoidAngle - end)) < 0.0001F) {
+            return lerpAngle(delta, start, end);
+        }
+        start = Mth.wrapDegrees(start);
+        end = Mth.wrapDegrees(end);
+        float diff = Mth.wrapDegrees(end - start);
+        float avoidDiff = Mth.wrapDegrees(avoidAngle - start);
+        boolean flipDir = Math.signum(diff) == Math.signum(avoidDiff)
+                && Math.abs(diff) > Math.abs(avoidDiff);
+        if (flipDir) {
+            diff = Math.copySign(360.0F - Math.abs(diff), -diff);
+        }
+        return Mth.wrapDegrees(start + diff * delta);
     }
 
     private static final class NeckState {
