@@ -1,9 +1,9 @@
 {
     "type": "apoli:modify_jump",
     "modifier": {
-        "name": "Bonus jump force while sneaking",
+        "name": "High jump while sprinting",
         "operation": "multiply_base",
-        "value": 0.1
+        "value": 1.5
     },
     "condition": {
         "type": "apoli:and",

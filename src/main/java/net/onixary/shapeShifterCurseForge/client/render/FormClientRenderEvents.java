@@ -74,25 +74,28 @@ public final class FormClientRenderEvents {
             setAllPartsVisible(vanillaModel);
             return;
         }
-        renderer.setPlayer(player);
-        renderer.setVanillaPlayerModel(vanillaModel);
-        renderer.setInventoryPreview(inventoryPreview);
-        renderer.prepareVanillaPlayerPose(event.getPartialTick());
-        // If data-driven animation state is ever invalid, leave the event alone so
-        // the player remains visible.
-        if (!renderer.getAnimatable().hasSafeRenderState()) {
-            setAllPartsVisible(vanillaModel);
-            reportRenderFailure(player, form, null);
-            return;
-        }
-
-        // Fabric never cancels the player renderer: covered vanilla parts are hidden
-        // (rM_PartA parity) while the remaining layers, including held items, keep
-        // running. The Geo form model is overlaid on top of that.
-        setCoveredPartsHidden(vanillaModel, renderer);
+        // Audit ③: the whole pose preparation must live inside the guarded region.
+        // Any runtime failure while selecting or sampling clips used to abort the event
+        // before vanilla ran, stranding the player invisible with no recovery signal.
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         try {
+            renderer.setPlayer(player);
+            renderer.setVanillaPlayerModel(vanillaModel);
+            renderer.setInventoryPreview(inventoryPreview);
+            renderer.prepareVanillaPlayerPose(event.getPartialTick());
+            // If data-driven animation state is ever invalid, leave the event alone so
+            // the player remains visible.
+            if (!renderer.getAnimatable().hasSafeRenderState()) {
+                setAllPartsVisible(vanillaModel);
+                reportRenderFailure(player, form, null);
+                return;
+            }
+
+            // Fabric never cancels the player renderer: covered vanilla parts are hidden
+            // (rM_PartA parity) while the remaining layers, including held items, keep
+            // running. The Geo form model is overlaid on top of that.
+            setCoveredPartsHidden(vanillaModel, renderer);
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
             // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
             // PlayerRenderer path before applying its own Geo coordinate conversion.

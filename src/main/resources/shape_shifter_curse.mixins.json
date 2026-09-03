@@ -5,7 +5,8 @@
     "refmap": "shape_shifter_curse.refmap.json",
     "mixins": [
         "LivingEntityMixin",
-        "PlayerModelAnimMixin"
+        "PlayerModelAnimMixin",
+        "PlayerRendererBodyMixin"
     ],
     "injectors": {
         "defaultRequire": 1
