@@ -9,6 +9,7 @@ import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.resources.ResourceLocation;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import software.bernie.geckolib.model.GeoModel;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -71,6 +72,40 @@ public final class BedrockAnimationPlayer {
             }
         }
         return bodyTransform;
+    }
+
+    /**
+     * Applies a Bedrock clip as an additive layer to an already prepared Geo model.
+     *
+     * <p>SSC's ordinary form clips target Player Animation Lib's PlayerModel bones and
+     * must therefore run before {@link FormGeoModel} copies the final vanilla pose.
+     * A few new clips instead target form-only bones (for example an axolotl tail), so
+     * replacing that pose would be incorrect. Each write is based on the bone's baked
+     * initial pose, rather than its previous rendered pose, so repeated render passes
+     * cannot accumulate rotation.</p>
+     */
+    public static void applyAdditiveGeoRotation(GeoModel<?> model, ResourceLocation resource,
+                                                String animationId, float timeSeconds) {
+        AnimationDefinition definition = load(resource, animationId);
+        if (definition == null) {
+            return;
+        }
+        float time = animationTime(definition, timeSeconds);
+        for (Map.Entry<String, BoneAnimation> entry : definition.bones.entrySet()) {
+            Vec3 rotation = sample(entry.getValue().rotation, time);
+            if (rotation == null) {
+                continue;
+            }
+            model.getBone(entry.getKey()).ifPresent(bone -> {
+                var initial = bone.getInitialSnapshot();
+                // FormGeoRenderer converts Bedrock model space to Forge Geo space with
+                // a 180-degree X-axis turn. Form-only tail clips therefore need their
+                // pitch inverted; Y/Z retain their native Geo direction.
+                bone.setRotX(initial.getRotX() - rotation.x * DEG_TO_RAD);
+                bone.setRotY(initial.getRotY() + rotation.y * DEG_TO_RAD);
+                bone.setRotZ(initial.getRotZ() + rotation.z * DEG_TO_RAD);
+            });
+        }
     }
 
     public static void clearCache() {
@@ -170,16 +205,18 @@ public final class BedrockAnimationPlayer {
     private static Channel channel(JsonObject bone, String name) {
         if (!bone.has(name)) return Channel.EMPTY;
         JsonElement element = bone.get(name);
-        if (element.isJsonArray()) return new Channel(List.of(new Keyframe(0.0F, vector(element))));
+        if (element.isJsonArray()) return new Channel(List.of(new Keyframe(0.0F, vector(element), null)));
         if (!element.isJsonObject()) return Channel.EMPTY;
         JsonObject object = element.getAsJsonObject();
-        if (object.has("vector")) return new Channel(List.of(new Keyframe(0.0F, vector(object))));
+        if (object.has("vector")) return new Channel(List.of(new Keyframe(0.0F, vector(object), null)));
         List<Keyframe> frames = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
             try {
                 JsonElement value = entry.getValue();
+                String easing = value.isJsonObject() && value.getAsJsonObject().has("easing")
+                        ? value.getAsJsonObject().get("easing").getAsString() : null;
                 if (value.isJsonObject() && value.getAsJsonObject().has("post")) value = value.getAsJsonObject().get("post");
-                frames.add(new Keyframe(Float.parseFloat(entry.getKey()), vector(value)));
+                frames.add(new Keyframe(Float.parseFloat(entry.getKey()), vector(value), easing));
             } catch (RuntimeException ignored) {
                 // Ignore malformed individual keyframes and keep the rest usable.
             }
@@ -204,10 +241,18 @@ public final class BedrockAnimationPlayer {
                 Keyframe left = channel.frames.get(i - 1);
                 float span = right.time - left.time;
                 float amount = span <= 0.0F ? 1.0F : (time - left.time) / span;
-                return left.value.lerp(right.value, amount);
+                return left.value.lerp(right.value, applyEasing(right.easing, amount));
             }
         }
         return channel.frames.get(channel.frames.size() - 1).value;
+    }
+
+    private static float applyEasing(String easing, float amount) {
+        if ("easeOutCubic".equals(easing)) {
+            float inverse = 1.0F - amount;
+            return 1.0F - inverse * inverse * inverse;
+        }
+        return amount;
     }
 
     private record AnimationDefinition(float length, boolean loop, Map<String, BoneAnimation> bones) { }
@@ -228,7 +273,7 @@ public final class BedrockAnimationPlayer {
         }
     }
 
-    private record Keyframe(float time, Vec3 value) { }
+    private record Keyframe(float time, Vec3 value, String easing) { }
 
     public record BodyTransform(float x, float y, float z, float pitch, float yaw, float roll) {
         public static final BodyTransform IDENTITY = new BodyTransform(0.0F, 0.0F, 0.0F,

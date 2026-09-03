@@ -20,6 +20,7 @@ public final class ShapeShifterCurseForge {
     public static final String RESOURCE_NAMESPACE = "shape-shifter-curse";
     public static final Logger LOGGER = LogManager.getLogger(ShapeShifterCurseForge.MOD_ID);
 
+    @SuppressWarnings("removal")
     public ShapeShifterCurseForge() {
         var modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, SscClientConfig.SPEC,

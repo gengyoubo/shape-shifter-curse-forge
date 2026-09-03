@@ -65,6 +65,12 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         resetTransform("bipedRightArm");
         resetTransform("bipedLeftLeg");
         resetTransform("bipedRightLeg");
+        // Tail bones are not copied from PlayerModel. Resetting them explicitly makes
+        // form-only overlays deterministic across GeckoLib's multiple render passes.
+        resetRotation("tail_0");
+        resetRotation("tail_1");
+        resetRotation("tail_2");
+        resetRotation("tail_3");
 
         float partialTick = animationState.getPartialTick();
         boolean inventoryPreview = animatable.isInventoryPreview();
@@ -121,8 +127,14 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         setRotation("tail", 0.0F, Mth.sin(age * 0.20F) * 0.10F, 0.0F);
 
         // Player Animator applies the selected SSC animation to PlayerModel during
-        // setupAnim. The final PlayerModel pose was copied above, so no JSON animation
-        // is applied directly to GeoBones here.
+        // setupAnim. The final PlayerModel pose was copied above. Form-only clips are
+        // the exception: they are additive GeoBone layers and never replace that pose.
+        float surfaceSprintTime = animatable.axolotlSurfaceSprintOverlayTime(partialTick);
+        if (surfaceSprintTime >= 0.0F) {
+            BedrockAnimationPlayer.applyAdditiveGeoRotation(this,
+                    FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ANIMATION,
+                    FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ID, surfaceSprintTime);
+        }
     }
 
     private void setRotation(String boneName, float x, float y, float z) {
@@ -159,6 +171,15 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             bone.setScaleX(1.0F);
             bone.setScaleY(1.0F);
             bone.setScaleZ(1.0F);
+        });
+    }
+
+    private void resetRotation(String boneName) {
+        getBone(boneName).ifPresent(bone -> {
+            var initial = bone.getInitialSnapshot();
+            bone.setRotX(initial.getRotX());
+            bone.setRotY(initial.getRotY());
+            bone.setRotZ(initial.getRotZ());
         });
     }
 }

@@ -3,8 +3,12 @@ package net.onixary.shapeShifterCurseForge.client.render;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animatable.instance.SingletonAnimatableInstanceCache;
@@ -19,12 +23,18 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class FormGeoAnimatable implements GeoAnimatable {
+    public static final ResourceLocation AXOLOTL_SURFACE_SPRINT_ANIMATION =
+            ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE,
+                    "player_animation/new/form_axolotl_3_new.animation.json");
+    public static final String AXOLOTL_SURFACE_SPRINT_ID = "The Surface Sprint Begins";
+
     private final AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
     private Player player;
     private PlayerModel<?> vanillaPlayerModel;
     private BedrockAnimationPlayer.BodyTransform bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
     private boolean inventoryPreview;
     private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
+    private final Map<UUID, OverlayTimeline> overlayTimelines = new HashMap<>();
 
     public void setPlayer(Player player) {
         this.player = player;
@@ -119,6 +129,32 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         return (float) ((now - timeline.startedAt) / 20.0D * selection.speed());
     }
 
+    /**
+     * Returns the time for the surface-sprint Geo clip, or a negative value when it is
+     * inactive. The non-looping Bedrock clip holds its final pose until sprinting in
+     * water ends; the normal swim animation remains the base layer underneath it.
+     */
+    public float axolotlSurfaceSprintOverlayTime(float partialTick) {
+        if (player == null || inventoryPreview || !SscClientConfig.PREFER_NEW_ANIMATIONS.get()) {
+            return -1.0F;
+        }
+
+        OverlayTimeline timeline = overlayTimelines.computeIfAbsent(player.getUUID(), ignored -> new OverlayTimeline());
+        boolean surfaceSprinting = FormManager.current(player).id().getPath().equals("axolotl_3")
+                && player.isSprinting() && player.isInWater();
+        if (!surfaceSprinting) {
+            timeline.surfaceSprinting = false;
+            return -1.0F;
+        }
+
+        double now = player.tickCount + partialTick;
+        if (!timeline.surfaceSprinting) {
+            timeline.surfaceSprinting = true;
+            timeline.startedAt = now;
+        }
+        return (float) ((now - timeline.startedAt) / 20.0D);
+    }
+
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "idle", state -> {
@@ -139,6 +175,11 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     private static final class AnimationTimeline {
         private String animationId;
+        private double startedAt;
+    }
+
+    private static final class OverlayTimeline {
+        private boolean surfaceSprinting;
         private double startedAt;
     }
 }

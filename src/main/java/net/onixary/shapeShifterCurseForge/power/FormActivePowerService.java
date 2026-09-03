@@ -35,6 +35,12 @@ public final class FormActivePowerService {
         boolean wasPressed = keys.getOrDefault(key, false);
         keys.put(key, pressed);
         if (pressed && !wasPressed) {
+            // A surface-water active_self power (jump_out_water) must win over the
+            // generic air-jump branch. Water-surface players are not onGround(), so
+            // checking air jump first made the original SSC launch unreachable.
+            if ("key.jump".equals(key) && triggerActive(player, key)) {
+                return;
+            }
             if ("key.jump".equals(key) && !player.onGround()) {
                 triggerAirJump(player);
             } else {
@@ -181,7 +187,8 @@ public final class FormActivePowerService {
         return type[0];
     }
 
-    private static void triggerActive(ServerPlayer player, String key) {
+    private static boolean triggerActive(ServerPlayer player, String key) {
+        final boolean[] triggered = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"apoli:active_self".equals(FormPowerRegistry.typeOf(power)) || !usesKey(power, key)
                     || isOnCooldown(player, id)) {
@@ -193,7 +200,9 @@ public final class FormActivePowerService {
             }
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
             startCooldown(player, id, FormPowerRuntime.intValue(power, "cooldown", 0));
+            triggered[0] = true;
         });
+        return triggered[0];
     }
 
     private static void charge(ServerPlayer player, String key) {

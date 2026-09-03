@@ -1,0 +1,53 @@
+{
+	"format_version": "1.8.0",
+	"animations": {
+		"The Surface Sprint Begins": {
+			"loop": "once",
+			"animation_length": 0.75,
+			"bones": {
+				"tail_0": {
+					"rotation": {
+						"0": {
+							"vector": [0, 0, 0]
+						},
+						"0.75": {
+							"vector": [7.5, 0, 0]
+						}
+					}
+				},
+				"tail_1": {
+					"rotation": {
+						"0": {
+							"vector": [0, 0, 0]
+						},
+						"0.75": {
+							"vector": [37.5, 0, 0],
+							"easing": "easeOutCubic"
+						}
+					}
+				},
+				"tail_2": {
+					"rotation": {
+						"0": {
+							"vector": [0, 0, 0]
+						},
+						"0.75": {
+							"vector": [32.5, 0, 0],
+							"easing": "easeOutCubic"
+						}
+					}
+				},
+				"tail_3": {
+					"rotation": {
+						"0": {
+							"vector": [0, 0, 0]
+						},
+						"0.75": {
+							"vector": [22.5001, 0.0001, 0.0001]
+						}
+					}
+				}
+			}
+		}
+	}
+}
