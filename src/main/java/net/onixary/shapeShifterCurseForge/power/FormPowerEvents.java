@@ -54,6 +54,9 @@ public final class FormPowerEvents {
     /** Modifiers currently owned by the Forge-native Apoli compatibility layer, per player. */
     private static final Map<UUID, Map<UUID, AttributeInstance>> OWNED_ATTRIBUTE_MODIFIERS = new HashMap<>();
     private static final Map<UUID, Integer> LAST_ATTRIBUTE_REFRESH_TICK = new HashMap<>();
+    /** Per-power transition state matching SSC Fabric's DelayAttributePower. */
+    private static final Map<UUID, Map<UUID, DelayAttributeState>> DELAY_ATTRIBUTE_STATES = new HashMap<>();
+    private static final Map<UUID, Map<UUID, Integer>> DAMAGE_OVER_TIME_STARTED_TICKS = new HashMap<>();
     private static final ThreadLocal<Boolean> SWEEP_DAMAGE = ThreadLocal.withInitial(() -> false);
     private static final ResourceLocation LEGACY_WATER_SPEED = ResourceLocation.fromNamespaceAndPath(
             "additionalentityattributes", "generic.water_speed");
@@ -69,8 +72,9 @@ public final class FormPowerEvents {
         InstinctService.tick((net.minecraft.server.level.ServerPlayer) player);
         BatAttachService.tick(player);
         MovementPowerService.tick(player);
+        enforceSprinting(player);
         adjustFoodHealTimer(player);
-        FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, power));
+        FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, id, power));
         applyClimbing(player);
         maintainBreathingAndImmunity(player);
     }
@@ -98,10 +102,15 @@ public final class FormPowerEvents {
 
     @SubscribeEvent
     public static void potionEffectAdded(MobEffectEvent.Added event) {
-        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
-                || !(event.getEffectSource() instanceof net.minecraft.world.entity.projectile.ThrownPotion
-                || event.getEffectSource() instanceof net.minecraft.world.entity.AreaEffectCloud)) return;
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("apoli:effect_immunity".equals(FormPowerRegistry.typeOf(power))
+                    && effectIsListed(event.getEffectInstance().getEffect(), power)) {
+                event.setCanceled(true);
+                return;
+            }
+            if (!(event.getEffectSource() instanceof net.minecraft.world.entity.projectile.ThrownPotion
+                    || event.getEffectSource() instanceof net.minecraft.world.entity.AreaEffectCloud)) return;
             if ("shape-shifter-curse:action_on_splash_potion_take_effect".equals(FormPowerRegistry.typeOf(power))
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
@@ -134,6 +143,12 @@ public final class FormPowerEvents {
         if (event.getEntity() instanceof Player defender) {
             FormPowerRegistry.visitActive(defender, (id, power) -> {
                 String type = FormPowerRegistry.typeOf(power);
+                if (("apoli:fire_immunity".equals(type) && event.getSource().is(DamageTypeTags.IS_FIRE))
+                        || ("apoli:invulnerability".equals(type)
+                        && FormPowerRuntime.matchesDamageSource(event.getSource(), power.getAsJsonObject("damage_condition")))) {
+                    event.setCanceled(true);
+                    return;
+                }
                 if ("shape-shifter-curse:virtual_shield".equals(type)
                         && blocksWithVirtualShield(defender, event, power)) {
                     event.setCanceled(true);
@@ -408,7 +423,7 @@ public final class FormPowerEvents {
         event.setNewSpeed(speed[0]);
     }
 
-    private static void tickPower(Player player, JsonObject power) {
+    private static void tickPower(Player player, ResourceLocation powerId, JsonObject power) {
         if ("apoli:action_over_time".equals(FormPowerRegistry.typeOf(power))) {
             int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
             if (player.tickCount % interval == 0
@@ -429,6 +444,25 @@ public final class FormPowerEvents {
                         target -> target != player && FormPowerRuntime.test(player, target, power.getAsJsonObject("entity_condition")))) {
                     FormPowerRuntime.execute(player, target, power.getAsJsonObject("entity_action"));
                 }
+            }
+        }
+        if ("apoli:damage_over_time".equals(FormPowerRegistry.typeOf(power))) {
+            UUID stateId = UUID.nameUUIDFromBytes((powerId + "|" + power).getBytes(StandardCharsets.UTF_8));
+            Map<UUID, Integer> starts = DAMAGE_OVER_TIME_STARTED_TICKS.computeIfAbsent(
+                    player.getUUID(), ignored -> new HashMap<>());
+            if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                starts.remove(stateId);
+                return;
+            }
+            int start = starts.computeIfAbsent(stateId, ignored -> player.tickCount);
+            int onset = Math.max(0, FormPowerRuntime.intValue(power, "onset_delay", 0));
+            int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
+            int elapsed = player.tickCount - start;
+            if (elapsed >= onset && (elapsed - onset) % interval == 0) {
+                String damageType = FormPowerRuntime.stringValue(power, "damage_type", "minecraft:generic");
+                var source = "minecraft:on_fire".equals(damageType) ? player.damageSources().onFire()
+                        : player.damageSources().generic();
+                player.hurt(source, FormPowerRuntime.floatValue(power, "damage", 0.0F));
             }
         }
     }
@@ -486,7 +520,8 @@ public final class FormPowerEvents {
         Map<UUID, AttributeInstance> owned = OWNED_ATTRIBUTE_MODIFIERS.computeIfAbsent(
                 player.getUUID(), ignored -> new HashMap<>());
         Set<UUID> wanted = new HashSet<>();
-        FormPowerRegistry.visitActive(player, (id, power) -> refreshAttribute(player, id, power, wanted, owned));
+        Set<UUID> seen = new HashSet<>();
+        FormPowerRegistry.visitActive(player, (id, power) -> refreshAttribute(player, id, power, wanted, seen, owned));
         owned.entrySet().removeIf(entry -> {
             if (wanted.contains(entry.getKey())) {
                 return false;
@@ -494,6 +529,10 @@ public final class FormPowerEvents {
             entry.getValue().removeModifier(entry.getKey());
             return true;
         });
+        Map<UUID, DelayAttributeState> delayStates = DELAY_ATTRIBUTE_STATES.get(player.getUUID());
+        if (delayStates != null) {
+            delayStates.keySet().retainAll(seen);
+        }
         LAST_ATTRIBUTE_REFRESH_TICK.put(player.getUUID(), player.tickCount);
     }
 
@@ -512,6 +551,24 @@ public final class FormPowerEvents {
             remainders.put(id, pending - adjustment);
             FoodData food = player.getFoodData();
             food.tickTimer = Math.max(0, food.tickTimer + adjustment);
+        });
+    }
+
+    private static boolean effectIsListed(net.minecraft.world.effect.MobEffect effect, JsonObject power) {
+        if (!power.has("effects") || !power.get("effects").isJsonArray()) return false;
+        ResourceLocation effectId = BuiltInRegistries.MOB_EFFECT.getKey(effect);
+        for (var entry : power.getAsJsonArray("effects")) {
+            if (effectId.toString().equals(entry.getAsString())) return true;
+        }
+        return false;
+    }
+
+    private static void enforceSprinting(Player player) {
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("apoli:prevent_sprinting".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                player.setSprinting(false);
+            }
         });
     }
 
@@ -642,14 +699,17 @@ public final class FormPowerEvents {
      * removes modifiers from a previous form (including children of apoli:multiple).
      */
     private static void refreshAttribute(Player player, ResourceLocation powerId, JsonObject power,
-                                         Set<UUID> wanted, Map<UUID, AttributeInstance> owned) {
+                                         Set<UUID> wanted, Set<UUID> seen, Map<UUID, AttributeInstance> owned) {
         String type = FormPowerRegistry.typeOf(power);
-        if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)) {
+        boolean waterSpeedModifier = "shape-shifter-curse:in_water_speed_modifier".equals(type);
+        if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)
+                && !"shape-shifter-curse:delay_attribute".equals(type) && !waterSpeedModifier) {
             return;
         }
 
-        JsonObject modifier = power.getAsJsonObject("modifier");
-        ResourceLocation attributeId = ResourceLocation.tryParse(FormPowerRuntime.stringValue(modifier, "attribute", ""));
+        JsonObject modifier = waterSpeedModifier ? null : power.getAsJsonObject("modifier");
+        ResourceLocation attributeId = waterSpeedModifier ? LEGACY_WATER_SPEED
+                : ResourceLocation.tryParse(FormPowerRuntime.stringValue(modifier, "attribute", ""));
         // Additional Entity Attributes supplied the Fabric water-speed attribute. Forge 1.20.1
         // has the same movement hook built in; mapping it preserves the original JSON values
         // without retaining that dependency.
@@ -662,8 +722,8 @@ public final class FormPowerEvents {
         }
 
         UUID uuid = attributeModifierId(powerId, attributeId, power);
-        if (("apoli:conditioned_attribute".equals(type)
-                && !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition")))) {
+        seen.add(uuid);
+        if (!attributeConditionMet(player, power, type, uuid)) {
             return;
         }
 
@@ -673,14 +733,51 @@ public final class FormPowerEvents {
             return;
         }
 
-        AttributeModifier.Operation operation = switch (FormPowerRuntime.stringValue(modifier, "operation", "addition")) {
-            case "multiply_base" -> AttributeModifier.Operation.MULTIPLY_BASE;
-            case "multiply_total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
-            default -> AttributeModifier.Operation.ADDITION;
-        };
+        AttributeModifier.Operation operation = waterSpeedModifier ? AttributeModifier.Operation.MULTIPLY_TOTAL
+                : switch (FormPowerRuntime.stringValue(modifier, "operation", "addition")) {
+                    case "multiply_base" -> AttributeModifier.Operation.MULTIPLY_BASE;
+                    case "multiply_total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
+                    default -> AttributeModifier.Operation.ADDITION;
+                };
+        double amount = waterSpeedModifier ? FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D
+                : FormPowerRuntime.doubleValue(modifier, "value", 0.0D);
         instance.addTransientModifier(new AttributeModifier(uuid,
-                FormPowerRuntime.stringValue(modifier, "name", powerId.toString()),
-                FormPowerRuntime.doubleValue(modifier, "value", 0.0D), operation));
+                waterSpeedModifier ? powerId.toString() : FormPowerRuntime.stringValue(modifier, "name", powerId.toString()),
+                amount, operation));
+        if (power.has("updateHealth") && power.get("updateHealth").getAsBoolean()) {
+            player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
+        }
+    }
+
+    private static boolean attributeConditionMet(Player player, JsonObject power, String type, UUID modifierId) {
+        if ("apoli:attribute".equals(type)) {
+            return true;
+        }
+        if ("shape-shifter-curse:in_water_speed_modifier".equals(type)) {
+            return player.isInWater() && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
+        }
+        boolean conditionMet = FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
+        if (!"shape-shifter-curse:delay_attribute".equals(type)) {
+            return conditionMet;
+        }
+        DelayAttributeState state = DELAY_ATTRIBUTE_STATES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+                .computeIfAbsent(modifierId, ignored -> new DelayAttributeState(
+                        Math.max(0, FormPowerRuntime.intValue(power, "delay", 0))));
+        int tickRate = Math.max(1, FormPowerRuntime.intValue(power, "tick_rate", 1));
+        if (player.tickCount % tickRate != 0) {
+            return state.applied;
+        }
+        if (conditionMet == state.applied) {
+            state.transitionTicks = 0;
+            return state.applied;
+        }
+        if (state.transitionTicks >= state.delay) {
+            state.applied = conditionMet;
+            state.transitionTicks = 0;
+        } else {
+            state.transitionTicks++;
+        }
+        return state.applied;
     }
 
     /** Server-side probe used by /ssc power status to verify the complete swim-speed chain. */
@@ -689,21 +786,24 @@ public final class FormPowerEvents {
         List<SwimModifierDebug> powers = new ArrayList<>();
         FormPowerRegistry.visitActive(player, (powerId, power) -> {
             String type = FormPowerRegistry.typeOf(power);
-            if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)) {
+            boolean waterSpeedModifier = "shape-shifter-curse:in_water_speed_modifier".equals(type);
+            if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)
+                    && !"shape-shifter-curse:delay_attribute".equals(type) && !waterSpeedModifier) {
                 return;
             }
-            JsonObject modifier = power.getAsJsonObject("modifier");
-            ResourceLocation attributeId = ResourceLocation.tryParse(FormPowerRuntime.stringValue(modifier, "attribute", ""));
+            JsonObject modifier = waterSpeedModifier ? null : power.getAsJsonObject("modifier");
+            ResourceLocation attributeId = waterSpeedModifier ? LEGACY_WATER_SPEED
+                    : ResourceLocation.tryParse(FormPowerRuntime.stringValue(modifier, "attribute", ""));
             if (!LEGACY_WATER_SPEED.equals(attributeId)) {
                 return;
             }
-            boolean conditionMet = !"apoli:conditioned_attribute".equals(type)
-                    || FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
             UUID modifierId = attributeModifierId(powerId, attributeId, power);
+            boolean conditionMet = attributeConditionMet(player, power, type, modifierId);
             boolean installed = instance != null && instance.getModifier(modifierId) != null;
             powers.add(new SwimModifierDebug(powerId, conditionMet, installed,
-                    FormPowerRuntime.doubleValue(modifier, "value", 0.0D),
-                    FormPowerRuntime.stringValue(modifier, "operation", "addition")));
+                    waterSpeedModifier ? FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D
+                            : FormPowerRuntime.doubleValue(modifier, "value", 0.0D),
+                    waterSpeedModifier ? "multiply_total" : FormPowerRuntime.stringValue(modifier, "operation", "addition")));
         });
         return new SwimSpeedDebug(instance != null, instance == null ? 0.0D : instance.getBaseValue(),
                 instance == null ? 0.0D : instance.getValue(),
@@ -721,5 +821,16 @@ public final class FormPowerEvents {
 
     public record SwimModifierDebug(ResourceLocation powerId, boolean conditionMet, boolean installed,
                                     double amount, String operation) {
+    }
+
+    private static final class DelayAttributeState {
+        private final int delay;
+        private int transitionTicks;
+        private boolean applied;
+
+        private DelayAttributeState(int delay) {
+            this.delay = delay;
+            this.transitionTicks = delay;
+        }
     }
 }

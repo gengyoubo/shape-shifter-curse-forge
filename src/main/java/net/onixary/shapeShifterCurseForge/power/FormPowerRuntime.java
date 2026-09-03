@@ -49,13 +49,18 @@ public final class FormPowerRuntime {
             case "apoli:moving" -> actor.getDeltaMovement().horizontalDistanceSqr() > 0.0004D;
             case "apoli:food_level" -> compare(actor.getFoodData().getFoodLevel(), condition);
             case "apoli:fluid_height" -> compare(fluidHeight(actor, condition), condition);
+            case "apoli:submerged_in" -> submergedIn(actor, condition);
             case "apoli:exposed_to_sun" -> actor.level().canSeeSky(actor.blockPosition())
                     && actor.level().isDay() && actor.level().getMaxLocalRawBrightness(actor.blockPosition()) >= 12;
             case "apoli:status_effect" -> hasEffect(actor, condition);
             case "apoli:biome" -> matchesBiome(actor, condition);
+            case "apoli:temperature" -> compare(actor.level().getBiome(actor.blockPosition()).value().getBaseTemperature(), condition);
+            case "apoli:time_of_day" -> compare(actor.level().getDayTime() % 24000L, condition);
             case "apoli:brightness" -> compare(actor.level().getMaxLocalRawBrightness(actor.blockPosition()) / 15.0D, condition);
             case "apoli:inventory" -> matchesInventory(actor, condition);
             case "apoli:on_block" -> matchesBlock(actor, condition);
+            case "apoli:in_block_anywhere" -> matchesBlockAnywhere(actor, condition.getAsJsonObject("block_condition"));
+            case "apoli:block_in_radius" -> compare(blockCountInRadius(actor, condition), condition);
             case "apoli:power_active" -> hasPower(actor, condition);
             case "apoli:resource" -> matchesResource(actor, condition);
             case "apoli:air" -> compare(actor.getAirSupply(), condition);
@@ -64,17 +69,23 @@ public final class FormPowerRuntime {
             case "apoli:fall_distance" -> compare(actor.fallDistance, condition);
             case "apoli:fall_flying" -> actor.isFallFlying();
             case "apoli:swimming" -> actor.isSwimming();
+            case "apoli:riding" -> actor.isPassenger();
+            case "apoli:climbing" -> actor.onClimbable();
+            case "apoli:health" -> compare(actor.getHealth(), condition);
+            case "apoli:armor_value" -> compare(actor.getArmorValue(), condition);
+            case "apoli:distance" -> target != null && compare(actor.distanceTo(target), condition);
             case "apoli:on_fire" -> actor.isOnFire();
             case "apoli:collided_horizontally" -> actor.horizontalCollision;
             case "apoli:constant" -> !condition.has("value") || condition.get("value").getAsBoolean();
-            case "apoli:entity_group" -> target instanceof LivingEntity living
-                    && "undead".equals(stringValue(condition, "group", "")) && living.getMobType() == net.minecraft.world.entity.MobType.UNDEAD;
+            case "apoli:entity_group" -> matchesEntityGroup(target, stringValue(condition, "group", ""));
             case "apoli:in_block" -> matchesBlockAt(actor, actor.blockPosition(), condition.getAsJsonObject("block_condition"));
             case "apoli:block_collision" -> matchesBlockCollision(actor, condition);
             case "shape-shifter-curse:check_accessory", "shape-shifter-curse:has_accessory" -> false;
             case "shape-shifter-curse:has_mana" -> FormActivePowerService.hasMana(actor,
                     floatValue(condition, "mana", 0.0F));
+            case "shape-shifter-curse:has_mana_percent" -> compare(FormActivePowerService.manaPercent(actor), condition);
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);
+            case "shape-shifter-curse:is_sleep" -> actor.isSleeping();
             case "apoli:target_condition" -> target != null && testEntity(actor, target, condition.getAsJsonObject("condition"));
             case "apoli:actor_condition" -> test(actor, target, condition.getAsJsonObject("condition"));
             case "apoli:entity_type" -> target != null && matchesEntityType(target, condition);
@@ -169,6 +180,31 @@ public final class FormPowerRuntime {
         };
     }
 
+    /** Small damage-condition subset used by the retained invulnerability powers. */
+    public static boolean matchesDamageSource(net.minecraft.world.damagesource.DamageSource source, JsonObject condition) {
+        if (condition == null) return true;
+        String type = FormPowerRegistry.typeOf(condition);
+        boolean result = switch (type) {
+            case "apoli:and" -> damageConditions(source, condition.getAsJsonArray("conditions"), true);
+            case "apoli:or" -> damageConditions(source, condition.getAsJsonArray("conditions"), false);
+            case "apoli:name" -> stringValue(condition, "name", "").equals(source.getMsgId());
+            case "apoli:fire" -> source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE);
+            default -> false;
+        };
+        return inverted(condition, result);
+    }
+
+    private static boolean damageConditions(net.minecraft.world.damagesource.DamageSource source,
+                                            JsonArray conditions, boolean all) {
+        if (conditions == null) return all;
+        for (JsonElement child : conditions) {
+            if (!child.isJsonObject()) continue;
+            boolean matches = matchesDamageSource(source, child.getAsJsonObject());
+            if (all != matches) return !all;
+        }
+        return all;
+    }
+
     private static boolean testAll(Player actor, Entity target, JsonArray conditions) {
         if (conditions == null) {
             return true;
@@ -246,8 +282,56 @@ public final class FormPowerRuntime {
 
     private static boolean matchesBiome(Player actor, JsonObject condition) {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "biome", ""));
-        return id != null && actor.level().getBiome(actor.blockPosition()).unwrapKey()
-                .map(key -> key.location().equals(id)).orElse(false);
+        var biome = actor.level().getBiome(actor.blockPosition());
+        if (id != null) {
+            return biome.unwrapKey().map(key -> key.location().equals(id)).orElse(false);
+        }
+        JsonObject nested = condition.getAsJsonObject("condition");
+        return nested == null || matchesBiomeCondition(actor, biome, nested);
+    }
+
+    private static boolean matchesBiomeCondition(Player actor, net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome,
+                                                  JsonObject condition) {
+        String type = FormPowerRegistry.typeOf(condition);
+        boolean result = switch (type) {
+            case "apoli:and" -> testBiomeConditions(actor, biome, condition.getAsJsonArray("conditions"), true);
+            case "apoli:or" -> testBiomeConditions(actor, biome, condition.getAsJsonArray("conditions"), false);
+            case "apoli:temperature" -> compare(biome.value().getBaseTemperature(), condition);
+            case "apoli:in_tag" -> {
+                ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
+                yield id != null && biome.is(TagKey.create(Registries.BIOME, id));
+            }
+            default -> test(actor, actor, condition);
+        };
+        return inverted(condition, result);
+    }
+
+    private static boolean testBiomeConditions(Player actor, net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome,
+                                               JsonArray conditions, boolean all) {
+        if (conditions == null) return all;
+        for (JsonElement child : conditions) {
+            if (!child.isJsonObject()) continue;
+            boolean matches = matchesBiomeCondition(actor, biome, child.getAsJsonObject());
+            if (all != matches) return !all;
+        }
+        return all;
+    }
+
+    private static boolean submergedIn(Player actor, JsonObject condition) {
+        ResourceLocation fluid = ResourceLocation.tryParse(stringValue(condition, "fluid", "minecraft:water"));
+        if (fluid == null || "minecraft:water".equals(fluid.toString())) return actor.isEyeInFluid(FluidTags.WATER);
+        if ("minecraft:lava".equals(fluid.toString())) return actor.isEyeInFluid(FluidTags.LAVA);
+        return false;
+    }
+
+    private static boolean matchesEntityGroup(Entity target, String group) {
+        if (!(target instanceof LivingEntity living)) return false;
+        return switch (group) {
+            case "undead" -> living.getMobType() == net.minecraft.world.entity.MobType.UNDEAD;
+            case "arthropod" -> living.getMobType() == net.minecraft.world.entity.MobType.ARTHROPOD;
+            case "aquatic" -> living.getMobType() == net.minecraft.world.entity.MobType.WATER;
+            default -> false;
+        };
     }
 
     private static boolean hasPower(Player actor, JsonObject condition) {
@@ -334,6 +418,28 @@ public final class FormPowerRuntime {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "block", ""));
         Block block = id == null ? null : BuiltInRegistries.BLOCK.get(id);
         return block != null && actor.level().getBlockState(pos).is(block);
+    }
+
+    private static boolean matchesBlockAnywhere(Player actor, JsonObject condition) {
+        var box = actor.getBoundingBox();
+        BlockPos min = BlockPos.containing(box.minX + 1.0E-4D, box.minY + 1.0E-4D, box.minZ + 1.0E-4D);
+        BlockPos max = BlockPos.containing(box.maxX - 1.0E-4D, box.maxY - 1.0E-4D, box.maxZ - 1.0E-4D);
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            if (matchesBlockAt(actor, pos, condition)) return true;
+        }
+        return false;
+    }
+
+    private static int blockCountInRadius(Player actor, JsonObject condition) {
+        int radius = Math.max(0, intValue(condition, "radius", 0));
+        JsonObject blockCondition = condition.getAsJsonObject("block_condition");
+        int count = 0;
+        BlockPos origin = actor.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-radius, -radius, -radius),
+                origin.offset(radius, radius, radius))) {
+            if (matchesBlockAt(actor, pos, blockCondition)) count++;
+        }
+        return count;
     }
 
     private static boolean matchesBlockCollision(Player actor, JsonObject condition) {

@@ -161,6 +161,11 @@ public final class FormActivePowerService {
                 ignored -> DEFAULT_MANA);
     }
 
+    /** The retained SSC data expresses mana thresholds as a 0..1 fraction. */
+    public static float manaPercent(Player player) {
+        return mana(player) / DEFAULT_MANA;
+    }
+
     private static void setMana(Player player, float value) {
         MANA.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(manaType(player),
                 Math.max(0.0F, Math.min(DEFAULT_MANA, value)));
