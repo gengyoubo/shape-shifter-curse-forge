@@ -14,6 +14,17 @@ public final class FormGeoRenderer extends GeoObjectRenderer<FormGeoAnimatable> 
         this.animatable = formAnimatable;
     }
 
+    /**
+     * GeckoLib nulls the inherited field in {@code doPostRenderCleanup} after every
+     * render, which used to leave downstream readers (setupAnim / setupRotations hooks,
+     * first-person pass) with a null animatable. The form animatable is final and
+     * per-renderer state is keyed per player anyway, so always hand it out.
+     */
+    @Override
+    public FormGeoAnimatable getAnimatable() {
+        return formAnimatable;
+    }
+
     public void setPlayer(Player player) {
         this.formAnimatable.setPlayer(player);
         this.animatable = formAnimatable;

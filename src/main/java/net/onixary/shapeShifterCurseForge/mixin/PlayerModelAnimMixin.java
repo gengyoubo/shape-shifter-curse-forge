@@ -45,11 +45,8 @@ public abstract class PlayerModelAnimMixin {
         if (renderer == null) {
             return;
         }
-        // GeckoLib nulls the renderer's animatable field in doPostRenderCleanup, and the
-        // Pre pass's own render() call already ran before vanilla setupAnim reaches here.
-        // Restore it first, otherwise getAnimatable() is always null at this point and the
-        // re-application below (which ArmorLayer depends on via copyPropertiesTo) never runs.
-        renderer.setPlayer(player);
+        // getAnimatable() is overridden to never go null (see FormGeoRenderer);
+        // player association is handled explicitly inside reapplySelection.
         FormGeoAnimatable animatable = renderer.getAnimatable();
         if (animatable == null || animatable.isInventoryPreview()) {
             return;
