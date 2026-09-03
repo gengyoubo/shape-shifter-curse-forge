@@ -29,7 +29,21 @@ public final class BedrockAnimationPlayer {
     private BedrockAnimationPlayer() {
     }
 
+    /**
+     * BASE_POSE replaces a GeoBone channel with the SSC keyframe value. ADDITIVE applies
+     * the keyframe on top of the pose already copied from Minecraft's PlayerModel.
+     */
+    public enum PoseMode {
+        BASE_POSE,
+        ADDITIVE
+    }
+
     public static void apply(GeoModel<?> model, FormAnimationSystem.Selection selection, float timeSeconds) {
+        apply(model, selection, timeSeconds, selection.poseMode());
+    }
+
+    public static void apply(GeoModel<?> model, FormAnimationSystem.Selection selection, float timeSeconds,
+                             PoseMode poseMode) {
         // Selection.id is the logical/profile key; the file may expose a different
         // Bedrock animation key (for example bat_3_sprint -> bat_3_walk).
         AnimationDefinition definition = load(selection.resource(), selection.animationId());
@@ -52,19 +66,43 @@ public final class BedrockAnimationPlayer {
             Vec3 position = sample(animation.position, time);
             Vec3 scale = sample(animation.scale, time);
             if (rotation != null) {
-                bone.setRotX(rotation.x * DEG_TO_RAD);
-                bone.setRotY(rotation.y * DEG_TO_RAD);
-                bone.setRotZ(rotation.z * DEG_TO_RAD);
+                float x = rotation.x * DEG_TO_RAD;
+                float y = rotation.y * DEG_TO_RAD;
+                float z = rotation.z * DEG_TO_RAD;
+                if (poseMode == PoseMode.ADDITIVE) {
+                    x += bone.getRotX();
+                    y += bone.getRotY();
+                    z += bone.getRotZ();
+                }
+                bone.setRotX(x);
+                bone.setRotY(y);
+                bone.setRotZ(z);
             }
             if (position != null) {
-                bone.setPosX(position.x);
-                bone.setPosY(position.y);
-                bone.setPosZ(position.z);
+                float x = position.x;
+                float y = position.y;
+                float z = position.z;
+                if (poseMode == PoseMode.ADDITIVE) {
+                    x += bone.getPosX();
+                    y += bone.getPosY();
+                    z += bone.getPosZ();
+                }
+                bone.setPosX(x);
+                bone.setPosY(y);
+                bone.setPosZ(z);
             }
             if (scale != null) {
-                bone.setScaleX(scale.x);
-                bone.setScaleY(scale.y);
-                bone.setScaleZ(scale.z);
+                if (poseMode == PoseMode.ADDITIVE) {
+                    // [1, 1, 1] is the neutral scale in Bedrock files, so multiply it
+                    // with the already-copied base scale instead of replacing it.
+                    bone.setScaleX(bone.getScaleX() * scale.x);
+                    bone.setScaleY(bone.getScaleY() * scale.y);
+                    bone.setScaleZ(bone.getScaleZ() * scale.z);
+                } else {
+                    bone.setScaleX(scale.x);
+                    bone.setScaleY(scale.y);
+                    bone.setScaleZ(scale.z);
+                }
             }
         }
     }

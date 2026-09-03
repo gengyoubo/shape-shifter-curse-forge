@@ -3,11 +3,16 @@ package net.onixary.shapeShifterCurseForge.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -22,6 +27,8 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class FormClientRenderEvents {
     private static final Map<ResourceLocation, FormGeoRenderer> RENDERERS = new HashMap<>();
+    private static final float PLAYER_SCALE = 0.9375F;
+    private static final float EYE_BED_OFFSET = 0.1F;
 
     private FormClientRenderEvents() {
     }
@@ -59,14 +66,10 @@ public final class FormClientRenderEvents {
 
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
-        // RenderPlayerEvent.Pre runs before LivingEntityRenderer applies the normal player
-        // transforms.  Reproduce those transforms before the feature-style form transforms
-        // used by the Fabric renderer, otherwise the Gecko model is vertically inverted.
-        float bodyYaw = inventoryPreview ? player.yBodyRot
-                : Mth.rotLerp(event.getPartialTick(), player.yBodyRotO, player.yBodyRot);
-        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - bodyYaw));
-        poseStack.scale(-1.0F, -1.0F, 1.0F);
-        poseStack.translate(0.0D, -1.501D, 0.0D);
+        // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
+        // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
+        // PlayerRenderer path before applying its own Geo coordinate conversion.
+        applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick());
         poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
         poseStack.translate(0.0D, -1.51D, 0.0D);
         poseStack.translate(-0.5D, -0.5D, -0.5D);
@@ -80,5 +83,110 @@ public final class FormClientRenderEvents {
 
     private static ResourceLocation resource(String path) {
         return ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
+    }
+
+    /** Mirrors LivingEntityRenderer#render and PlayerRenderer#setupRotations for 1.20.1. */
+    private static void applyVanillaPlayerTransforms(Player player, PoseStack poseStack, float partialTick) {
+        boolean shouldSit = player.isPassenger() && player.getVehicle() != null && player.getVehicle().shouldRiderSit();
+        float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
+        float headYaw = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
+        if (shouldSit && player.getVehicle() instanceof net.minecraft.world.entity.LivingEntity vehicle) {
+            bodyYaw = Mth.rotLerp(partialTick, vehicle.yBodyRotO, vehicle.yBodyRot);
+            float relativeHeadYaw = Mth.clamp(Mth.wrapDegrees(headYaw - bodyYaw), -85.0F, 85.0F);
+            bodyYaw = headYaw - relativeHeadYaw;
+            if (relativeHeadYaw * relativeHeadYaw > 2500.0F) {
+                bodyYaw += relativeHeadYaw * 0.2F;
+            }
+        }
+
+        if (player.hasPose(Pose.SLEEPING)) {
+            Direction direction = player.getBedOrientation();
+            if (direction != null) {
+                float bedOffset = player.getEyeHeight(Pose.STANDING) - EYE_BED_OFFSET;
+                poseStack.translate(-direction.getStepX() * bedOffset, 0.0F, -direction.getStepZ() * bedOffset);
+            }
+        }
+
+        applyPlayerRotations(player, poseStack, player.tickCount + partialTick, bodyYaw, partialTick);
+        poseStack.scale(-1.0F, -1.0F, 1.0F);
+        poseStack.scale(PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE);
+        poseStack.translate(0.0F, -1.501F, 0.0F);
+    }
+
+    /** Exact PlayerRenderer swimming/fall-flying branch around the base LivingEntity rotations. */
+    private static void applyPlayerRotations(Player player, PoseStack poseStack,
+                                             float animationProgress, float bodyYaw, float partialTick) {
+        float swimAmount = player.getSwimAmount(partialTick);
+        applyLivingRotations(player, poseStack, animationProgress, bodyYaw, partialTick);
+
+        if (player.isFallFlying()) {
+            float flightTicks = player.getFallFlyingTicks() + partialTick;
+            float flightProgress = Mth.clamp(flightTicks * flightTicks / 100.0F, 0.0F, 1.0F);
+            if (!player.isAutoSpinAttack()) {
+                poseStack.mulPose(Axis.XP.rotationDegrees(flightProgress * (-90.0F - player.getXRot())));
+            }
+
+            Vec3 view = player.getViewVector(partialTick);
+            // RenderPlayerEvent is typed as Player, although the client renderer always
+            // supplies AbstractClientPlayer. Keep a harmless fallback for foreign callers.
+            Vec3 velocity = player instanceof AbstractClientPlayer clientPlayer
+                    ? clientPlayer.getDeltaMovementLerped(partialTick)
+                    : player.getDeltaMovement();
+            double velocityHorizontal = velocity.horizontalDistanceSqr();
+            double viewHorizontal = view.horizontalDistanceSqr();
+            if (velocityHorizontal > 0.0D && viewHorizontal > 0.0D) {
+                double alignment = (velocity.x * view.x + velocity.z * view.z)
+                        / Math.sqrt(velocityHorizontal * viewHorizontal);
+                double cross = velocity.x * view.z - velocity.z * view.x;
+                poseStack.mulPose(Axis.YP.rotation((float) (Math.signum(cross) * Math.acos(alignment))));
+            }
+        } else if (swimAmount > 0.0F) {
+            boolean inSwimmableFluid = player.isInWater()
+                    || player.isInFluidType((fluidType, height) -> player.canSwimInFluidType(fluidType));
+            float targetPitch = inSwimmableFluid ? -90.0F - player.getXRot() : -90.0F;
+            poseStack.mulPose(Axis.XP.rotationDegrees(Mth.lerp(swimAmount, 0.0F, targetPitch)));
+            if (player.isVisuallySwimming()) {
+                poseStack.translate(0.0F, -1.0F, 0.3F);
+            }
+        }
+    }
+
+    /** Mirrors LivingEntityRenderer#setupRotations, which PlayerRenderer invokes first. */
+    private static void applyLivingRotations(Player player, PoseStack poseStack,
+                                             float animationProgress, float bodyYaw, float partialTick) {
+        if (player.isFullyFrozen()) {
+            bodyYaw += (float) (Math.cos(player.tickCount * 3.25D) * Math.PI * 0.4F);
+        }
+        if (!player.hasPose(Pose.SLEEPING)) {
+            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - bodyYaw));
+        }
+
+        if (player.deathTime > 0) {
+            float deathProgress = ((player.deathTime + partialTick - 1.0F) / 20.0F) * 1.6F;
+            deathProgress = Math.min(Mth.sqrt(deathProgress), 1.0F);
+            poseStack.mulPose(Axis.ZP.rotationDegrees(deathProgress * 90.0F));
+        } else if (player.isAutoSpinAttack()) {
+            poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F - player.getXRot()));
+            poseStack.mulPose(Axis.YP.rotationDegrees((player.tickCount + partialTick) * -75.0F));
+        } else if (player.hasPose(Pose.SLEEPING)) {
+            Direction direction = player.getBedOrientation();
+            float sleepYaw = direction == null ? bodyYaw : sleepDirectionToRotation(direction);
+            poseStack.mulPose(Axis.YP.rotationDegrees(sleepYaw));
+            poseStack.mulPose(Axis.ZP.rotationDegrees(90.0F));
+            poseStack.mulPose(Axis.YP.rotationDegrees(270.0F));
+        } else if (LivingEntityRenderer.isEntityUpsideDown(player)) {
+            poseStack.translate(0.0F, player.getBbHeight() + 0.1F, 0.0F);
+            poseStack.mulPose(Axis.ZP.rotationDegrees(180.0F));
+        }
+    }
+
+    private static float sleepDirectionToRotation(Direction direction) {
+        return switch (direction) {
+            case SOUTH -> 90.0F;
+            case WEST -> 0.0F;
+            case NORTH -> 270.0F;
+            case EAST -> 180.0F;
+            default -> 0.0F;
+        };
     }
 }

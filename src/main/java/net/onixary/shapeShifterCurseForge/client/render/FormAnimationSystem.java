@@ -49,7 +49,8 @@ public final class FormAnimationSystem {
     private FormAnimationSystem() {
     }
 
-    public record Selection(String id, String animationId, ResourceLocation resource, float speed, int fade) {
+    public record Selection(String id, String animationId, ResourceLocation resource, float speed, int fade,
+                            BedrockAnimationPlayer.PoseMode poseMode) {
         public static Selection of(String id) {
             return of(id, defaultSpeed(id), 2);
         }
@@ -64,13 +65,17 @@ public final class FormAnimationSystem {
             if (!hasResource(direct) && id.endsWith("_riding") && hasResource(RIDING_ANIMATIONS)) {
                 source = RIDING_ANIMATIONS;
             }
-            return new Selection(id, id, source, speed, fade);
+            return new Selection(id, id, source, speed, fade, BedrockAnimationPlayer.PoseMode.BASE_POSE);
         }
 
         private static Selection fromProfile(String logicalId, AnimationProfile.Clip clip) {
             return new Selection(logicalId, clip.animationId(),
                     FormAnimationSystem.resource(ANIMATION_PATH + clip.resourceFile() + ".json"),
-                    clip.speed(), clip.fade());
+                    clip.speed(), clip.fade(), BedrockAnimationPlayer.PoseMode.BASE_POSE);
+        }
+
+        private Selection withPoseMode(BedrockAnimationPlayer.PoseMode poseMode) {
+            return new Selection(id, animationId, resource, speed, fade, poseMode);
         }
     }
 
@@ -347,10 +352,17 @@ public final class FormAnimationSystem {
     private static Selection selectionFor(String formPath, State state, String animation) {
         AnimationProfile formProfile = ANIMATION_PROFILES.get(formPath);
         AnimationProfile.Clip clip = formProfile == null ? SHARED_ANIMATIONS.get(animation) : formProfile.get(animation);
+        Selection selection;
         if (clip != null) {
-            return Selection.fromProfile(animation, clip);
+            selection = Selection.fromProfile(animation, clip);
+        } else {
+            selection = Selection.of(animation);
         }
-        return Selection.of(animation);
+        // Player Animation Lib composes SSC's water layer with the vanilla swimming
+        // pose before SSC copies the final PlayerModel. Mirror that composition here.
+        return state == State.SWIM
+                ? selection.withPoseMode(BedrockAnimationPlayer.PoseMode.ADDITIVE)
+                : selection;
     }
 
     private static boolean canSneakRush(Player player, boolean sneaking) {
