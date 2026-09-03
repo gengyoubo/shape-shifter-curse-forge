@@ -49,8 +49,7 @@ public final class FormAnimationSystem {
     private FormAnimationSystem() {
     }
 
-    public record Selection(String id, String animationId, ResourceLocation resource, float speed, int fade,
-                            BedrockAnimationPlayer.PoseMode poseMode) {
+    public record Selection(String id, String animationId, ResourceLocation resource, float speed, int fade) {
         public static Selection of(String id) {
             return of(id, defaultSpeed(id), 2);
         }
@@ -65,17 +64,13 @@ public final class FormAnimationSystem {
             if (!hasResource(direct) && id.endsWith("_riding") && hasResource(RIDING_ANIMATIONS)) {
                 source = RIDING_ANIMATIONS;
             }
-            return new Selection(id, id, source, speed, fade, BedrockAnimationPlayer.PoseMode.BASE_POSE);
+            return new Selection(id, id, source, speed, fade);
         }
 
         private static Selection fromProfile(String logicalId, AnimationProfile.Clip clip) {
             return new Selection(logicalId, clip.animationId(),
                     FormAnimationSystem.resource(ANIMATION_PATH + clip.resourceFile() + ".json"),
-                    clip.speed(), clip.fade(), BedrockAnimationPlayer.PoseMode.BASE_POSE);
-        }
-
-        private Selection withPoseMode(BedrockAnimationPlayer.PoseMode poseMode) {
-            return new Selection(id, animationId, resource, speed, fade, poseMode);
+                    clip.speed(), clip.fade());
         }
     }
 
@@ -96,6 +91,23 @@ public final class FormAnimationSystem {
             if (hasAnimation(selection)) return selection;
         }
         return null;
+    }
+
+    /**
+     * Seeds the current form without a transition. Used for the first server sync after
+     * joining a world, where the old client-side fallback form was never a real transform.
+     */
+    public static void prime(Player player) {
+        FormDefinition form = FormManager.current(player);
+        FORM_SNAPSHOTS.put(player.getUUID(), new FormSnapshot(
+                form.id().getPath(), form.bodyType(), form.bodyType(),
+                player.tickCount + Minecraft.getInstance().getFrameTime()));
+    }
+
+    /** Clears world-specific animation snapshots before the next client world is initialized. */
+    public static void clearClientState() {
+        FORM_SNAPSHOTS.clear();
+        MOTION_SNAPSHOTS.clear();
     }
 
     private static Selection transitionAnimation(Player player, FormDefinition form) {
@@ -136,7 +148,7 @@ public final class FormAnimationSystem {
         if (player.isUsingItem()) return State.USE_ITEM;
         if (player.swinging) return motion.swingTicks >= 10 ? State.MINING : State.ATTACK;
         if (player.isVisuallyCrawling()) return State.CRAWL;
-        if (player.getDeltaMovement().horizontalDistanceSqr() > 0.0004D) return player.isSprinting() ? State.SPRINT : State.WALK;
+        if (motion.moving) return player.isSprinting() ? State.SPRINT : State.WALK;
         return State.IDLE;
     }
 
@@ -358,11 +370,7 @@ public final class FormAnimationSystem {
         } else {
             selection = Selection.of(animation);
         }
-        // Player Animation Lib composes SSC's water layer with the vanilla swimming
-        // pose before SSC copies the final PlayerModel. Mirror that composition here.
-        return state == State.SWIM
-                ? selection.withPoseMode(BedrockAnimationPlayer.PoseMode.ADDITIVE)
-                : selection;
+        return selection;
     }
 
     private static boolean canSneakRush(Player player, boolean sneaking) {
@@ -425,9 +433,13 @@ public final class FormAnimationSystem {
     }
 
     private static MotionSnapshot motionOf(Player player) {
-        MotionSnapshot snapshot = MOTION_SNAPSHOTS.computeIfAbsent(player.getUUID(), ignored -> new MotionSnapshot());
+        MotionSnapshot snapshot = MOTION_SNAPSHOTS.computeIfAbsent(player.getUUID(),
+                ignored -> new MotionSnapshot(player.position()));
         if (snapshot.lastTick != player.tickCount) {
-            boolean moving = player.getDeltaMovement().horizontalDistanceSqr() > 0.0004D;
+            // SSC Fabric v3 derives IsWalking from the player's actual movement between
+            // ticks. Client delta movement can be zero while the local player is walking,
+            // which previously made the Forge renderer fall through to vanilla idle arms.
+            boolean moving = !snapshot.lastPosition.equals(player.position());
             if (player.swinging) {
                 snapshot.swingTicks = snapshot.swinging ? snapshot.swingTicks + 1 : 1;
             } else {
@@ -441,6 +453,8 @@ public final class FormAnimationSystem {
             }
             snapshot.swinging = player.swinging;
             snapshot.idle = snapshot.idleTicks > 0;
+            snapshot.moving = moving;
+            snapshot.lastPosition = player.position();
             snapshot.lastTick = player.tickCount;
         }
         return snapshot;
@@ -461,10 +475,16 @@ public final class FormAnimationSystem {
     }
 
     private static final class MotionSnapshot {
+        private net.minecraft.world.phys.Vec3 lastPosition;
         private int lastTick = Integer.MIN_VALUE;
         private int swingTicks;
         private int idleTicks;
         private boolean swinging;
         private boolean idle;
+        private boolean moving;
+
+        private MotionSnapshot(net.minecraft.world.phys.Vec3 lastPosition) {
+            this.lastPosition = lastPosition;
+        }
     }
 }

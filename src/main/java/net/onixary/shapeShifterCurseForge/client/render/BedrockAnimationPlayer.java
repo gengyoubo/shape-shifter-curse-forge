@@ -5,10 +5,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.resources.ResourceLocation;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import software.bernie.geckolib.cache.object.GeoBone;
-import software.bernie.geckolib.model.GeoModel;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -30,81 +30,44 @@ public final class BedrockAnimationPlayer {
     }
 
     /**
-     * BASE_POSE replaces a GeoBone channel with the SSC keyframe value. ADDITIVE applies
-     * the keyframe on top of the pose already copied from Minecraft's PlayerModel.
+     * Small, dependency-free equivalent of the Player Animation Lib path used by the
+     * Fabric build. The library's Gecko JSON serializer writes animation values to a
+     * {@link PlayerModel}, including its canonical limb pivots; SSC then copies that
+     * completed model pose into its Geo model.
+     *
+     * <p>This intentionally covers only SSC's player-animation format. It is not a
+     * replacement for Player Animation Lib's animation stack, networking, emotes, or
+     * first-person API.</p>
      */
-    public enum PoseMode {
-        BASE_POSE,
-        ADDITIVE
-    }
-
-    public static void apply(GeoModel<?> model, FormAnimationSystem.Selection selection, float timeSeconds) {
-        apply(model, selection, timeSeconds, selection.poseMode());
-    }
-
-    public static void apply(GeoModel<?> model, FormAnimationSystem.Selection selection, float timeSeconds,
-                             PoseMode poseMode) {
-        // Selection.id is the logical/profile key; the file may expose a different
-        // Bedrock animation key (for example bat_3_sprint -> bat_3_walk).
-        AnimationDefinition definition = load(selection.resource(), selection.animationId());
-        if (definition == null) return;
-
-        float time = definition.length <= 0.0F ? 0.0F : timeSeconds;
-        if (definition.loop) {
-            time %= definition.length;
-            if (time < 0.0F) time += definition.length;
-        } else {
-            time = Math.min(time, definition.length);
+    public static BodyTransform applyToPlayerModel(PlayerModel<?> model, FormAnimationSystem.Selection selection,
+                                                    float timeSeconds) {
+        if (selection == null) {
+            return BodyTransform.IDENTITY;
         }
-
+        AnimationDefinition definition = load(selection.resource(), selection.animationId());
+        if (definition == null) {
+            return BodyTransform.IDENTITY;
+        }
+        float time = animationTime(definition, timeSeconds);
+        BodyTransform bodyTransform = BodyTransform.IDENTITY;
         for (Map.Entry<String, BoneAnimation> entry : definition.bones.entrySet()) {
-            Optional<GeoBone> optionalBone = model.getBone(resolveBoneName(entry.getKey()));
-            if (optionalBone.isEmpty()) continue;
-            GeoBone bone = optionalBone.get();
             BoneAnimation animation = entry.getValue();
             Vec3 rotation = sample(animation.rotation, time);
             Vec3 position = sample(animation.position, time);
-            Vec3 scale = sample(animation.scale, time);
-            if (rotation != null) {
-                float x = rotation.x * DEG_TO_RAD;
-                float y = rotation.y * DEG_TO_RAD;
-                float z = rotation.z * DEG_TO_RAD;
-                if (poseMode == PoseMode.ADDITIVE) {
-                    x += bone.getRotX();
-                    y += bone.getRotY();
-                    z += bone.getRotZ();
-                }
-                bone.setRotX(x);
-                bone.setRotY(y);
-                bone.setRotZ(z);
-            }
-            if (position != null) {
-                float x = position.x;
-                float y = position.y;
-                float z = position.z;
-                if (poseMode == PoseMode.ADDITIVE) {
-                    x += bone.getPosX();
-                    y += bone.getPosY();
-                    z += bone.getPosZ();
-                }
-                bone.setPosX(x);
-                bone.setPosY(y);
-                bone.setPosZ(z);
-            }
-            if (scale != null) {
-                if (poseMode == PoseMode.ADDITIVE) {
-                    // [1, 1, 1] is the neutral scale in Bedrock files, so multiply it
-                    // with the already-copied base scale instead of replacing it.
-                    bone.setScaleX(bone.getScaleX() * scale.x);
-                    bone.setScaleY(bone.getScaleY() * scale.y);
-                    bone.setScaleZ(bone.getScaleZ() * scale.z);
-                } else {
-                    bone.setScaleX(scale.x);
-                    bone.setScaleY(scale.y);
-                    bone.setScaleZ(scale.z);
-                }
+            switch (entry.getKey()) {
+                case "head" -> applyPart(model.head, rotation, position, Pivot.HEAD);
+                case "torso" -> applyPart(model.body, rotation, position, Pivot.TORSO);
+                case "rightArm" -> applyPart(model.rightArm, rotation, position, Pivot.RIGHT_ARM);
+                case "leftArm" -> applyPart(model.leftArm, rotation, position, Pivot.LEFT_ARM);
+                case "rightLeg" -> applyPart(model.rightLeg, rotation, position, Pivot.RIGHT_LEG);
+                case "leftLeg" -> applyPart(model.leftLeg, rotation, position, Pivot.LEFT_LEG);
+                // PAL treats `body` as a renderer-level transform, distinct from
+                // PlayerModel's `torso` part.
+                case "body" -> bodyTransform = bodyTransform(rotation, position);
+                default -> { }
             }
         }
+        return bodyTransform;
     }
 
     public static void clearCache() {
@@ -136,6 +99,46 @@ public final class BedrockAnimationPlayer {
             LOGGER.warn("Unable to load form animation {}", resource, exception);
             return null;
         }
+    }
+
+    private static float animationTime(AnimationDefinition definition, float timeSeconds) {
+        float time = definition.length <= 0.0F ? 0.0F : timeSeconds;
+        if (definition.loop) {
+            time %= definition.length;
+            if (time < 0.0F) time += definition.length;
+        } else {
+            time = Math.min(time, definition.length);
+        }
+        return time;
+    }
+
+    private static void applyPart(ModelPart part, Vec3 rotation, Vec3 position, Pivot pivot) {
+        // GeckoLibSerializer calls fullyEnableParts: a bone with any animation channel
+        // also resets the other channels to their canonical PlayerModel defaults.
+        Vec3 rot = rotation == null ? Vec3.ZERO : rotation;
+        float xRot = rot.x * DEG_TO_RAD;
+        float yRot = rot.y * DEG_TO_RAD;
+        float zRot = rot.z * DEG_TO_RAD;
+        part.xRot = xRot;
+        part.yRot = yRot;
+        part.zRot = zRot;
+
+        Vec3 pos = position == null ? Vec3.ZERO : position;
+        // PAL's Gecko parser stores normal limb position as (x, -y, z) plus the
+        // default pivot. This is why raw JSON position must never directly replace a
+        // GeoBone position.
+        part.x = pivot.x + pos.x;
+        part.y = pivot.y - pos.y;
+        part.z = pivot.z + pos.z;
+    }
+
+    private static BodyTransform bodyTransform(Vec3 rotation, Vec3 position) {
+        Vec3 rot = rotation == null ? Vec3.ZERO : rotation;
+        Vec3 pos = position == null ? Vec3.ZERO : position;
+        // This is the special `body` branch in Player Animation Lib's
+        // GeckoLibSerializer: translation is in model units and pitch/yaw are inverted.
+        return new BodyTransform(-pos.x / 16.0F, pos.y / 16.0F, pos.z / 16.0F,
+                -rot.x * DEG_TO_RAD, -rot.y * DEG_TO_RAD, rot.z * DEG_TO_RAD);
     }
 
     private static AnimationDefinition parse(JsonObject animation) {
@@ -199,18 +202,6 @@ public final class BedrockAnimationPlayer {
         return channel.frames.get(channel.frames.size() - 1).value;
     }
 
-    private static String resolveBoneName(String name) {
-        return switch (name) {
-            case "head" -> "bipedHead";
-            case "body", "torso" -> "bipedBody";
-            case "leftArm" -> "bipedLeftArm";
-            case "rightArm" -> "bipedRightArm";
-            case "leftLeg" -> "bipedLeftLeg";
-            case "rightLeg" -> "bipedRightLeg";
-            default -> name;
-        };
-    }
-
     private record AnimationDefinition(float length, boolean loop, Map<String, BoneAnimation> bones) { }
 
     private record CacheKey(ResourceLocation resource, String animationId) { }
@@ -231,7 +222,38 @@ public final class BedrockAnimationPlayer {
 
     private record Keyframe(float time, Vec3 value) { }
 
+    public record BodyTransform(float x, float y, float z, float pitch, float yaw, float roll) {
+        public static final BodyTransform IDENTITY = new BodyTransform(0.0F, 0.0F, 0.0F,
+                0.0F, 0.0F, 0.0F);
+
+        public boolean isIdentity() {
+            return x == 0.0F && y == 0.0F && z == 0.0F
+                    && pitch == 0.0F && yaw == 0.0F && roll == 0.0F;
+        }
+    }
+
+    private enum Pivot {
+        HEAD(0.0F, 0.0F, 0.0F),
+        TORSO(0.0F, 0.0F, 0.0F),
+        RIGHT_ARM(-5.0F, 2.0F, 0.0F),
+        LEFT_ARM(5.0F, 2.0F, 0.0F),
+        RIGHT_LEG(-1.9F, 12.0F, 0.1F),
+        LEFT_LEG(1.9F, 12.0F, 0.1F);
+
+        private final float x;
+        private final float y;
+        private final float z;
+
+        Pivot(float x, float y, float z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+    }
+
     private record Vec3(float x, float y, float z) {
+        private static final Vec3 ZERO = new Vec3(0.0F, 0.0F, 0.0F);
+
         private Vec3 lerp(Vec3 other, float amount) {
             return new Vec3(x + (other.x - x) * amount, y + (other.y - y) * amount, z + (other.z - z) * amount);
         }

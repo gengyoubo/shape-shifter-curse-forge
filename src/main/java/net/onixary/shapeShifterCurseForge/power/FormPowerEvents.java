@@ -31,11 +31,14 @@ import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,6 +50,8 @@ public final class FormPowerEvents {
 
     private static final Map<UUID, Map<ResourceLocation, Float>> FOOD_HEAL_REMAINDERS = new HashMap<>();
     private static final ThreadLocal<Boolean> SWEEP_DAMAGE = ThreadLocal.withInitial(() -> false);
+    private static final ResourceLocation LEGACY_WATER_SPEED = ResourceLocation.fromNamespaceAndPath(
+            "additionalentityattributes", "generic.water_speed");
 
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
@@ -266,18 +271,29 @@ public final class FormPowerEvents {
         }
         FormActivePowerService.registerGroundJump(player);
         FormActivePowerService.triggerVanillaKey(player, "key.jump");
+        final double[] jumpVelocity = {player.getDeltaMovement().y};
+        List<JsonObject> pendingActions = new ArrayList<>();
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
+            JsonObject condition = power.has("entity_condition")
+                    ? power.getAsJsonObject("entity_condition") : power.getAsJsonObject("condition");
             if ("shape-shifter-curse:action_on_jump".equals(type)
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+                    && FormPowerRuntime.test(player, player, condition)) {
+                pendingActions.add(power.getAsJsonObject("entity_action"));
             }
             if ("apoli:modify_jump".equals(type)
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                double modifier = FormPowerRuntime.applyModifier(0.42D, power.getAsJsonObject("modifier"));
-                player.setDeltaMovement(player.getDeltaMovement().x, modifier, player.getDeltaMovement().z);
+                jumpVelocity[0] = FormPowerRuntime.applyModifier(jumpVelocity[0], power.getAsJsonObject("modifier"));
+                if (power.has("entity_action")) {
+                    pendingActions.add(power.getAsJsonObject("entity_action"));
+                }
             }
         });
+        Vec3 motion = player.getDeltaMovement();
+        player.setDeltaMovement(motion.x, jumpVelocity[0], motion.z);
+        for (JsonObject action : pendingActions) {
+            FormPowerRuntime.execute(player, player, action);
+        }
     }
 
     @SubscribeEvent
@@ -613,7 +629,12 @@ public final class FormPowerEvents {
 
         JsonObject modifier = power.getAsJsonObject("modifier");
         ResourceLocation attributeId = ResourceLocation.tryParse(FormPowerRuntime.stringValue(modifier, "attribute", ""));
-        Attribute attribute = attributeId == null ? null : BuiltInRegistries.ATTRIBUTE.get(attributeId);
+        // Additional Entity Attributes supplied the Fabric water-speed attribute. Forge 1.20.1
+        // has the same movement hook built in; mapping it preserves the original JSON values
+        // without retaining that dependency.
+        Attribute attribute = LEGACY_WATER_SPEED.equals(attributeId)
+                ? ForgeMod.SWIM_SPEED.get()
+                : attributeId == null ? null : BuiltInRegistries.ATTRIBUTE.get(attributeId);
         AttributeInstance instance = attribute == null ? null : player.getAttribute(attribute);
         if (instance == null) {
             return;

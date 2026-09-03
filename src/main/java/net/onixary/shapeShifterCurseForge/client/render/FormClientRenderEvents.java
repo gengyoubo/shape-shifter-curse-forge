@@ -70,6 +70,7 @@ public final class FormClientRenderEvents {
         // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
         // PlayerRenderer path before applying its own Geo coordinate conversion.
         applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick());
+        applyPlayerAnimationBodyTransform(renderer.getAnimatable().getBodyTransform(), poseStack);
         poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
         poseStack.translate(0.0D, -1.51D, 0.0D);
         poseStack.translate(-0.5D, -0.5D, -0.5D);
@@ -83,6 +84,19 @@ public final class FormClientRenderEvents {
 
     private static ResourceLocation resource(String path) {
         return ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
+    }
+
+    /** Mirrors Player Animation Lib's optional global {@code body} transform. */
+    private static void applyPlayerAnimationBodyTransform(BedrockAnimationPlayer.BodyTransform transform,
+                                                           PoseStack poseStack) {
+        if (transform == null || transform.isIdentity()) {
+            return;
+        }
+        poseStack.translate(transform.x(), transform.y() + 0.7F, transform.z());
+        poseStack.mulPose(Axis.ZP.rotation(transform.roll()));
+        poseStack.mulPose(Axis.YP.rotation(transform.yaw()));
+        poseStack.mulPose(Axis.XP.rotation(transform.pitch()));
+        poseStack.translate(0.0D, -0.7D, 0.0D);
     }
 
     /** Mirrors LivingEntityRenderer#render and PlayerRenderer#setupRotations for 1.20.1. */

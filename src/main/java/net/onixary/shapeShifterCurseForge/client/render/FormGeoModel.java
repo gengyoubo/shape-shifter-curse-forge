@@ -120,10 +120,9 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         setRotation("rightWing", 0.0F, 0.0F, -flutter);
         setRotation("tail", 0.0F, Mth.sin(age * 0.20F) * 0.10F, 0.0F);
 
-        FormAnimationSystem.Selection selection = FormAnimationSystem.select(player);
-        if (selection != null) {
-            BedrockAnimationPlayer.apply(this, selection, animatable.animationTime(selection, partialTick));
-        }
+        // Player Animator applies the selected SSC animation to PlayerModel during
+        // setupAnim. The final PlayerModel pose was copied above, so no JSON animation
+        // is applied directly to GeoBones here.
     }
 
     private void setRotation(String boneName, float x, float y, float z) {

@@ -22,6 +22,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private final AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
     private Player player;
     private PlayerModel<?> vanillaPlayerModel;
+    private BedrockAnimationPlayer.BodyTransform bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
     private boolean inventoryPreview;
     private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
 
@@ -39,6 +40,10 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     public PlayerModel<?> getVanillaPlayerModel() {
         return vanillaPlayerModel;
+    }
+
+    public BedrockAnimationPlayer.BodyTransform getBodyTransform() {
+        return bodyTransform;
     }
 
     /**
@@ -88,6 +93,9 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 limbSwing, limbSwingAmount, partialTick);
         rawModel.setupAnim(player,
                 limbSwing, limbSwingAmount, age, netHeadYaw, headPitch);
+        FormAnimationSystem.Selection selection = FormAnimationSystem.select(player);
+        bodyTransform = BedrockAnimationPlayer.applyToPlayerModel(rawModel, selection,
+                animationTime(selection, partialTick));
     }
 
     public void setInventoryPreview(boolean inventoryPreview) {

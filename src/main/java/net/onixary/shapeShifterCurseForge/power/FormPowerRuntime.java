@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.effect.MobEffect;
@@ -47,7 +48,7 @@ public final class FormPowerRuntime {
             case "apoli:on_ground" -> actor.onGround();
             case "apoli:moving" -> actor.getDeltaMovement().horizontalDistanceSqr() > 0.0004D;
             case "apoli:food_level" -> compare(actor.getFoodData().getFoodLevel(), condition);
-            case "apoli:fluid_height" -> compare(actor.isInWater() ? 1.0D : 0.0D, condition);
+            case "apoli:fluid_height" -> compare(fluidHeight(actor, condition), condition);
             case "apoli:exposed_to_sun" -> actor.level().canSeeSky(actor.blockPosition())
                     && actor.level().isDay() && actor.level().getMaxLocalRawBrightness(actor.blockPosition()) >= 12;
             case "apoli:status_effect" -> hasEffect(actor, condition);
@@ -80,6 +81,21 @@ public final class FormPowerRuntime {
             default -> true;
         };
         return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
+    }
+
+    /**
+     * Apoli fluid_height uses the depth intersecting the entity, rather than a boolean
+     * in-water check. SSC's surface jump powers rely on the shallow 0..0.2 range.
+     */
+    private static double fluidHeight(Player actor, JsonObject condition) {
+        ResourceLocation fluid = ResourceLocation.tryParse(stringValue(condition, "fluid", "minecraft:water"));
+        if (fluid == null || "minecraft:water".equals(fluid.toString())) {
+            return actor.getFluidHeight(FluidTags.WATER);
+        }
+        if ("minecraft:lava".equals(fluid.toString())) {
+            return actor.getFluidHeight(FluidTags.LAVA);
+        }
+        return 0.0D;
     }
 
     public static void execute(Player actor, LivingEntity target, JsonObject action) {
