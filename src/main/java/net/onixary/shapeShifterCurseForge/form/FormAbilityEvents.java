@@ -33,13 +33,7 @@ public final class FormAbilityEvents {
 
         event.setNewSize(CrawlingScaleService.expectedDimensions(player, event.getPose()));
 
-        float baseEyeHeight = event.getOldEyeHeight();
-
-        event.setNewEyeHeight(
-                baseEyeHeight
-                        * form.eyeScale()
-                        * CrawlingScaleService.eyeScale(player)
-        );
+        event.setNewEyeHeight(CrawlingScaleService.expectedEyeHeight(player, event.getPose()));
         System.out.println(
                 "[SSC SIZE] pose=" + player.getPose()
                         + " new=" + event.getNewSize().width + "x" + event.getNewSize().height

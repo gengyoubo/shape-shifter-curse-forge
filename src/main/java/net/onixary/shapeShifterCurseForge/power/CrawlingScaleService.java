@@ -36,9 +36,12 @@ public final class CrawlingScaleService {
         if (power == null) {
             return;
         }
-        EntityDimensions expected = expectedDimensions(player, player.getPose());
+        Pose pose = player.getPose();
+        EntityDimensions expected = expectedDimensions(player, pose);
+        float expectedEye = expectedEyeHeight(player, pose);
         if (Math.abs(player.getBbWidth() - expected.width) > EPSILON
-                || Math.abs(player.getBbHeight() - expected.height) > EPSILON) {
+                || Math.abs(player.getBbHeight() - expected.height) > EPSILON
+                || Math.abs(player.getEyeHeight() - expectedEye) > EPSILON) {
             player.refreshDimensions();
         }
     }
@@ -70,6 +73,27 @@ public final class CrawlingScaleService {
             default ->
                     EntityDimensions.scalable(0.6F, 1.8F);
         };
+    }
+
+    /**
+     * Pristine vanilla eye height per pose (verified against Player bytecode:
+     * swimming/fall-flying/spin 0.4, crouching 1.27, sleeping 0.2, else 1.62).
+     * The Size event's eye input derives from live state and stacks the same way
+     * dimensions did, so it is never read either.
+     */
+    private static float vanillaPlayerEyeHeight(Pose pose) {
+        return switch (pose) {
+            case SLEEPING -> 0.2F;
+            case SWIMMING, FALL_FLYING, SPIN_ATTACK -> 0.4F;
+            case CROUCHING -> 1.27F;
+            default -> 1.62F;
+        };
+    }
+
+    /** Authoritative eye height: pristine vanilla eye × form eye × crawling eye. */
+    public static float expectedEyeHeight(Player player, Pose pose) {
+        FormDefinition form = FormManager.current(player);
+        return vanillaPlayerEyeHeight(pose) * form.eyeScale() * eyeScale(player);
     }
 
     /** Height multiplier from the crawling power (active ? active_scale : scale). */
