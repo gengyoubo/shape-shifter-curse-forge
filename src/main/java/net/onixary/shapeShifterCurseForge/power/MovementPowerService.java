@@ -77,28 +77,6 @@ public final class MovementPowerService {
         }
     }
 
-    /**
-     * Fabric changes the X/Z damping applied at the end of water travel from 0.8 to a value
-     * between 0.8 and 0.98.  This runs at PlayerTick.END, after vanilla travel has used its
-     * own damping, and compensates only the difference.
-     */
-    public static void applyWaterFlexibilityAfterTravel(Player player) {
-        if (!player.isInWater()) return;
-        final double[] targetDamping = {-1.0D};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:water_flexibility".equals(FormPowerRegistry.typeOf(power))
-                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
-            double flexibility = Math.max(0.0D, Math.min(1.0D,
-                    FormPowerRuntime.doubleValue(power, "water_flex", 0.5D)));
-            targetDamping[0] = 0.8D + (0.98D - 0.8D) * flexibility;
-        });
-        if (targetDamping[0] < 0.0D) return;
-        double vanillaDamping = player.isSprinting() ? 0.9D : 0.8D;
-        Vec3 motion = player.getDeltaMovement();
-        player.setDeltaMovement(motion.x * targetDamping[0] / vanillaDamping,
-                motion.y, motion.z * targetDamping[0] / vanillaDamping);
-    }
-
     private static void applySoulSpeed(Player player, JsonObject power) {
         if (!player.getBlockStateOn().is(Blocks.SOUL_SAND) && !player.getBlockStateOn().is(Blocks.SOUL_SOIL)) return;
         double boost = 0.03D * Math.min(FormPowerRuntime.intValue(power, "level", 1),

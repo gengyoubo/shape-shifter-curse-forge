@@ -83,7 +83,6 @@ public final class FormPowerEvents {
     public static void playerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Player player = event.player;
-        MovementPowerService.applyWaterFlexibilityAfterTravel(player);
         final float[] multiplier = {1.0F};
         final boolean[] modified = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
