@@ -1,15 +1,21 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.geom.ModelLayers;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderArmEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -20,8 +26,6 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 
-import java.util.IdentityHashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -30,17 +34,14 @@ import java.util.Optional;
  * {@code DefaultModelAnimationSystem#beforeRenderFirstPerson}/
  * {@code processAnimationFirstPerson}).
  *
- * <p>Fabric hooks the arm render to hide the vanilla arm when the form hides it and
- * to render the form's arm GeoBone with the currently playing clip pose. The clip pose
- * comes from PAL there; here it comes from the shared {@link FormGeoAnimatable} pose
- * preparation running on a scratch vanilla model, so cross-fades and power-animation
- * layers behave exactly like the third-person pass.</p>
+ * <p>Fabric chain, mirrored here: resolve the target GeoBone, reset it, copy the
+ * vanilla first-person arm part pose onto it (position negated, arm pivot offset,
+ * rotation with Y/Z inverted), then {@code renderRecursively} just that bone subtree
+ * via {@code renderGeoBone}. In first person the arm motion comes from the hand
+ * matrix, so the clip is deliberately NOT applied here, exactly like Fabric.</p>
  */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
 public final class FormFirstPersonArmEvents {
-    private static PlayerModel<AbstractClientPlayer> scratchWideModel;
-    private static PlayerModel<AbstractClientPlayer> scratchSlimModel;
-
     private FormFirstPersonArmEvents() {
     }
 
@@ -64,7 +65,8 @@ public final class FormFirstPersonArmEvents {
         }
 
         FormGeoRenderer renderer = FormClientRenderEvents.rendererFor(form);
-        if (renderer == null) {
+        if (renderer == null
+                || !(minecraft.getEntityRenderDispatcher().getRenderer(player) instanceof PlayerRenderer playerRenderer)) {
             return;
         }
         FormGeoModel model = (FormGeoModel) renderer.getGeoModel();
@@ -73,96 +75,111 @@ public final class FormFirstPersonArmEvents {
         if (model.isVanillaPartHidden(right ? "rightArm" : "leftArm")) {
             event.setCanceled(true);
         }
-        // Mirrors beforeRenderFirstPerson: the mapped arm bone (biped arms by default,
-        // overridable through first_person_render) is rendered when the Geo model has it.
+
+        // Mirrors beforeRenderFirstPerson: resolve the mapped arm bone
+        // (biped arms by default, overridable through first_person_render).
+        BakedGeoModel baked = model.getBakedModel(model.modelResource());
+        if (baked == null) {
+            return;
+        }
+        model.getAnimationProcessor().setActiveModel(baked);
         Optional<GeoBone> armBone = model.getBone(model.firstPersonArmBone(right));
+        // Mirrors the null branch: nothing to draw for this arm.
         if (armBone.isEmpty()) {
             return;
         }
+        GeoBone geoBone = armBone.get();
 
-        // GeckoLib nulls the renderer's animatable field in doPostRenderCleanup, so
-        // restore it before touching animation state.
+        // Mirrors processAnimationFirstPerson: reset the bone, then copy the vanilla
+        // first-person arm part pose onto it.
+        PlayerModel<AbstractClientPlayer> rendererModel = playerRenderer.getModel();
+        ModelPart armPart = right ? rendererModel.rightArm : rendererModel.leftArm;
+        resetBone(geoBone);
+        geoBone.setPosX(geoBone.getPosX() + (-armPart.x));
+        geoBone.setPosY(geoBone.getPosY() + (-armPart.y));
+        geoBone.setPosZ(geoBone.getPosZ() + (-armPart.z));
+        geoBone.setPosX(geoBone.getPosX() + (right ? -5.0F : 5.0F));
+        geoBone.setPosY(geoBone.getPosY() + 2.0F);
+        geoBone.setRotX(armPart.xRot);
+        geoBone.setRotY(armPart.yRot);
+        geoBone.setRotZ(armPart.zRot);
+        geoBone.setRotY(-geoBone.getRotY());
+        geoBone.setRotZ(-geoBone.getRotZ());
+
         renderer.setPlayer(player);
         FormGeoAnimatable animatable = renderer.getAnimatable();
         if (animatable == null) {
             return;
         }
-        PlayerModel<AbstractClientPlayer> scratch = scratchModel(minecraft, player);
-        Player previousPlayer = animatable.getPlayer();
-        PlayerModel<?> previousModel = animatable.getVanillaPlayerModel();
-        boolean wasPreview = animatable.isInventoryPreview();
-        renderer.setVanillaPlayerModel(scratch);
-        renderer.setInventoryPreview(false);
-        BakedGeoModel baked;
-        try {
-            renderer.prepareVanillaPlayerPose(minecraft.getFrameTime());
-            baked = model.getBakedModel(model.getModelResource(animatable));
-        } catch (RuntimeException exception) {
-            restoreRendererState(renderer, previousPlayer, previousModel, wasPreview);
-            return;
-        }
-        if (baked == null) {
-            restoreRendererState(renderer, previousPlayer, previousModel, wasPreview);
-            return;
-        }
-
-        // Hide every other top-level bone so the full render path draws only the arm
-        // subtree. Flags are snapshotted and restored: the baked model is shared with
-        // the third-person pass.
-        GeoBone target = armBone.get();
-        Map<GeoBone, Boolean> hiddenBefore = new IdentityHashMap<>();
-        for (GeoBone topLevel : baked.topLevelBones()) {
-            hiddenBefore.put(topLevel, topLevel.isHidden());
-            topLevel.setHidden(topLevel != target);
-        }
+        float partialTick = minecraft.getFrameTime();
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
-        // When the vanilla arm render survives, it already shows the hand item;
-        // the Geo layer only fills in for arms vanilla no longer draws.
-        animatable.setSuppressHeldItems(!event.isCanceled());
         try {
-            // Same Geo coordinate conversion as the third-person pass, applied on top
-            // of the first-person hand matrix like Fabric's rFPM_PartB.
+            // Mirrors rFPM_PartB's matrix setup.
             poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
             poseStack.translate(0.0D, -1.51D, 0.0D);
             poseStack.translate(-0.5D, -0.5D, -0.5D);
             ResourceLocation texture = renderer.getTextureLocation(animatable);
             RenderType renderType = RenderType.entityTranslucent(texture);
-            renderer.render(poseStack, animatable, event.getMultiBufferSource(), renderType,
-                    event.getMultiBufferSource().getBuffer(renderType), event.getPackedLight());
+            VertexConsumer buffer = event.getMultiBufferSource().getBuffer(renderType);
+            if (renderer.firePreRenderEvent(poseStack, baked, event.getMultiBufferSource(),
+                    partialTick, event.getPackedLight())) {
+                renderer.updateAnimatedTextureFrame(animatable);
+                // Mirrors renderGeoBone: draw just the arm subtree, nothing else.
+                renderer.renderRecursively(poseStack, animatable, geoBone, renderType,
+                        event.getMultiBufferSource(), buffer, false, partialTick,
+                        event.getPackedLight(), OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
+                renderer.firePostRenderEvent(poseStack, baked, event.getMultiBufferSource(),
+                        partialTick, event.getPackedLight());
+            }
         } catch (RuntimeException ignored) {
-            // A first-person failure must never hide the vanilla arm fallback: the
-            // event was only cancelled when the form hides the arm anyway.
+            // A first-person arm must never break hand rendering.
         } finally {
             poseStack.popPose();
-            for (Map.Entry<GeoBone, Boolean> entry : hiddenBefore.entrySet()) {
-                entry.getKey().setHidden(entry.getValue());
-            }
-            restoreRendererState(renderer, previousPlayer, previousModel, wasPreview);
+        }
+
+        // Fabric has no item layer: the vanilla hand item renders through its own path.
+        // When the arm event died (power or Hidden_*), vanilla skipped the item too, so
+        // draw it here on the event's hand matrix, exactly where vanilla would have.
+        if (event.isCanceled()) {
+            renderHandItem(event, player, right);
         }
     }
 
-    private static void restoreRendererState(FormGeoRenderer renderer, Player player,
-                                             PlayerModel<?> vanillaModel, boolean inventoryPreview) {
-        renderer.setPlayer(player);
-        renderer.setVanillaPlayerModel(vanillaModel);
-        renderer.setInventoryPreview(inventoryPreview);
+    /** Mirrors Azurite's resetBone for the single reposed arm bone. */
+    private static void resetBone(GeoBone bone) {
+        bone.setPosX(0.0F);
+        bone.setPosY(0.0F);
+        bone.setPosZ(0.0F);
+        bone.setRotX(0.0F);
+        bone.setRotY(0.0F);
+        bone.setRotZ(0.0F);
+        bone.setScaleX(1.0F);
+        bone.setScaleY(1.0F);
+        bone.setScaleZ(1.0F);
     }
 
-    private static PlayerModel<AbstractClientPlayer> scratchModel(Minecraft minecraft,
-                                                                  AbstractClientPlayer player) {
-        boolean slim = "slim".equals(player.getModelName());
-        if (slim) {
-            if (scratchSlimModel == null) {
-                scratchSlimModel = new PlayerModel<>(
-                        minecraft.getEntityModels().bakeLayer(ModelLayers.PLAYER_SLIM), true);
-            }
-            return scratchSlimModel;
+    private static void renderHandItem(RenderArmEvent event, AbstractClientPlayer player, boolean right) {
+        boolean mainArmRight = player.getMainArm() == HumanoidArm.RIGHT;
+        ItemStack stack = (right == mainArmRight) ? player.getMainHandItem() : player.getOffhandItem();
+        if (stack.isEmpty()) {
+            return;
         }
-        if (scratchWideModel == null) {
-            scratchWideModel = new PlayerModel<>(
-                    minecraft.getEntityModels().bakeLayer(ModelLayers.PLAYER), false);
+        try {
+            PoseStack poseStack = event.getPoseStack();
+            poseStack.pushPose();
+            // Same tail of ItemInHandLayer#renderArmWithItem that vanilla would run.
+            poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
+            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+            poseStack.translate((right ? 1.0F : -1.0F) / 16.0F, 0.125F, -0.625F);
+            Minecraft.getInstance().getEntityRenderDispatcher().getItemInHandRenderer().renderItem(player, stack,
+                    right ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                            : ItemDisplayContext.THIRD_PERSON_LEFT_HAND,
+                    !right, poseStack, event.getMultiBufferSource(), event.getPackedLight());
+        } catch (RuntimeException ignored) {
+            // A held item must never break hand rendering.
+        } finally {
+            event.getPoseStack().popPose();
         }
-        return scratchWideModel;
     }
 }

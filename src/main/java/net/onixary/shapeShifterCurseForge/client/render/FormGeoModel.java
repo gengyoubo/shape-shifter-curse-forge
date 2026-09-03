@@ -578,6 +578,11 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         return animationConfig();
     }
 
+    /** Geo resource id, used to bake/resolve bones for the first-person arm pass. */
+    public ResourceLocation modelResource() {
+        return model;
+    }
+
     /** Whether the form hides a vanilla player part (hat/head/body/jacket/arms/...). */
     public boolean isVanillaPartHidden(String partName) {
         return renderConfig().hiddenParts.contains(partName);
