@@ -62,7 +62,7 @@ public final class FormClientRenderEvents {
         }
 
         ResourceLocation animationConfig = resource("ssc_form_model/origins.origin."
-                + form.id().getNamespace() + "." + form.id().getPath() + ".json");
+                + form.id().getNamespace() + ".form_" + form.id().getPath() + ".json");
         FormGeoRenderer renderer = RENDERERS.computeIfAbsent(form.id(),
                 ignored -> new FormGeoRenderer(model, texture, animationConfig));
         renderer.setPlayer(player);

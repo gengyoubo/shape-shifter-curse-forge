@@ -112,9 +112,9 @@ public final class BedrockAnimationPlayer {
      * <p>SSC's ordinary form clips target Player Animation Lib's PlayerModel bones and
      * must therefore run before {@link FormGeoModel} copies the final vanilla pose.
      * A few new clips instead target form-only bones (for example an axolotl tail), so
-     * replacing that pose would be incorrect. Each write is based on the bone's baked
-     * initial pose, rather than its previous rendered pose, so repeated render passes
-     * cannot accumulate rotation.</p>
+     * replacing that pose would be incorrect. The caller resets and prepares the Geo model
+     * for each pass, so the clip is applied to the current prepared pose. This preserves the
+     * form's procedural tail/wing motion and makes the JSON values true additive offsets.</p>
      */
     public static void applyAdditiveGeoRotation(GeoModel<?> model, ResourceLocation resource,
                                                 String animationId, float timeSeconds) {
@@ -129,13 +129,12 @@ public final class BedrockAnimationPlayer {
                 continue;
             }
             model.getBone(entry.getKey()).ifPresent(bone -> {
-                var initial = bone.getInitialSnapshot();
                 // FormGeoRenderer converts Bedrock model space to Forge Geo space with
                 // a 180-degree X-axis turn. Form-only tail clips therefore need their
                 // pitch inverted; Y/Z retain their native Geo direction.
-                bone.setRotX(initial.getRotX() - rotation.x * DEG_TO_RAD);
-                bone.setRotY(initial.getRotY() + rotation.y * DEG_TO_RAD);
-                bone.setRotZ(initial.getRotZ() + rotation.z * DEG_TO_RAD);
+                bone.setRotX(bone.getRotX() - rotation.x * DEG_TO_RAD);
+                bone.setRotY(bone.getRotY() + rotation.y * DEG_TO_RAD);
+                bone.setRotZ(bone.getRotZ() + rotation.z * DEG_TO_RAD);
             });
         }
     }
