@@ -7,6 +7,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +22,10 @@ public final class MovementPowerService {
 
     public static void tick(Player player) {
         DODGE_COOLDOWNS.computeIfPresent(player.getUUID(), (id, ticks) -> ticks <= 1 ? null : ticks - 1);
+
         FormPowerRegistry.visitActive(player, (id, power) -> {
+            ShapeShifterCurseForge.LOGGER.debug(id);
+            ShapeShifterCurseForge.LOGGER.debug(power);
             switch (FormPowerRegistry.typeOf(power)) {
                 case "shape-shifter-curse:projectile_dodge" -> dodgeProjectiles(player, power);
                 case "shape-shifter-curse:powder_snow_walker" -> walkPowderSnow(player);

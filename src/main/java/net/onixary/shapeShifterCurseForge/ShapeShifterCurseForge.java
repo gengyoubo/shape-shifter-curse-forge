@@ -8,11 +8,14 @@ import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 import net.onixary.shapeShifterCurseForge.registry.ModCreativeModeTabs;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 @Mod(ShapeShifterCurseForge.MOD_ID)
 public final class ShapeShifterCurseForge {
     public static final String MOD_ID = "shape_shifter_curse";
     public static final String RESOURCE_NAMESPACE = "shape-shifter-curse";
+    public static final Logger LOGGER = LogManager.getLogger(ShapeShifterCurseForge.MOD_ID);
 
     public ShapeShifterCurseForge() {
         var modBus = FMLJavaModLoadingContext.get().getModEventBus();

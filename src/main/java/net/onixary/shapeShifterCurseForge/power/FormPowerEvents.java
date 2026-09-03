@@ -38,9 +38,11 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /** Server event bridge for the high-frequency Apoli power families used by the forms. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
@@ -49,6 +51,9 @@ public final class FormPowerEvents {
     }
 
     private static final Map<UUID, Map<ResourceLocation, Float>> FOOD_HEAL_REMAINDERS = new HashMap<>();
+    /** Modifiers currently owned by the Forge-native Apoli compatibility layer, per player. */
+    private static final Map<UUID, Map<UUID, AttributeInstance>> OWNED_ATTRIBUTE_MODIFIERS = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_ATTRIBUTE_REFRESH_TICK = new HashMap<>();
     private static final ThreadLocal<Boolean> SWEEP_DAMAGE = ThreadLocal.withInitial(() -> false);
     private static final ResourceLocation LEGACY_WATER_SPEED = ResourceLocation.fromNamespaceAndPath(
             "additionalentityattributes", "generic.water_speed");
@@ -478,8 +483,18 @@ public final class FormPowerEvents {
     }
 
     private static void refreshAttributes(Player player) {
-        FormPowerRegistry.all().forEach((id, definition) -> refreshAttribute(player, id, definition.data(), false));
-        FormPowerRegistry.visitActive(player, (id, power) -> refreshAttribute(player, id, power, true));
+        Map<UUID, AttributeInstance> owned = OWNED_ATTRIBUTE_MODIFIERS.computeIfAbsent(
+                player.getUUID(), ignored -> new HashMap<>());
+        Set<UUID> wanted = new HashSet<>();
+        FormPowerRegistry.visitActive(player, (id, power) -> refreshAttribute(player, id, power, wanted, owned));
+        owned.entrySet().removeIf(entry -> {
+            if (wanted.contains(entry.getKey())) {
+                return false;
+            }
+            entry.getValue().removeModifier(entry.getKey());
+            return true;
+        });
+        LAST_ATTRIBUTE_REFRESH_TICK.put(player.getUUID(), player.tickCount);
     }
 
     private static void adjustFoodHealTimer(Player player) {
@@ -621,7 +636,13 @@ public final class FormPowerEvents {
         });
     }
 
-    private static void refreshAttribute(Player player, ResourceLocation powerId, JsonObject power, boolean active) {
+    /**
+     * Applies only the modifiers selected by the current form.  Keeping an already installed
+     * modifier avoids a remove/add attribute packet every server tick, while the owned set
+     * removes modifiers from a previous form (including children of apoli:multiple).
+     */
+    private static void refreshAttribute(Player player, ResourceLocation powerId, JsonObject power,
+                                         Set<UUID> wanted, Map<UUID, AttributeInstance> owned) {
         String type = FormPowerRegistry.typeOf(power);
         if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)) {
             return;
@@ -640,11 +661,15 @@ public final class FormPowerEvents {
             return;
         }
 
-        UUID uuid = UUID.nameUUIDFromBytes((powerId + "|" + attributeId + "|" + power.toString())
-                .getBytes(StandardCharsets.UTF_8));
-        instance.removeModifier(uuid);
-        if (!active || ("apoli:conditioned_attribute".equals(type)
+        UUID uuid = attributeModifierId(powerId, attributeId, power);
+        if (("apoli:conditioned_attribute".equals(type)
                 && !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition")))) {
+            return;
+        }
+
+        wanted.add(uuid);
+        owned.put(uuid, instance);
+        if (instance.getModifier(uuid) != null) {
             return;
         }
 
@@ -656,5 +681,45 @@ public final class FormPowerEvents {
         instance.addTransientModifier(new AttributeModifier(uuid,
                 FormPowerRuntime.stringValue(modifier, "name", powerId.toString()),
                 FormPowerRuntime.doubleValue(modifier, "value", 0.0D), operation));
+    }
+
+    /** Server-side probe used by /ssc power status to verify the complete swim-speed chain. */
+    public static SwimSpeedDebug swimSpeedDebug(Player player) {
+        AttributeInstance instance = player.getAttribute(ForgeMod.SWIM_SPEED.get());
+        List<SwimModifierDebug> powers = new ArrayList<>();
+        FormPowerRegistry.visitActive(player, (powerId, power) -> {
+            String type = FormPowerRegistry.typeOf(power);
+            if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)) {
+                return;
+            }
+            JsonObject modifier = power.getAsJsonObject("modifier");
+            ResourceLocation attributeId = ResourceLocation.tryParse(FormPowerRuntime.stringValue(modifier, "attribute", ""));
+            if (!LEGACY_WATER_SPEED.equals(attributeId)) {
+                return;
+            }
+            boolean conditionMet = !"apoli:conditioned_attribute".equals(type)
+                    || FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
+            UUID modifierId = attributeModifierId(powerId, attributeId, power);
+            boolean installed = instance != null && instance.getModifier(modifierId) != null;
+            powers.add(new SwimModifierDebug(powerId, conditionMet, installed,
+                    FormPowerRuntime.doubleValue(modifier, "value", 0.0D),
+                    FormPowerRuntime.stringValue(modifier, "operation", "addition")));
+        });
+        return new SwimSpeedDebug(instance != null, instance == null ? 0.0D : instance.getBaseValue(),
+                instance == null ? 0.0D : instance.getValue(),
+                LAST_ATTRIBUTE_REFRESH_TICK.getOrDefault(player.getUUID(), -1), List.copyOf(powers));
+    }
+
+    private static UUID attributeModifierId(ResourceLocation powerId, ResourceLocation attributeId, JsonObject power) {
+        return UUID.nameUUIDFromBytes((powerId + "|" + attributeId + "|" + power)
+                .getBytes(StandardCharsets.UTF_8));
+    }
+
+    public record SwimSpeedDebug(boolean attributePresent, double baseValue, double effectiveValue,
+                                 int lastRefreshTick, List<SwimModifierDebug> powers) {
+    }
+
+    public record SwimModifierDebug(ResourceLocation powerId, boolean conditionMet, boolean installed,
+                                    double amount, String operation) {
     }
 }
