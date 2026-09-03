@@ -32,22 +32,47 @@ public abstract class LivingEntityMixin {
         LivingEntity self = (LivingEntity) (Object) this;
         if (!(self instanceof Player player)) {
             return;
-        }
-        System.out.println("before = " + cir.getReturnValue());
+        }final float[] modified = {cir.getReturnValue()};
+
+        System.out.println("before = " + modified[0]);
         System.out.println("form = " + FormManager.current(player).id());
-        final float[] modified = {cir.getReturnValue()};
+
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"apoli:modify_jump".equals(FormPowerRegistry.typeOf(power))) {
-                return;
-            }
-            JsonObject condition = power.has("condition") ? power.getAsJsonObject("condition") : null;
-            if (!FormPowerRuntime.test(player, player, condition)) {
-                return;
-            }
-            if (power.has("modifier")) {
-                modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], power.getAsJsonObject("modifier"));
+            String type = FormPowerRegistry.typeOf(power);
+
+            if ("apoli:modify_jump".equals(type)) {
+                System.out.println("FOUND MODIFY_JUMP: " + id);
+
+                JsonObject condition = power.has("condition")
+                        ? power.getAsJsonObject("condition")
+                        : null;
+
+                boolean result = FormPowerRuntime.test(player, player, condition);
+
+                System.out.println("condition = " + result);
+
+                if (!result) {
+                    return;
+                }
+
+                if (power.has("modifier")) {
+                    float beforeModifier = modified[0];
+
+                    modified[0] = (float) FormPowerRuntime.applyModifier(
+                            modified[0],
+                            power.getAsJsonObject("modifier")
+                    );
+
+                    System.out.println(
+                            "modify_jump: " + beforeModifier
+                                    + " -> " + modified[0]
+                    );
+                }
             }
         });
+
+        System.out.println("after = " + modified[0]);
+
         cir.setReturnValue(modified[0]);
     }
 }

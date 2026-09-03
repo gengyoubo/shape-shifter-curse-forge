@@ -81,5 +81,6 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 mixin {
-    add sourceSets.main, 'shape_shifter_curse.mixins.json'
+    add sourceSets.main, 'shape_shifter_curse.mixins.refmap.json'
+    config "shape_shifter_curse.mixins.json"
 }

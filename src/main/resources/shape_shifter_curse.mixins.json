@@ -2,6 +2,7 @@
     "required": true,
     "package": "net.onixary.shapeShifterCurseForge.mixin",
     "compatibilityLevel": "JAVA_17",
+    "refmap": "shape_shifter_curse.refmap.json",
     "mixins": [
         "LivingEntityMixin"
     ],
