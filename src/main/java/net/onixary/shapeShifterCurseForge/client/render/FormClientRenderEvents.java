@@ -52,25 +52,24 @@ public final class FormClientRenderEvents {
             return;
         }
 
-        ResourceLocation model = resource("geo/form/form_" + form.id().getPath() + ".geo.json");
-        ResourceLocation texture = resource("textures/form/form_" + form.id().getPath()
-                + "/form_" + form.id().getPath() + ".png");
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.getResourceManager().getResource(model).isEmpty()
-                || minecraft.getResourceManager().getResource(texture).isEmpty()) {
-            return;
-        }
-
-        ResourceLocation animationConfig = resource("ssc_form_model/origins.origin."
-                + form.id().getNamespace() + ".form_" + form.id().getPath() + ".json");
-        FormGeoRenderer renderer = RENDERERS.computeIfAbsent(form.id(),
-                ignored -> new FormGeoRenderer(model, texture, animationConfig));
-        renderer.setPlayer(player);
-        renderer.setVanillaPlayerModel(event.getRenderer().getModel());
         // Both survival and creative inventories render their player preview full-bright.  This
         // is stable across the two screen classes, unlike instanceof InventoryScreen.
         boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
                 && event.getPackedLight() == LightTexture.FULL_BRIGHT;
+        // Vanilla never renders the camera entity's body in first person; the form's
+        // first-person arms are handled separately by FormFirstPersonArmEvents.
+        if (!inventoryPreview && player == minecraft.player
+                && minecraft.options.getCameraType().isFirstPerson()) {
+            return;
+        }
+
+        FormGeoRenderer renderer = rendererFor(form);
+        if (renderer == null) {
+            return;
+        }
+        renderer.setPlayer(player);
+        renderer.setVanillaPlayerModel(event.getRenderer().getModel());
         renderer.setInventoryPreview(inventoryPreview);
         renderer.prepareVanillaPlayerPose(event.getPartialTick());
         // The original player renderer is cancelled below. If data-driven animation
@@ -108,6 +107,22 @@ public final class FormClientRenderEvents {
             REPORTED_RENDER_FAILURES.remove(player.getUUID());
             event.setCanceled(true);
         }
+    }
+
+    /** Shared form renderer lookup; null when the form has no Geo model or texture. */
+    static FormGeoRenderer rendererFor(FormDefinition form) {
+        ResourceLocation model = resource("geo/form/form_" + form.id().getPath() + ".geo.json");
+        ResourceLocation texture = resource("textures/form/form_" + form.id().getPath()
+                + "/form_" + form.id().getPath() + ".png");
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.getResourceManager().getResource(model).isEmpty()
+                || minecraft.getResourceManager().getResource(texture).isEmpty()) {
+            return null;
+        }
+        ResourceLocation animationConfig = resource("ssc_form_model/origins.origin."
+                + form.id().getNamespace() + ".form_" + form.id().getPath() + ".json");
+        return RENDERERS.computeIfAbsent(form.id(),
+                ignored -> new FormGeoRenderer(model, texture, animationConfig));
     }
 
     private static void reportRenderFailure(Player player, FormDefinition form, RuntimeException exception) {

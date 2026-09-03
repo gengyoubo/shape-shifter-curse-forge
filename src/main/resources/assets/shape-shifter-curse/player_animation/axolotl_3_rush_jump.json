@@ -3,6 +3,7 @@
 	"animations": {
 		"axolotl_3_rush_jump": {
 			"animation_length": 0.75,
+			"loop": "hold_on_last_frame",
 			"bones": {
 				"body": {
 					"rotation": {

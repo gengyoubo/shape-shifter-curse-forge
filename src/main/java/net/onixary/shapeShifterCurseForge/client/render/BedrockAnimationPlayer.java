@@ -143,6 +143,50 @@ public final class BedrockAnimationPlayer {
         CACHE.clear();
     }
 
+    /**
+     * Samples an arbitrary named bone from a clip, mirroring PAL's
+     * {@code AnimationApplier#get3DTransform}. Fabric's {@code ProcessExtraBone} reads
+     * exactly these values for form-only bones (tail mounts, calves, hind legs, ...).
+     * Rotation is returned in degrees and position in raw JSON units; callers convert
+     * to radians and apply PAL's sign conventions themselves.
+     */
+    public static BoneSample sampleBone(ResourceLocation resource, String animationId,
+                                        String boneName, float timeSeconds) {
+        return sampleBone(resource, animationId, boneName, timeSeconds, false);
+    }
+
+    /** Samples a named bone, optionally repeating a non-looping source clip. */
+    public static BoneSample sampleBone(ResourceLocation resource, String animationId,
+                                        String boneName, float timeSeconds, boolean forceLoop) {
+        AnimationDefinition definition = load(resource, animationId);
+        if (definition == null) {
+            return null;
+        }
+        BoneAnimation animation = definition.bones.get(boneName);
+        if (animation == null) {
+            return null;
+        }
+        float time = animationTime(definition, timeSeconds, forceLoop);
+        Vec3 rotation = sample(animation.rotation, time);
+        Vec3 position = sample(animation.position, time);
+        if (rotation == null) {
+            rotation = Vec3.ZERO;
+        }
+        if (position == null) {
+            position = Vec3.ZERO;
+        }
+        return new BoneSample(rotation.x, rotation.y, rotation.z, position.x, position.y, position.z);
+    }
+
+    /** Raw per-bone sample: rotation in degrees, position in raw JSON units. */
+    public record BoneSample(float rotX, float rotY, float rotZ, float posX, float posY, float posZ) {
+        public static BoneSample lerp(BoneSample from, BoneSample to, float amount) {
+            return new BoneSample(Mth.lerp(amount, from.rotX, to.rotX), Mth.lerp(amount, from.rotY, to.rotY),
+                    Mth.lerp(amount, from.rotZ, to.rotZ), Mth.lerp(amount, from.posX, to.posX),
+                    Mth.lerp(amount, from.posY, to.posY), Mth.lerp(amount, from.posZ, to.posZ));
+        }
+    }
+
     private static AnimationDefinition load(ResourceLocation resource, String animationId) {
         CacheKey cacheKey = new CacheKey(resource, animationId);
         AnimationDefinition cached = CACHE.get(cacheKey);

@@ -253,7 +253,7 @@ public final class FormAnimationSystem {
                 case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
                 case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
                 case JUMP -> add(result, sneak ? "axolotl_2_crawling_jump"
-                        : isRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
+                        : isRisingRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
                 case FALL -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
                 // The Fabric WithSneak controllers intentionally have no normal
                 // attack/mining animation for Axolotl 3.
@@ -478,6 +478,15 @@ public final class FormAnimationSystem {
     private static boolean isRushJump(Player player) {
         net.minecraft.world.phys.Vec3 velocity = player.getDeltaMovement();
         return Math.abs(velocity.x) > 0.15D || Math.abs(velocity.z) > 0.15D;
+    }
+
+    /**
+     * The rush-jump pose exits as soon as vertical motion turns downward, rather than
+     * lingering through the falling phase. Position-based delta is used instead of the
+     * velocity field so the apex frame is evaluated exactly like the FALL state above.
+     */
+    private static boolean isRisingRushJump(Player player) {
+        return isRushJump(player) && motionOf(player).verticalDelta >= 0.0D;
     }
 
     private static boolean hasResource(ResourceLocation location) {

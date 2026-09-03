@@ -19,10 +19,13 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
@@ -35,6 +38,8 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     private boolean animationConfigLoaded;
     private final Map<UUID, TailState> tailStates = new HashMap<>();
     private final Map<UUID, BlinkState> blinkStates = new HashMap<>();
+    private final Map<UUID, NeckState> neckStates = new HashMap<>();
+    private final Map<UUID, NeckState> inventoryNeckStates = new HashMap<>();
 
     public FormGeoModel(ResourceLocation model, ResourceLocation texture, ResourceLocation animationConfigResource) {
         this.model = model;
@@ -138,9 +143,10 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             setRotation("bipedLeftArm", movement * 0.95F, 0.0F, 0.0F);
         }
 
-        applyDefaultModelAnimationSystem(config, player, partialTick, age,
+        applyDefaultModelAnimationSystem(config, animatable, player, partialTick, age,
                 inventoryPreview ? 0.0F : player.walkAnimation.position(partialTick),
-                inventoryPreview ? 0.0F : Math.min(player.walkAnimation.speed(partialTick), 1.0F));
+                inventoryPreview ? 0.0F : Math.min(player.walkAnimation.speed(partialTick), 1.0F),
+                inventoryPreview, headYaw, headPitch);
 
         // Player Animator applies the selected SSC animation to PlayerModel during
         // setupAnim. The final PlayerModel pose was copied above. Form-only clips are
@@ -235,11 +241,14 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     }
 
     /** Direct Forge counterpart of Fabric DefaultModelAnimationSystem's tail/head-tail/wing pass. */
-    private void applyDefaultModelAnimationSystem(ModelAnimationConfig config, Player player, float partialTick,
-                                                   float age, float limbAngle, float limbDistance) {
+    private void applyDefaultModelAnimationSystem(ModelAnimationConfig config, FormGeoAnimatable animatable,
+                                                   Player player, float partialTick, float age,
+                                                   float limbAngle, float limbDistance,
+                                                   boolean inventoryPreview, float headYawDeg, float headPitchDeg) {
         if (config.isEmpty()) {
             return;
         }
+        applyExtraBones(config, animatable);
         TailState tail = tailStates.computeIfAbsent(player.getUUID(), ignored -> new TailState());
         tail.advance(player);
         float horizontalDrag = tail.currentHorizontal(partialTick);
@@ -249,9 +258,16 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         for (List<String> chain : config.tailChains) {
             applyTailChain(chain, feral, age, limbAngle, limbDistance, horizontalDrag, verticalDrag);
         }
-        // Fabric's head-tail controller uses the smoothed neck yaw when one exists.  Axolotl
-        // does not have a long-neck configuration, so the prepared head yaw is its exact input.
+        // Fabric's head-tail controller uses the smoothed neck yaw when a neck exists.
+        // Axolotl does not have a long-neck configuration, so the prepared head yaw is its exact input.
         float headAngle = Mth.wrapDegrees(player.getYHeadRot() - player.yBodyRot) * DEG_TO_RAD;
+        float[] neckAngles = null;
+        if (config.neck != null) {
+            neckAngles = smoothedNeckAngles(config.neck, player, partialTick, inventoryPreview,
+                    headYawDeg, headPitchDeg);
+            applyNeckBones(config.neck, neckAngles[0], neckAngles[1]);
+            headAngle = neckAngles[0] * DEG_TO_RAD;
+        }
         for (List<String> chain : config.headTailChains) {
             applyHeadTailChain(chain, headAngle, age, horizontalDrag, verticalDrag);
         }
@@ -262,6 +278,131 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             applyWingChain(chain, false, age, limbAngle, limbDistance, verticalDrag);
         }
         applyBlink(config, player, partialTick);
+    }
+
+    /**
+     * Forge counterpart of Fabric's {@code ProcessExtraBone}. The selected clip can animate
+     * form-only bones (calves, tail/neck mounts, hind legs, ...); PAL exposes them through
+     * {@code get3DTransform} and the config maps each animated bone onto a GeoBone.
+     * Rotation arrives in degrees and is converted with the same Y/Z inversion used for
+     * the vanilla copy; position is stored with all axes negated, matching PAL's Gecko
+     * serializer conventions documented in {@code ProcessExtraBone}.
+     */
+    private void applyExtraBones(ModelAnimationConfig config, FormGeoAnimatable animatable) {
+        for (ExtraBoneMapping mapping : config.extraBones) {
+            BedrockAnimationPlayer.BoneSample sample = animatable.sampleExtraBone(mapping.animBone());
+            getBone(mapping.geoBone()).ifPresent(bone -> {
+                bone.setPosX(0.0F);
+                bone.setPosY(0.0F);
+                bone.setPosZ(0.0F);
+                bone.setRotX(0.0F);
+                bone.setRotY(0.0F);
+                bone.setRotZ(0.0F);
+                if (sample == null) {
+                    return;
+                }
+                bone.setPosX(-sample.posX());
+                bone.setPosY(-sample.posY());
+                bone.setPosZ(-sample.posZ());
+                bone.setRotX(sample.rotX() * DEG_TO_RAD);
+                bone.setRotY(-sample.rotY() * DEG_TO_RAD);
+                bone.setRotZ(-sample.rotZ() * DEG_TO_RAD);
+            });
+        }
+    }
+
+    /**
+     * Smoothed long-neck look angles in degrees, mirroring Fabric's
+     * {@code getLongNeckAngles}. The smoothing state is per player so neck motion lags
+     * the head naturally; inventory previews use an isolated state like Fabric's
+     * virtual-data map.
+     */
+    private float[] smoothedNeckAngles(NeckConfig neck, Player player, float partialTick,
+                                       boolean inventoryPreview, float fallbackYawDeg, float fallbackPitchDeg) {
+        Map<UUID, NeckState> states = inventoryPreview ? inventoryNeckStates : neckStates;
+        NeckState state = states.computeIfAbsent(player.getUUID(),
+                ignored -> new NeckState(fallbackYawDeg, fallbackPitchDeg));
+        float viewYaw = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
+        float targetPitch = inventoryPreview ? player.getXRot() : player.getViewXRot(partialTick);
+        float bodyYaw = lerpAngle(partialTick, player.yBodyRotO, player.yBodyRot);
+        float targetYaw = Mth.wrapDegrees(viewYaw - bodyYaw);
+        double renderTick = player.tickCount + partialTick;
+        float deltaTicks = Mth.clamp((float) (renderTick - state.lastRenderTick), 0.0F, 1.0F);
+        state.lastRenderTick = renderTick;
+        if (deltaTicks > 0.0F) {
+            float yawLerp = Mth.clamp(deltaTicks * 0.45F, 0.0F, 1.0F);
+            float pitchLerp = Mth.clamp(deltaTicks * 0.35F, 0.0F, 1.0F);
+            state.headYaw = lerpAngleAwayFrom(yawLerp, state.headYaw, targetYaw, 180.0F);
+            state.headPitch = Mth.lerp(pitchLerp, state.headPitch, targetPitch);
+            if (!Float.isFinite(state.headYaw)) {
+                state.headYaw = fallbackYawDeg;
+            }
+            if (!Float.isFinite(state.headPitch)) {
+                state.headPitch = fallbackPitchDeg;
+            }
+        }
+        return new float[]{state.headYaw, state.headPitch};
+    }
+
+    /** Distributes clamped yaw/pitch across the neck chain and head, mirroring Fabric. */
+    private void applyNeckBones(NeckConfig neck, float headYawDeg, float headPitchDeg) {
+        float yawDeg = Mth.clamp(headYawDeg, -neck.maxYawDeg, neck.maxYawDeg);
+        float pitchDeg = Mth.clamp(headPitchDeg, -neck.maxPitchDegU, neck.maxPitchDegD);
+        float yawRad = yawDeg * DEG_TO_RAD;
+        float pitchRad = pitchDeg * DEG_TO_RAD;
+        for (int index = 0; index <= neck.chain.size(); index++) {
+            String boneName = index < neck.chain.size() ? neck.chain.get(index) : neck.headBone;
+            float yaw = index < neck.yawWeights.length ? yawRad * neck.yawWeights[index] : 0.0F;
+            float pitch = index < neck.pitchWeights.length ? pitchRad * neck.pitchWeights[index] : 0.0F;
+            getBone(boneName).ifPresent(bone -> {
+                bone.setRotX(0.0F);
+                bone.setRotY(0.0F);
+                bone.setRotZ(0.0F);
+                setAxisRotation(bone, neck.yawAxis, yaw);
+                setAxisRotation(bone, neck.pitchAxis, pitch);
+            });
+        }
+    }
+
+    private static void setAxisRotation(software.bernie.geckolib.cache.object.GeoBone bone, int axis, float value) {
+        switch (axis) {
+            case 0 -> bone.setRotX(value);
+            case 1 -> bone.setRotX(-value);
+            case 2 -> bone.setRotY(value);
+            case 3 -> bone.setRotY(-value);
+            case 4 -> bone.setRotZ(value);
+            case 5 -> bone.setRotZ(-value);
+            default -> { }
+        }
+    }
+
+    private static float lerpAngle(float delta, float start, float end) {
+        return start + Mth.wrapDegrees(end - start) * delta;
+    }
+
+    private static float lerpAngleAwayFrom(float delta, float start, float end, float avoidAngle) {
+        if (Math.abs(Mth.wrapDegrees(avoidAngle - end)) < 0.0001F) {
+            return lerpAngle(delta, start, end);
+        }
+        start = Mth.wrapDegrees(start);
+        end = Mth.wrapDegrees(end);
+        float diff = Mth.wrapDegrees(end - start);
+        float avoidDiff = Mth.wrapDegrees(avoidAngle - start);
+        if (Math.signum(diff) == Math.signum(avoidDiff) && Math.abs(diff) > Math.abs(avoidDiff)) {
+            diff = Math.copySign(360.0F - Math.abs(diff), -diff);
+        }
+        return Mth.wrapDegrees(start + diff * delta);
+    }
+
+    private static final class NeckState {
+        private float headYaw;
+        private float headPitch;
+        private double lastRenderTick = -1.0D;
+
+        private NeckState(float headYaw, float headPitch) {
+            this.headYaw = headYaw;
+            this.headPitch = headPitch;
+        }
     }
 
     private void applyTailChain(List<String> chain, boolean feral, float age, float limbAngle, float limbDistance,
@@ -432,27 +573,178 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         }
     }
 
+    /** Exposes the parsed form config to the first-person arm renderer. */
+    public ModelAnimationConfig renderConfig() {
+        return animationConfig();
+    }
+
+    /** Whether the form hides a vanilla player part (hat/head/body/jacket/arms/...). */
+    public boolean isVanillaPartHidden(String partName) {
+        return renderConfig().hiddenParts.contains(partName);
+    }
+
+    /**
+     * GeoBone rendered as the first-person arm. Fabric defaults to the biped arm bones
+     * and only overrides them through {@code first_person_render}.
+     */
+    public String firstPersonArmBone(boolean right) {
+        ModelAnimationConfig config = renderConfig();
+        String override = right ? config.firstPersonRightArm : config.firstPersonLeftArm;
+        if (override != null) {
+            return override;
+        }
+        return right ? "bipedRightArm" : "bipedLeftArm";
+    }
+
+    private record ExtraBoneMapping(String animBone, String geoBone) { }
+
+    /**
+     * Long-neck look distribution, mirroring Fabric's {@code NeckConfig}.
+     * Axis ids: -1 none, 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z.
+     */
+    private record NeckConfig(List<String> chain, String headBone, int yawAxis, int pitchAxis,
+                              float[] yawWeights, float[] pitchWeights,
+                              float maxYawDeg, float maxPitchDegU, float maxPitchDegD) {
+        private static NeckConfig of(JsonObject json) {
+            List<String> chain = parseChain(json);
+            String head = parseHead(json);
+            int size = chain.size() + 1;
+            return new NeckConfig(chain, head, parseAxis(json, "yaw_axis"), parseAxis(json, "pitch_axis"),
+                    parseWeights(json, "yaw_weights", "yaw_total", size),
+                    parseWeights(json, "pitch_weights", "pitch_total", size),
+                    ModelAnimationConfig.number(json, "max_yaw_deg", 180.0F),
+                    ModelAnimationConfig.number(json, "max_pitch_up_deg", 180.0F),
+                    ModelAnimationConfig.number(json, "max_pitch_down_deg", 180.0F));
+        }
+
+        private static List<String> parseChain(JsonObject json) {
+            if (json == null || !json.has("chain") || !json.get("chain").isJsonObject()) {
+                throw new IllegalStateException("neck_config chain is missing");
+            }
+            List<String> chain = new ArrayList<>();
+            for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject("chain").entrySet()) {
+                if (!entry.getValue().isJsonArray()) {
+                    continue;
+                }
+                for (JsonElement index : entry.getValue().getAsJsonArray()) {
+                    chain.add(entry.getKey() + "_" + index.getAsString());
+                }
+            }
+            if (chain.isEmpty()) {
+                throw new IllegalStateException("neck_config chain is empty");
+            }
+            return List.copyOf(chain);
+        }
+
+        private static String parseHead(JsonObject json) {
+            if (json == null || !json.has("head")) {
+                throw new IllegalStateException("neck_config head is missing");
+            }
+            return json.get("head").getAsString();
+        }
+
+        private static int parseAxis(JsonObject json, String key) {
+            if (json == null || !json.has(key)) {
+                return -1;
+            }
+            return switch (json.get(key).getAsString()) {
+                case "x" -> 0;
+                case "-x" -> 1;
+                case "y" -> 2;
+                case "-y" -> 3;
+                case "z" -> 4;
+                case "-z" -> 5;
+                default -> -1;
+            };
+        }
+
+        private static float[] parseWeights(JsonObject json, String key, String totalKey, int size) {
+            Float total = json != null && json.has(totalKey) ? json.get(totalKey).getAsFloat() : null;
+            float[] weights = new float[size];
+            JsonArray array = json != null && json.has(key) && json.get(key).isJsonArray()
+                    ? json.getAsJsonArray(key) : null;
+            if (array == null) {
+                Arrays.fill(weights, (total == null ? 1.0F : total) / size);
+                return weights;
+            }
+            float realTotal = 0.0F;
+            for (int index = 0; index < size; index++) {
+                float weight = index < array.size() ? array.get(index).getAsFloat() : 0.0F;
+                weights[index] = weight;
+                realTotal += weight;
+            }
+            if (total != null && realTotal > 0.0001F) {
+                float scale = total / realTotal;
+                for (int index = 0; index < size; index++) {
+                    weights[index] *= scale;
+                }
+            }
+            return weights;
+        }
+    }
+
     private record ModelAnimationConfig(List<List<String>> tailChains, List<List<String>> headTailChains,
                                         List<List<String>> leftWingChains, List<List<String>> rightWingChains,
-                                        String eyeBone, float openEyeScale, float closedEyeScale) {
+                                        String eyeBone, float openEyeScale, float closedEyeScale,
+                                        Set<String> hiddenParts, List<ExtraBoneMapping> extraBones,
+                                        String firstPersonLeftArm, String firstPersonRightArm,
+                                        NeckConfig neck) {
         private static final ModelAnimationConfig EMPTY = new ModelAnimationConfig(List.of(), List.of(), List.of(),
-                List.of(), null, 1.0F, 0.01F);
+                List.of(), null, 1.0F, 0.01F, Set.of(), List.of(), null, null, null);
 
         private static ModelAnimationConfig parse(JsonObject root) {
+            Set<String> hidden = new HashSet<>();
+            if (root.has("hidden") && root.get("hidden").isJsonArray()) {
+                for (JsonElement entry : root.getAsJsonArray("hidden")) {
+                    if (entry.isJsonPrimitive()) {
+                        hidden.add(entry.getAsString());
+                    }
+                }
+            }
             if (!root.has("animation_system_config") || !root.get("animation_system_config").isJsonObject()) {
-                return EMPTY;
+                return new ModelAnimationConfig(List.of(), List.of(), List.of(), List.of(), null, 1.0F, 0.01F,
+                        Set.copyOf(hidden), List.of(), null, null, null);
             }
             JsonObject config = root.getAsJsonObject("animation_system_config");
             JsonObject blink = object(config, "eye_blink");
+            List<ExtraBoneMapping> extraBones = new ArrayList<>();
+            JsonObject extraParts = object(config, "extra_parts_map");
+            if (extraParts != null) {
+                for (Map.Entry<String, JsonElement> entry : extraParts.entrySet()) {
+                    if (entry.getValue().isJsonPrimitive()) {
+                        extraBones.add(new ExtraBoneMapping(entry.getKey(), entry.getValue().getAsString()));
+                    }
+                }
+            }
+            String firstPersonLeft = null;
+            String firstPersonRight = null;
+            JsonObject firstPerson = object(config, "first_person_render");
+            if (firstPerson != null) {
+                if (firstPerson.has("left_arm")) {
+                    firstPersonLeft = firstPerson.get("left_arm").getAsString();
+                }
+                if (firstPerson.has("right_arm")) {
+                    firstPersonRight = firstPerson.get("right_arm").getAsString();
+                }
+            }
+            NeckConfig neck = null;
+            if (config.has("neck_config") && config.get("neck_config").isJsonObject()) {
+                try {
+                    neck = NeckConfig.of(config.getAsJsonObject("neck_config"));
+                } catch (RuntimeException ignored) {
+                    neck = null;
+                }
+            }
             return new ModelAnimationConfig(chains(object(config, "tail")), chains(object(config, "head_tail")),
                     chains(object(config, "wing_l")), chains(object(config, "wing_r")),
                     blink == null || !blink.has("eye") ? null : blink.get("eye").getAsString(),
-                    number(blink, "open_scale", 1.0F), number(blink, "close_scale", 0.01F));
+                    number(blink, "open_scale", 1.0F), number(blink, "close_scale", 0.01F),
+                    Set.copyOf(hidden), List.copyOf(extraBones), firstPersonLeft, firstPersonRight, neck);
         }
 
         private boolean isEmpty() {
             return tailChains.isEmpty() && headTailChains.isEmpty() && leftWingChains.isEmpty()
-                    && rightWingChains.isEmpty() && eyeBone == null;
+                    && rightWingChains.isEmpty() && eyeBone == null && extraBones.isEmpty() && neck == null;
         }
 
         private void resetDynamicBones(FormGeoModel model) {

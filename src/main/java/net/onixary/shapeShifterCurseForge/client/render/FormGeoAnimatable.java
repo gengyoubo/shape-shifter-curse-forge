@@ -36,6 +36,12 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private boolean inventoryPreview;
     private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
     private final Map<UUID, OverlayTimeline> overlayTimelines = new HashMap<>();
+    private FormAnimationSystem.Selection extraPrimary;
+    private float extraPrimaryTime;
+    private boolean extraPrimaryForceLoop;
+    private FormAnimationSystem.Selection extraSecondary;
+    private float extraSecondaryTime;
+    private float extraBlend = 1.0F;
 
     public void setPlayer(Player player) {
         this.player = player;
@@ -120,6 +126,8 @@ public final class FormGeoAnimatable implements GeoAnimatable {
             // SSC Fabric replaces the normal layer for these, rather than fading it.
             bodyTransform = BedrockAnimationPlayer.applyToPlayerModel(rawModel, selection,
                     powerAnimation.timeSeconds(), powerAnimation.forceLoop());
+            stashExtraContext(selection, powerAnimation.timeSeconds(), powerAnimation.forceLoop(),
+                    null, 0.0F, 1.0F);
         } else {
             bodyTransform = applyFormAnimation(rawModel, selection, partialTick);
         }
@@ -143,6 +151,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                                                                       float partialTick) {
         if (player == null || selection == null) {
             discardTimeline();
+            stashExtraContext(null, 0.0F, false, null, 0.0F, 1.0F);
             return BedrockAnimationPlayer.BodyTransform.IDENTITY;
         }
         // InventoryScreen supplies a stable, manually posed PlayerModel. PAL still
@@ -150,6 +159,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         // cross-fade the world animation clock.
         if (inventoryPreview) {
             discardTimeline();
+            stashExtraContext(selection, 0.0F, false, null, 0.0F, 1.0F);
             return BedrockAnimationPlayer.applyToPlayerModel(model, selection, 0.0F);
         }
         double now = player.tickCount + partialTick;
@@ -171,21 +181,24 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
         float currentTime = timeline.timeAt(now);
         if (timeline.previousAnimation == null || selection.fade() <= 0) {
+            stashExtraContext(selection, currentTime, false, null, 0.0F, 1.0F);
             return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime);
         }
 
         float blend = Mth.clamp((float) ((now - timeline.fadeStartedAt) / selection.fade()), 0.0F, 1.0F);
         if (blend >= 1.0F) {
             timeline.previousAnimation = null;
+            stashExtraContext(selection, currentTime, false, null, 0.0F, 1.0F);
             return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime);
         }
+        float previousTime = (float) ((now - timeline.previousStartedAt) / 20.0D
+                * timeline.previousAnimation.speed());
+        stashExtraContext(selection, currentTime, false, timeline.previousAnimation, previousTime, blend);
 
         // PAL's AbstractFadeModifier samples both players from the same base PlayerModel
         // pose and linearly blends their results. Capture/restore lets us do that without
         // importing the full PAL layer stack.
         PlayerModelPose baseline = PlayerModelPose.capture(model);
-        float previousTime = (float) ((now - timeline.previousStartedAt) / 20.0D
-                * timeline.previousAnimation.speed());
         BedrockAnimationPlayer.BodyTransform previousBody = BedrockAnimationPlayer.applyToPlayerModel(
                 model, timeline.previousAnimation, previousTime);
         PlayerModelPose previousPose = PlayerModelPose.capture(model);
@@ -199,6 +212,52 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     private void discardTimeline() {
         if (player != null) timelines.remove(player.getUUID());
+    }
+
+    private void stashExtraContext(FormAnimationSystem.Selection primary, float primaryTime, boolean forceLoop,
+                                   FormAnimationSystem.Selection secondary, float secondaryTime, float blend) {
+        extraPrimary = primary;
+        extraPrimaryTime = primaryTime;
+        extraPrimaryForceLoop = forceLoop;
+        extraSecondary = secondary;
+        extraSecondaryTime = secondaryTime;
+        extraBlend = blend;
+    }
+
+    /**
+     * Samples a form-only clip bone using the same layer, clock and cross-fade as the
+     * PlayerModel pass, mirroring PAL's {@code get3DTransform} reads in
+     * {@code ProcessExtraBone}. Returns null when the current clip does not animate
+     * the bone; the caller then leaves the GeoBone at its reset pose.
+     */
+    public BedrockAnimationPlayer.BoneSample sampleExtraBone(String animBoneName) {
+        if (extraPrimary == null) {
+            return null;
+        }
+        BedrockAnimationPlayer.BoneSample primary =
+                sampleWithFallback(extraPrimary, animBoneName, extraPrimaryTime, extraPrimaryForceLoop);
+        if (primary == null) {
+            return null;
+        }
+        if (extraSecondary == null || extraBlend >= 1.0F) {
+            return primary;
+        }
+        BedrockAnimationPlayer.BoneSample secondary =
+                sampleWithFallback(extraSecondary, animBoneName, extraSecondaryTime, false);
+        if (secondary == null) {
+            return primary;
+        }
+        return BedrockAnimationPlayer.BoneSample.lerp(secondary, primary, extraBlend);
+    }
+
+    private static BedrockAnimationPlayer.BoneSample sampleWithFallback(FormAnimationSystem.Selection selection,
+                                                                        String boneName, float time, boolean forceLoop) {
+        ResourceLocation resource = selection.resource();
+        if (!BedrockAnimationPlayer.hasAnimation(resource, selection.animationId())
+                && selection.fallbackResource() != null) {
+            resource = selection.fallbackResource();
+        }
+        return BedrockAnimationPlayer.sampleBone(resource, selection.animationId(), boneName, time, forceLoop);
     }
 
     /**
