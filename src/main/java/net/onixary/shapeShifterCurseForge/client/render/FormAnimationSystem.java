@@ -1,5 +1,6 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.FluidTags;
@@ -22,6 +23,9 @@ import java.util.UUID;
 
 /** Forge-side equivalent of the Fabric player animation FSM. */
 public final class FormAnimationSystem {
+    private static final org.slf4j.Logger LOGGER = LogUtils.getLogger();
+    // TEMP-DEBUG: diagnose why sneak crawling clips don't play. Remove after confirmed.
+    private static String lastDebugLine = "";
     private static final String ANIMATION_PATH = "player_animation/";
     private static final String NEW_ANIMATION_PATH = ANIMATION_PATH + "new/";
     private static final ResourceLocation RIDING_ANIMATIONS = resource(ANIMATION_PATH + "form_riding_animation.json");
@@ -103,11 +107,40 @@ public final class FormAnimationSystem {
         // Yarn PlayerEntity#isSneaking is Mojmap Player#isShiftKeyDown. isCrouching
         // is the pose flag instead and becomes false/late during several crawl states.
         boolean sneak = player.isShiftKeyDown();
-        for (String candidate : candidates(path, state, sneak, player)) {
+        List<String> offered = candidates(path, state, sneak, player);
+        for (String candidate : offered) {
             Selection selection = selectionFor(path, state, candidate);
-            if (hasAnimation(selection)) return selection;
+            if (hasAnimation(selection)) {
+                debugSelection(player, path, state, sneak, offered, selection);
+                return selection;
+            }
         }
+        debugSelection(player, path, state, sneak, offered, null);
         return null;
+    }
+
+    /**
+     * TEMP-DEBUG: logs the FSM decision for axolotl_3 so a missing crawling clip can be
+     * traced to its exact stage (state, sneak flag, candidates, per-candidate resource
+     * resolution). Only fires on decision change to avoid log spam. Remove after confirmed.
+     */
+    private static void debugSelection(Player player, String path, State state, boolean sneak,
+                                       List<String> offered, Selection selected) {
+        if (!"axolotl_3".equals(path)) {
+            return;
+        }
+        StringBuilder detail = new StringBuilder();
+        for (String candidate : offered) {
+            Selection probe = selectionFor(path, state, candidate);
+            detail.append(candidate).append('=').append(hasAnimation(probe)).append(' ');
+        }
+        String line = "state=" + state + " sneak=" + sneak + " offered=" + offered
+                + " resolved=[" + detail.toString().trim() + "] selected="
+                + (selected == null ? "null" : selected.animationId());
+        if (!line.equals(lastDebugLine)) {
+            lastDebugLine = line;
+            LOGGER.info("[SSC-ANIM-DEBUG] {}", line);
+        }
     }
 
     /** Resolves Fabric's registered power-animation ids to a concrete SSC player clip. */

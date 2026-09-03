@@ -86,8 +86,12 @@ public final class FormClientRenderEvents {
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
             // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
             // PlayerRenderer path before applying its own Geo coordinate conversion.
+            // PAL injects the body transform at the RETURN of setupRotations, i.e. BEFORE
+            // vanilla's scale(-1,-1,1). That scale conjugates (negates) the body X/Y
+            // rotations, so the transform must stay ahead of it to match Fabric exactly.
             applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick());
             applyPlayerAnimationBodyTransform(renderer.getAnimatable().getBodyTransform(), poseStack);
+            applyVanillaPlayerScale(poseStack);
             poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
             poseStack.translate(0.0D, -1.51D, 0.0D);
             poseStack.translate(-0.5D, -0.5D, -0.5D);
@@ -178,6 +182,14 @@ public final class FormClientRenderEvents {
         }
 
         applyPlayerRotations(player, poseStack, player.tickCount + partialTick, bodyYaw, partialTick);
+    }
+
+    /**
+     * Mirrors the LivingEntityRenderer#render tail after setupRotations: scale, then lift.
+     * Runs after the PAL body transform so the scale(-1,-1,1) conjugates body X/Y
+     * exactly like vanilla plus PAL on Fabric.
+     */
+    private static void applyVanillaPlayerScale(PoseStack poseStack) {
         poseStack.scale(-1.0F, -1.0F, 1.0F);
         poseStack.scale(PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE);
         poseStack.translate(0.0F, -1.501F, 0.0F);

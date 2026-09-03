@@ -5,14 +5,14 @@
 			"animation_length": 0.75,
 			"loop": "hold_on_last_frame",
 			"bones": {
-				"body": {
-					"rotation": {
-						"0.0": {
-							"vector": [60, 0, 0]
-						},
-						"0.1667": {
-							"vector": [60, 0, 0]
-						},
+			"body": {
+				"rotation": {
+					"0.0": {
+						"vector": [60, 0, 0]
+					},
+					"0.1667": {
+						"vector": [60, 0, 0]
+					},
 						"0.7083": {
 							"vector": [0, 0, 0]
 						}
