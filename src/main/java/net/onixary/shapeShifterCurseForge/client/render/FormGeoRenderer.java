@@ -12,6 +12,7 @@ public final class FormGeoRenderer extends GeoObjectRenderer<FormGeoAnimatable> 
         super(new FormGeoModel(model, texture, animationConfig));
         this.formAnimatable = new FormGeoAnimatable();
         this.animatable = formAnimatable;
+        addRenderLayer(new HeldItemGeoLayer(this));
     }
 
     public void setPlayer(Player player) {

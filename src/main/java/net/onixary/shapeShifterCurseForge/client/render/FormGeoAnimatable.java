@@ -34,6 +34,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private PlayerModel<?> vanillaPlayerModel;
     private BedrockAnimationPlayer.BodyTransform bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
     private boolean inventoryPreview;
+    private boolean suppressHeldItems;
     private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
     private final Map<UUID, OverlayTimeline> overlayTimelines = new HashMap<>();
     private FormAnimationSystem.Selection extraPrimary;
@@ -144,6 +145,19 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     public boolean isInventoryPreview() {
         return inventoryPreview;
+    }
+
+    /**
+     * When true, the held-item layer stays out because the vanilla arm render survived
+     * and already shows the item. Set per render pass: third person always renders
+     * items here (vanilla is cancelled), first person only when its arm event died.
+     */
+    public void setSuppressHeldItems(boolean suppressHeldItems) {
+        this.suppressHeldItems = suppressHeldItems;
+    }
+
+    public boolean suppressHeldItems() {
+        return suppressHeldItems;
     }
 
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,
@@ -264,46 +278,47 @@ public final class FormGeoAnimatable implements GeoAnimatable {
      * Returns the time for the surface-sprint Geo clip, or a negative value when it is
      * inactive. The non-looping Bedrock clip holds its final pose while active; the base
      * layer (swim or crawl animation plus the procedural tail chain) stays underneath it.
-     * Besides sprinting in water, sneak-crawling on land layers the same tail motion.
+     * Besides sprinting in water, the crawling base clips layer the same tail motion.
      */
     public float axolotlSurfaceSprintOverlayTime(float partialTick) {
         if (player == null || inventoryPreview || !SscClientConfig.PREFER_NEW_ANIMATIONS.get()) {
             return -1.0F;
         }
 
-        OverlayTimeline timeline = overlayTimelines.computeIfAbsent(player.getUUID(),
-                ignored -> new OverlayTimeline(player.getX(), player.getZ()));
-        boolean surfaceSprinting = FormManager.current(player).id().getPath().equals("axolotl_3")
-                && player.isSprinting() && player.isInWater();
-        boolean crawlSprinting = FormManager.current(player).id().getPath().equals("axolotl_3")
-                && player.isShiftKeyDown() && player.onGround() && !player.isInWater()
-                && isMovingHorizontally(timeline);
-        timeline.lastX = player.getX();
-        timeline.lastZ = player.getZ();
-        if (!surfaceSprinting && !crawlSprinting) {
-            timeline.active = false;
+        OverlayTimeline overlay = overlayTimelines.computeIfAbsent(
+                player.getUUID(),
+                ignored -> new OverlayTimeline()
+        );
+
+        AnimationTimeline baseTimeline = timelines.get(player.getUUID());
+        String animationId = baseTimeline != null && baseTimeline.animation != null
+                ? baseTimeline.animation.animationId()
+                : null;
+
+        boolean crawling =
+                "axolotl_3_crawling_idle".equals(animationId)
+                || "axolotl_3_crawling".equals(animationId);
+
+        boolean surfaceSprinting =
+                "axolotl_3".equals(FormManager.current(player).id().getPath())
+                && player.isSprinting()
+                && player.isInWater();
+
+        boolean active = crawling || surfaceSprinting;
+
+        if (!active) {
+            overlay.active = false;
             return -1.0F;
         }
 
         double now = player.tickCount + partialTick;
-        if (!timeline.active) {
-            timeline.active = true;
-            timeline.startedAt = now;
-        }
-        return (float) ((now - timeline.startedAt) / 20.0D);
-    }
 
-    /**
-     * Position-based horizontal motion check. Client delta movement can read zero while
-     * sneak-crawling, so the timeline's own last position is compared instead.
-     */
-    private boolean isMovingHorizontally(OverlayTimeline timeline) {
-        if (player == null) {
-            return false;
+        if (!overlay.active) {
+            overlay.active = true;
+            overlay.startedAt = now;
         }
-        double dx = player.getX() - timeline.lastX;
-        double dz = player.getZ() - timeline.lastZ;
-        return dx * dx + dz * dz > 1.0E-8D;
+
+        return (float) ((now - overlay.startedAt) / 20.0D);
     }
 
     @Override
@@ -388,12 +403,5 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private static final class OverlayTimeline {
         private boolean active;
         private double startedAt;
-        private double lastX;
-        private double lastZ;
-
-        private OverlayTimeline(double x, double z) {
-            this.lastX = x;
-            this.lastZ = z;
-        }
     }
 }

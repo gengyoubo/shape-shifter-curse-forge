@@ -71,6 +71,9 @@ public final class FormClientRenderEvents {
         renderer.setPlayer(player);
         renderer.setVanillaPlayerModel(event.getRenderer().getModel());
         renderer.setInventoryPreview(inventoryPreview);
+        // The vanilla render stays cancelled, so its ItemInHandLayer never runs here:
+        // hand items are drawn by HeldItemGeoLayer instead.
+        renderer.getAnimatable().setSuppressHeldItems(false);
         renderer.prepareVanillaPlayerPose(event.getPartialTick());
         // The original player renderer is cancelled below. If data-driven animation
         // state is ever invalid, leave the event alone so the player remains visible.

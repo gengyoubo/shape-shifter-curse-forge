@@ -44,7 +44,12 @@ public final class FormFirstPersonArmEvents {
     private FormFirstPersonArmEvents() {
     }
 
-    @SubscribeEvent
+    /**
+     * Must run even when the event was already cancelled: the no_render_arm power
+     * (ClientPowerRenderEvents) cancels first-person arms before this handler, and
+     * without {@code receiveCanceled} the form arm would never render for those forms.
+     */
+    @SubscribeEvent(receiveCanceled = true)
     public static void renderArm(RenderArmEvent event) {
         AbstractClientPlayer player = event.getPlayer();
         Minecraft minecraft = Minecraft.getInstance();
@@ -112,6 +117,9 @@ public final class FormFirstPersonArmEvents {
         }
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
+        // When the vanilla arm render survives, it already shows the hand item;
+        // the Geo layer only fills in for arms vanilla no longer draws.
+        animatable.setSuppressHeldItems(!event.isCanceled());
         try {
             // Same Geo coordinate conversion as the third-person pass, applied on top
             // of the first-person hand matrix like Fabric's rFPM_PartB.
