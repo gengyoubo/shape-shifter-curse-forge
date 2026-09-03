@@ -45,6 +45,13 @@ public final class FormAnimationSystem {
             "ocelot_3", AnimationProfile.builder()
                     .animation("ocelot_3_sneak_rush", "form_feral_common_run", "form_feral_common_run", 3.3F, 2)
                     .fallback(SHARED_ANIMATIONS)
+                    .build(),
+            "axolotl_3", AnimationProfile.builder()
+                    // RushJumpAnimController belongs to Axolotl 3, rather than the
+                    // cross-form animation registry. Its longer controller blend is
+                    // therefore defined with the form that owns the behavior.
+                    .animation("axolotl_3_rush_jump", "axolotl_3_rush_jump", "axolotl_3_rush_jump", 1.0F, 10)
+                    .fallback(SHARED_ANIMATIONS)
                     .build()
     );
     private static final Map<UUID, TransitionSnapshot> TRANSITIONS = new HashMap<>();
@@ -93,7 +100,9 @@ public final class FormAnimationSystem {
         Selection transition = transitionAnimation(player);
         if (transition != null) return transition;
         State state = stateOf(player);
-        boolean sneak = player.isCrouching();
+        // Yarn PlayerEntity#isSneaking is Mojmap Player#isShiftKeyDown. isCrouching
+        // is the pose flag instead and becomes false/late during several crawl states.
+        boolean sneak = player.isShiftKeyDown();
         for (String candidate : candidates(path, state, sneak, player)) {
             Selection selection = selectionFor(path, state, candidate);
             if (hasAnimation(selection)) return selection;
@@ -225,12 +234,13 @@ public final class FormAnimationSystem {
             if (state == State.SWIM) add(result, "axolotl_2_swimming_idle");
         } else if (path.equals("axolotl_2")) {
             if (state == State.SWIM) add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
-            else if (state == State.CRAWL) add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
             else if (sneak) {
                 switch (state) {
                     case IDLE -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
-                    case WALK, SPRINT -> add(result, "axolotl_2_crawling_new");
-                    case JUMP, FALL -> add(result, "axolotl_2_crawling_jump");
+                    // Form_Axolotl2 only overrides WALK. Sprint, physical crawling and
+                    // falling deliberately inherit the normal-form controller.
+                    case WALK -> add(result, "axolotl_2_crawling_new");
+                    case JUMP -> add(result, "axolotl_2_crawling_jump");
                     case ATTACK -> add(result, "axolotl_2_crawling_attack_once");
                     case MINING -> add(result, "axolotl_2_crawling_tool_swing");
                     default -> { }
@@ -242,10 +252,13 @@ public final class FormAnimationSystem {
                 case IDLE -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
                 case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
                 case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
-                case JUMP -> add(result, sneak ? "axolotl_2_crawling_jump" : "axolotl_3_jump");
+                case JUMP -> add(result, sneak ? "axolotl_2_crawling_jump"
+                        : isRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
                 case FALL -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
-                case ATTACK -> add(result, "axolotl_2_crawling_attack_once");
-                case MINING -> add(result, "axolotl_2_crawling_tool_swing");
+                // The Fabric WithSneak controllers intentionally have no normal
+                // attack/mining animation for Axolotl 3.
+                case ATTACK -> add(result, sneak ? "axolotl_2_crawling_attack_once" : null);
+                case MINING -> add(result, sneak ? "axolotl_2_crawling_tool_swing" : null);
                 case FLYING -> add(result, "axolotl_3_creative_flight");
                 case SLEEP -> add(result, "axolotl_3_sleep");
                 case CRAWL -> add(result, "axolotl_3_idle");
@@ -454,16 +467,17 @@ public final class FormAnimationSystem {
 
     /**
      * The original controllers use the swimming animation while the player is in the
-     * swimming pose; the older controller also treated sprinting underwater as swimming.
-     * Keeping both conditions prevents axolotl forms from getting stuck in float idle when
-     * the client has not updated the pose flag yet.
+     * swimming pose.  SwimAnimController in Fabric uses only this synchronized entity
+     * state; the always-sprint-swimming power is responsible for setting it when needed.
      */
     private static boolean isSwimmingAnimation(Player player) {
-        return player.isSwimming() || (player.isSprinting() && isSubmergedInWater(player));
+        return player.isSwimming();
     }
 
-    private static boolean isSubmergedInWater(Player player) {
-        return player.isEyeInFluid(FluidTags.WATER);
+    /** Exact RushJumpAnimController threshold: either horizontal component exceeds 0.15. */
+    private static boolean isRushJump(Player player) {
+        net.minecraft.world.phys.Vec3 velocity = player.getDeltaMovement();
+        return Math.abs(velocity.x) > 0.15D || Math.abs(velocity.z) > 0.15D;
     }
 
     private static boolean hasResource(ResourceLocation location) {
@@ -514,7 +528,7 @@ public final class FormAnimationSystem {
                 snapshot.swingTicks = 0;
             }
             if (!moving && !player.swinging && !player.isUsingItem() && !player.isPassenger()
-                    && !player.isSleeping() && groundedForAnimation(player) && !player.isCrouching()
+                    && !player.isSleeping() && groundedForAnimation(player) && !player.isShiftKeyDown()
                     && !player.isVisuallyCrawling() && !isTouchingWater(player)
                     && !isClimbingForAnimation(player, groundedForAnimation(player))) {
                 snapshot.idleTicks = snapshot.idle ? snapshot.idleTicks + 1 : 1;
