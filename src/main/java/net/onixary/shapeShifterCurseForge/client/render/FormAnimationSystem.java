@@ -28,6 +28,8 @@ public final class FormAnimationSystem {
     private static String lastDebugLine = "";
     private static final String ANIMATION_PATH = "player_animation/";
     private static final String NEW_ANIMATION_PATH = ANIMATION_PATH + "new/";
+    /** Ticks of dry time bridged before leaving the swim state (surface-bob flicker). */
+    private static final int WATER_EXIT_GRACE_TICKS = 4;
     private static final ResourceLocation RIDING_ANIMATIONS = resource(ANIMATION_PATH + "form_riding_animation.json");
     private static final AnimationProfile SHARED_ANIMATIONS = AnimationProfile.builder()
             .animation("bat_2_riding", "form_riding_animation", "bat_2_riding", 1.0F, 2)
@@ -214,7 +216,9 @@ public final class FormAnimationSystem {
         if (isClimbingForAnimation(player, onGround)) return State.CLIMB;
         // Fabric's v3 FSM treats any water contact as the universal swim state.  The
         // separate isSwimmingAnimation check below then chooses swim versus float.
-        if (isTouchingWater(player)) return State.SWIM;
+        // Uses the graced contact from motionOf so surface bobbing cannot flip SWIM
+        // against ground states frame to frame.
+        if (motion.touchingWater) return State.SWIM;
         if (!onGround) {
             if (player.getAbilities().flying) return State.FLYING;
             if (player.isFallFlying()) return State.FALL_FLYING;
@@ -580,6 +584,16 @@ public final class FormAnimationSystem {
             snapshot.swinging = player.swinging;
             snapshot.idle = snapshot.idleTicks > 0;
             snapshot.moving = moving;
+            // Water contact gets a short exit grace: bobbing at the surface flickers
+            // the raw body/eye checks frame to frame, and each flip restarts the
+            // cross-fade from t=0 on both clips, which reads as a head twitch.
+            // Entry stays immediate so dives respond at once.
+            if (isTouchingWater(player)) {
+                snapshot.lastWetTick = player.tickCount;
+                snapshot.touchingWater = true;
+            } else {
+                snapshot.touchingWater = player.tickCount - snapshot.lastWetTick <= WATER_EXIT_GRACE_TICKS;
+            }
             snapshot.lastPosition = position;
             snapshot.lastTick = player.tickCount;
         }
@@ -603,9 +617,11 @@ public final class FormAnimationSystem {
         private int lastTick = Integer.MIN_VALUE;
         private int swingTicks;
         private int idleTicks;
+        private int lastWetTick = -1000;
         private boolean swinging;
         private boolean idle;
         private boolean moving;
+        private boolean touchingWater;
         private double verticalDelta;
 
         private MotionSnapshot(net.minecraft.world.phys.Vec3 lastPosition) {

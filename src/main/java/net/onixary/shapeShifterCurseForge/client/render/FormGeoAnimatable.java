@@ -205,7 +205,16 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         }
 
         float currentTime = timeline.timeAt(now);
-        if (timeline.previousAnimation == null || selection.fade() <= 0) {
+        float previousTime = timeline.previousAnimation == null ? 0.0F : (float) ((now - timeline.previousStartedAt) / 20.0D
+                * timeline.previousAnimation.speed());
+        // A just-expired one-shot (dive entry, jump landing) still fades out of its
+        // frozen end pose instead of hard-cutting; only long-dead clips cut straight in.
+        float previousLength = timeline.previousAnimation == null ? 0.0F
+                : BedrockAnimationPlayer.animationLength(timeline.previousAnimation);
+        boolean previousUsable = timeline.previousAnimation != null && previousLength > 0.0F
+                && (BedrockAnimationPlayer.isActive(timeline.previousAnimation, previousTime)
+                    || previousTime - previousLength <= 20.0F);
+        if (!previousUsable || selection.fade() <= 0) {
             stashExtraContext(selection, currentTime, false, null, 0.0F, 1.0F);
             return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime);
         }
@@ -216,8 +225,6 @@ public final class FormGeoAnimatable implements GeoAnimatable {
             stashExtraContext(selection, currentTime, false, null, 0.0F, 1.0F);
             return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime);
         }
-        float previousTime = (float) ((now - timeline.previousStartedAt) / 20.0D
-                * timeline.previousAnimation.speed());
         stashExtraContext(selection, currentTime, false, timeline.previousAnimation, previousTime, blend);
 
         // PAL's AbstractFadeModifier samples both players from the same base PlayerModel
