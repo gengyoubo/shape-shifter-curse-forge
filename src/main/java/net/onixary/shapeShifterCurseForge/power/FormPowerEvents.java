@@ -291,8 +291,13 @@ public final class FormPowerEvents {
         }
         FormActivePowerService.registerGroundJump(player);
         FormActivePowerService.triggerVanillaKey(player, "key.jump");
-        final double[] jumpVelocity = {player.getDeltaMovement().y};
+
+        // Jump height itself is handled by LivingEntityMixin#getJumpPower,
+        // which applies apoli:modify_jump inside vanilla's calculation.
+        // This handler only runs the jump-triggered actions (particles, sounds,
+        // forward dash, entity_action of modify_jump powers).
         List<JsonObject> pendingActions = new ArrayList<>();
+
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
             JsonObject condition = power.has("entity_condition")
@@ -302,15 +307,12 @@ public final class FormPowerEvents {
                 pendingActions.add(power.getAsJsonObject("entity_action"));
             }
             if ("apoli:modify_jump".equals(type)
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                jumpVelocity[0] = FormPowerRuntime.applyModifier(jumpVelocity[0], power.getAsJsonObject("modifier"));
-                if (power.has("entity_action")) {
-                    pendingActions.add(power.getAsJsonObject("entity_action"));
-                }
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    && power.has("entity_action")) {
+                pendingActions.add(power.getAsJsonObject("entity_action"));
             }
         });
-        Vec3 motion = player.getDeltaMovement();
-        player.setDeltaMovement(motion.x, jumpVelocity[0], motion.z);
+
         for (JsonObject action : pendingActions) {
             FormPowerRuntime.execute(player, player, action);
         }
