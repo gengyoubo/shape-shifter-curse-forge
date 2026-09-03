@@ -2,6 +2,9 @@ package net.onixary.shapeShifterCurseForge;
 
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
+import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
@@ -19,6 +22,8 @@ public final class ShapeShifterCurseForge {
 
     public ShapeShifterCurseForge() {
         var modBus = FMLJavaModLoadingContext.get().getModEventBus();
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, SscClientConfig.SPEC,
+                "shape-shifter-curse-client.toml");
 
         ModItems.ITEMS.register(modBus);
         ModBlocks.BLOCKS.register(modBus);

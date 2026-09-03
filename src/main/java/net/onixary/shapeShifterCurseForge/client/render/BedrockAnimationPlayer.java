@@ -45,6 +45,9 @@ public final class BedrockAnimationPlayer {
             return BodyTransform.IDENTITY;
         }
         AnimationDefinition definition = load(selection.resource(), selection.animationId());
+        if (definition == null && selection.fallbackResource() != null) {
+            definition = load(selection.fallbackResource(), selection.animationId());
+        }
         if (definition == null) {
             return BodyTransform.IDENTITY;
         }
@@ -99,6 +102,11 @@ public final class BedrockAnimationPlayer {
             LOGGER.warn("Unable to load form animation {}", resource, exception);
             return null;
         }
+    }
+
+    /** Used by the selector so a malformed or incomplete new-animation file can fall back safely. */
+    public static boolean hasAnimation(ResourceLocation resource, String animationId) {
+        return load(resource, animationId) != null;
     }
 
     private static float animationTime(AnimationDefinition definition, float timeSeconds) {
