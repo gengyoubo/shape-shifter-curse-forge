@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import software.bernie.geckolib.model.GeoModel;
 
@@ -78,6 +79,31 @@ public final class BedrockAnimationPlayer {
             }
         }
         return bodyTransform;
+    }
+
+    /**
+     * Mirrors PAL's PlayerModelMixin#setDefaultPivot. PlayerModel instances are reused
+     * between renders, so vanilla setupAnim alone does not reliably clear positions
+     * written by the previous SSC animation. This is especially visible when a crawl
+     * pose changes directly into a sprint jump.
+     */
+    public static void resetVanillaPivots(PlayerModel<?> model) {
+        resetPart(model.head, Pivot.HEAD);
+        resetPart(model.body, Pivot.TORSO);
+        resetPart(model.rightArm, Pivot.RIGHT_ARM);
+        resetPart(model.leftArm, Pivot.LEFT_ARM);
+        resetPart(model.rightLeg, Pivot.RIGHT_LEG);
+        resetPart(model.leftLeg, Pivot.LEFT_LEG);
+    }
+
+    /** Returns whether PAL would still consider this clip playable at the supplied time. */
+    public static boolean isActive(FormAnimationSystem.Selection selection, float timeSeconds) {
+        if (selection == null) return false;
+        AnimationDefinition definition = load(selection.resource(), selection.animationId());
+        if (definition == null && selection.fallbackResource() != null) {
+            definition = load(selection.fallbackResource(), selection.animationId());
+        }
+        return definition != null && (definition.loop || definition.holdLastFrame || timeSeconds < definition.length);
     }
 
     /**
@@ -195,6 +221,15 @@ public final class BedrockAnimationPlayer {
         part.z = pivot.z + pos.z;
     }
 
+    private static void resetPart(ModelPart part, Pivot pivot) {
+        part.x = pivot.x;
+        part.y = pivot.y;
+        part.z = pivot.z;
+        part.xRot = 0.0F;
+        part.yRot = 0.0F;
+        part.zRot = 0.0F;
+    }
+
     private static BodyTransform bodyTransform(Vec3 rotation, Vec3 position) {
         Vec3 rot = rotation == null ? Vec3.ZERO : rotation;
         Vec3 pos = position == null ? Vec3.ZERO : position;
@@ -219,7 +254,19 @@ public final class BedrockAnimationPlayer {
                 bones.put(entry.getKey(), bone);
             }
         }
-        return new AnimationDefinition(length, animation.has("loop") && animation.get("loop").getAsBoolean(), bones);
+        boolean loop = false;
+        boolean holdLastFrame = false;
+        if (animation.has("loop")) {
+            JsonElement loopValue = animation.get("loop");
+            if (loopValue.isJsonPrimitive() && loopValue.getAsJsonPrimitive().isBoolean()) {
+                loop = loopValue.getAsBoolean();
+            } else if (loopValue.isJsonPrimitive() && loopValue.getAsJsonPrimitive().isString()) {
+                // PAL maps this Gecko convention to an infinite animation whose
+                // return tick is the final frame: keep the final pose, never wrap.
+                holdLastFrame = "hold_on_last_frame".equals(loopValue.getAsString());
+            }
+        }
+        return new AnimationDefinition(length, loop, holdLastFrame, bones);
     }
 
     private static Channel channel(JsonObject bone, String name) {
@@ -233,8 +280,12 @@ public final class BedrockAnimationPlayer {
         for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
             try {
                 JsonElement value = entry.getValue();
-                String easing = value.isJsonObject() && value.getAsJsonObject().has("easing")
-                        ? value.getAsJsonObject().get("easing").getAsString() : null;
+                String easing = null;
+                if (value.isJsonObject()) {
+                    JsonObject frame = value.getAsJsonObject();
+                    if (frame.has("easing")) easing = frame.get("easing").getAsString();
+                    else if (frame.has("lerp_mode")) easing = frame.get("lerp_mode").getAsString();
+                }
                 if (value.isJsonObject() && value.getAsJsonObject().has("post")) value = value.getAsJsonObject().get("post");
                 frames.add(new Keyframe(Float.parseFloat(entry.getKey()), vector(value), easing));
             } catch (RuntimeException ignored) {
@@ -268,14 +319,25 @@ public final class BedrockAnimationPlayer {
     }
 
     private static float applyEasing(String easing, float amount) {
-        if ("easeOutCubic".equals(easing)) {
-            float inverse = 1.0F - amount;
-            return 1.0F - inverse * inverse * inverse;
-        }
-        return amount;
+        return switch (easing == null ? "linear" : easing) {
+            case "easeInSine" -> 1.0F - Mth.cos(amount * ((float) Math.PI / 2.0F));
+            case "easeInQuad" -> amount * amount;
+            case "easeOutQuad" -> 1.0F - (1.0F - amount) * (1.0F - amount);
+            case "easeInQuart" -> amount * amount * amount * amount;
+            case "easeOutCubic" -> {
+                float inverse = 1.0F - amount;
+                yield 1.0F - inverse * inverse * inverse;
+            }
+            // GeckoLibSerializer converts catmullrom to PAL's INOUTSINE easing.
+            case "catmullrom", "easeInOutSine" -> -(Mth.cos((float) Math.PI * amount) - 1.0F) / 2.0F;
+            case "EASEINOUTQUAD" -> amount < 0.5F ? 2.0F * amount * amount
+                    : 1.0F - (float) Math.pow(-2.0F * amount + 2.0F, 2.0F) / 2.0F;
+            default -> amount;
+        };
     }
 
-    private record AnimationDefinition(float length, boolean loop, Map<String, BoneAnimation> bones) { }
+    private record AnimationDefinition(float length, boolean loop, boolean holdLastFrame,
+                                       Map<String, BoneAnimation> bones) { }
 
     private record CacheKey(ResourceLocation resource, String animationId) { }
 
@@ -307,6 +369,12 @@ public final class BedrockAnimationPlayer {
         public boolean isFinite() {
             return Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z)
                     && Float.isFinite(pitch) && Float.isFinite(yaw) && Float.isFinite(roll);
+        }
+
+        public static BodyTransform lerp(BodyTransform from, BodyTransform to, float amount) {
+            return new BodyTransform(Mth.lerp(amount, from.x, to.x), Mth.lerp(amount, from.y, to.y),
+                    Mth.lerp(amount, from.z, to.z), Mth.lerp(amount, from.pitch, to.pitch),
+                    Mth.lerp(amount, from.yaw, to.yaw), Mth.lerp(amount, from.roll, to.roll));
         }
     }
 

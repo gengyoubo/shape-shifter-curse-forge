@@ -61,7 +61,10 @@ public final class FormClientRenderEvents {
             return;
         }
 
-        FormGeoRenderer renderer = RENDERERS.computeIfAbsent(form.id(), ignored -> new FormGeoRenderer(model, texture));
+        ResourceLocation animationConfig = resource("ssc_form_model/origins.origin."
+                + form.id().getNamespace() + "." + form.id().getPath() + ".json");
+        FormGeoRenderer renderer = RENDERERS.computeIfAbsent(form.id(),
+                ignored -> new FormGeoRenderer(model, texture, animationConfig));
         renderer.setPlayer(player);
         renderer.setVanillaPlayerModel(event.getRenderer().getModel());
         // Both survival and creative inventories render their player preview full-bright.  This
