@@ -34,7 +34,6 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private PlayerModel<?> vanillaPlayerModel;
     private BedrockAnimationPlayer.BodyTransform bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
     private boolean inventoryPreview;
-    private boolean suppressHeldItems;
     private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
     private final Map<UUID, OverlayTimeline> overlayTimelines = new HashMap<>();
     private FormAnimationSystem.Selection extraPrimary;
@@ -118,6 +117,11 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 limbSwing, limbSwingAmount, partialTick);
         rawModel.setupAnim(player,
                 limbSwing, limbSwingAmount, age, netHeadYaw, headPitch);
+        bodyTransform = applySelection(player, rawModel, partialTick);
+    }
+
+    private BedrockAnimationPlayer.BodyTransform applySelection(Player player, PlayerModel<?> model,
+                                                                float partialTick) {
         PowerAnimationClientHandler.ActiveAnimation powerAnimation =
                 inventoryPreview ? null : PowerAnimationClientHandler.active(player, partialTick);
         FormAnimationSystem.Selection selection = powerAnimation == null
@@ -125,12 +129,32 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         if (powerAnimation != null) {
             // Server-synchronised power animations are their own high-priority layer.
             // SSC Fabric replaces the normal layer for these, rather than fading it.
-            bodyTransform = BedrockAnimationPlayer.applyToPlayerModel(rawModel, selection,
+            BedrockAnimationPlayer.BodyTransform transform = BedrockAnimationPlayer.applyToPlayerModel(model, selection,
                     powerAnimation.timeSeconds(), powerAnimation.forceLoop());
             stashExtraContext(selection, powerAnimation.timeSeconds(), powerAnimation.forceLoop(),
                     null, 0.0F, 1.0F);
-        } else {
-            bodyTransform = applyFormAnimation(rawModel, selection, partialTick);
+            return transform;
+        }
+        return applyFormAnimation(model, selection, partialTick);
+    }
+
+    /**
+     * Re-applies the current clip onto a vanilla model that someone else just posed
+     * (vanilla setupAnim during the real render pass, which would otherwise wipe the
+     * Pre-pass clip pose that layers like held items depend on). Shared fade and power
+     * state keeps every pass of the same frame identical. Mirrors PAL, which hooks
+     * setupAnim itself rather than replacing the renderer.
+     */
+    public void reapplySelection(Player player, PlayerModel<?> model, float partialTick) {
+        if (player == null || model == null) {
+            return;
+        }
+        Player prevPlayer = this.player;
+        this.player = player;
+        try {
+            applySelection(player, model, partialTick);
+        } finally {
+            this.player = prevPlayer;
         }
     }
 
@@ -145,19 +169,6 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     public boolean isInventoryPreview() {
         return inventoryPreview;
-    }
-
-    /**
-     * When true, the held-item layer stays out because the vanilla arm render survived
-     * and already shows the item. Set per render pass: third person always renders
-     * items here (vanilla is cancelled), first person only when its arm event died.
-     */
-    public void setSuppressHeldItems(boolean suppressHeldItems) {
-        this.suppressHeldItems = suppressHeldItems;
-    }
-
-    public boolean suppressHeldItems() {
-        return suppressHeldItems;
     }
 
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,

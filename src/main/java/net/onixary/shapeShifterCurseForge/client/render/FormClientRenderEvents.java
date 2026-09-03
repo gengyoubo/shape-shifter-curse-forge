@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
@@ -43,12 +44,15 @@ public final class FormClientRenderEvents {
     @SubscribeEvent
     public static void renderPlayer(RenderPlayerEvent.Pre event) {
         Player player = event.getEntity();
+        PlayerModel<?> vanillaModel = event.getRenderer().getModel();
         if (player.isSpectator() || player.isInvisible()) {
+            setAllPartsVisible(vanillaModel);
             return;
         }
 
         FormDefinition form = FormManager.current(player);
         if (!form.hasFlag("special_form") && form.tier() <= 0) {
+            setAllPartsVisible(vanillaModel);
             return;
         }
 
@@ -61,29 +65,32 @@ public final class FormClientRenderEvents {
         // first-person arms are handled separately by FormFirstPersonArmEvents.
         if (!inventoryPreview && player == minecraft.player
                 && minecraft.options.getCameraType().isFirstPerson()) {
+            setAllPartsVisible(vanillaModel);
             return;
         }
 
         FormGeoRenderer renderer = rendererFor(form);
         if (renderer == null) {
+            setAllPartsVisible(vanillaModel);
             return;
         }
         renderer.setPlayer(player);
-        renderer.setVanillaPlayerModel(event.getRenderer().getModel());
+        renderer.setVanillaPlayerModel(vanillaModel);
         renderer.setInventoryPreview(inventoryPreview);
-        // The vanilla render stays cancelled, so its ItemInHandLayer never runs here:
-        // hand items are drawn by HeldItemGeoLayer instead.
-        renderer.getAnimatable().setSuppressHeldItems(false);
         renderer.prepareVanillaPlayerPose(event.getPartialTick());
-        // The original player renderer is cancelled below. If data-driven animation
-        // state is ever invalid, leave the event alone so the player remains visible.
+        // If data-driven animation state is ever invalid, leave the event alone so
+        // the player remains visible.
         if (!renderer.getAnimatable().hasSafeRenderState()) {
+            setAllPartsVisible(vanillaModel);
             reportRenderFailure(player, form, null);
             return;
         }
 
+        // Fabric never cancels the player renderer: covered vanilla parts are hidden
+        // (rM_PartA parity) while the remaining layers, including held items, keep
+        // running. The Geo form model is overlaid on top of that.
+        setCoveredPartsHidden(vanillaModel, renderer);
         PoseStack poseStack = event.getPoseStack();
-        boolean rendered = false;
         poseStack.pushPose();
         try {
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
@@ -102,22 +109,70 @@ public final class FormClientRenderEvents {
             RenderType renderType = RenderType.entityTranslucent(renderer.getTextureLocation(renderer.getAnimatable()));
             renderer.render(poseStack, renderer.getAnimatable(), event.getMultiBufferSource(), renderType,
                     event.getMultiBufferSource().getBuffer(renderType), event.getPackedLight());
-            rendered = true;
+            REPORTED_RENDER_FAILURES.remove(player.getUUID());
         } catch (RuntimeException exception) {
             // Do not strand the player invisible if a Gecko model or animation fails.
-            // Returning without cancellation lets vanilla finish this render pass.
+            // Restore the vanilla parts so vanilla finishes this render pass whole.
+            setAllPartsVisible(vanillaModel);
             reportRenderFailure(player, form, exception);
         } finally {
             poseStack.popPose();
         }
-        if (rendered) {
-            REPORTED_RENDER_FAILURES.remove(player.getUUID());
-            event.setCanceled(true);
+    }
+
+    /** Restores vanilla part visibility after a form render pass. The flags live on the
+     * shared renderer model, so every pass must leave them clean for the next user. */
+    @SubscribeEvent
+    public static void renderPlayerPost(RenderPlayerEvent.Post event) {
+        if (event.getEntity() instanceof Player) {
+            setAllPartsVisible(event.getRenderer().getModel());
+        }
+    }
+
+    private static final String[] VANILLA_PART_NAMES = {"hat", "head", "body", "jacket",
+            "leftArm", "leftSleeve", "rightArm", "rightSleeve",
+            "leftLeg", "leftPants", "rightLeg", "rightPants"};
+
+    private static net.minecraft.client.model.geom.ModelPart partByName(PlayerModel<?> model, String name) {
+        return switch (name) {
+            case "hat" -> model.hat;
+            case "head" -> model.head;
+            case "body" -> model.body;
+            case "jacket" -> model.jacket;
+            case "leftArm" -> model.leftArm;
+            case "leftSleeve" -> model.leftSleeve;
+            case "rightArm" -> model.rightArm;
+            case "rightSleeve" -> model.rightSleeve;
+            case "leftLeg" -> model.leftLeg;
+            case "leftPants" -> model.leftPants;
+            case "rightLeg" -> model.rightLeg;
+            case "rightPants" -> model.rightPants;
+            default -> null;
+        };
+    }
+
+    private static void setAllPartsVisible(PlayerModel<?> model) {
+        for (String name : VANILLA_PART_NAMES) {
+            net.minecraft.client.model.geom.ModelPart part = partByName(model, name);
+            if (part != null) {
+                part.visible = true;
+            }
+        }
+    }
+
+    /** Hides the vanilla parts covered by the form, mirroring Fabric's rM_PartA. */
+    private static void setCoveredPartsHidden(PlayerModel<?> model, FormGeoRenderer renderer) {
+        FormGeoModel geoModel = (FormGeoModel) renderer.getGeoModel();
+        for (String name : VANILLA_PART_NAMES) {
+            net.minecraft.client.model.geom.ModelPart part = partByName(model, name);
+            if (part != null) {
+                part.visible = !geoModel.isVanillaPartHidden(name);
+            }
         }
     }
 
     /** Shared form renderer lookup; null when the form has no Geo model or texture. */
-    static FormGeoRenderer rendererFor(FormDefinition form) {
+    public static FormGeoRenderer rendererFor(FormDefinition form) {
         ResourceLocation model = resource("geo/form/form_" + form.id().getPath() + ".geo.json");
         ResourceLocation texture = resource("textures/form/form_" + form.id().getPath()
                 + "/form_" + form.id().getPath() + ".png");

@@ -115,23 +115,25 @@ public final class FormFirstPersonArmEvents {
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         try {
-            // Mirrors rFPM_PartB's matrix setup.
             poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
             poseStack.translate(0.0D, -1.51D, 0.0D);
-            poseStack.translate(-0.5D, -0.5D, -0.5D);
+
             ResourceLocation texture = renderer.getTextureLocation(animatable);
             RenderType renderType = RenderType.entityTranslucent(texture);
             VertexConsumer buffer = event.getMultiBufferSource().getBuffer(renderType);
-            if (renderer.firePreRenderEvent(poseStack, baked, event.getMultiBufferSource(),
-                    partialTick, event.getPackedLight())) {
-                renderer.updateAnimatedTextureFrame(animatable);
-                // Mirrors renderGeoBone: draw just the arm subtree, nothing else.
-                renderer.renderRecursively(poseStack, animatable, geoBone, renderType,
-                        event.getMultiBufferSource(), buffer, false, partialTick,
-                        event.getPackedLight(), OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
-                renderer.firePostRenderEvent(poseStack, baked, event.getMultiBufferSource(),
-                        partialTick, event.getPackedLight());
-            }
+
+            renderer.renderRecursively(
+                    poseStack,
+                    animatable,
+                    geoBone,
+                    renderType,
+                    event.getMultiBufferSource(),
+                    buffer,
+                    false,
+                    partialTick,
+                    event.getPackedLight(),
+                    OverlayTexture.NO_OVERLAY,
+                    1.0F, 1.0F, 1.0F, 1.0F);
         } catch (RuntimeException ignored) {
             // A first-person arm must never break hand rendering.
         } finally {
@@ -142,7 +144,8 @@ public final class FormFirstPersonArmEvents {
         // When the arm event died (power or Hidden_*), vanilla skipped the item too, so
         // draw it here on the event's hand matrix, exactly where vanilla would have.
         if (event.isCanceled()) {
-            renderHandItem(event, player, right);
+            renderHeldItem(event.getPoseStack(), animatable, event.getMultiBufferSource(),
+                    event.getPackedLight(), right);
         }
     }
 
@@ -159,27 +162,57 @@ public final class FormFirstPersonArmEvents {
         bone.setScaleZ(1.0F);
     }
 
-    private static void renderHandItem(RenderArmEvent event, AbstractClientPlayer player, boolean right) {
-        boolean mainArmRight = player.getMainArm() == HumanoidArm.RIGHT;
-        ItemStack stack = (right == mainArmRight) ? player.getMainHandItem() : player.getOffhandItem();
+    private static void renderHeldItem(
+            PoseStack poseStack,
+            FormGeoAnimatable animatable,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            boolean right
+    ) {
+        Player player = animatable.getPlayer();
+        if (player == null) {
+            return;
+        }
+
+        HumanoidArm mainArm = player.getMainArm();
+
+        ItemStack stack =
+                right == (mainArm == HumanoidArm.RIGHT)
+                        ? player.getMainHandItem()
+                        : player.getOffhandItem();
+
         if (stack.isEmpty()) {
             return;
         }
+
+        poseStack.pushPose();
+
         try {
-            PoseStack poseStack = event.getPoseStack();
-            poseStack.pushPose();
-            // Same tail of ItemInHandLayer#renderArmWithItem that vanilla would run.
             poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
-            poseStack.translate((right ? 1.0F : -1.0F) / 16.0F, 0.125F, -0.625F);
-            Minecraft.getInstance().getEntityRenderDispatcher().getItemInHandRenderer().renderItem(player, stack,
-                    right ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
-                            : ItemDisplayContext.THIRD_PERSON_LEFT_HAND,
-                    !right, poseStack, event.getMultiBufferSource(), event.getPackedLight());
-        } catch (RuntimeException ignored) {
-            // A held item must never break hand rendering.
+
+            poseStack.translate(
+                    (right ? 1.0F : -1.0F) / 16.0F,
+                    0.125F,
+                    -0.625F
+            );
+
+            Minecraft.getInstance()
+                    .getEntityRenderDispatcher()
+                    .getItemInHandRenderer()
+                    .renderItem(
+                            player,
+                            stack,
+                            right
+                                    ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                                    : ItemDisplayContext.THIRD_PERSON_LEFT_HAND,
+                            !right,
+                            poseStack,
+                            bufferSource,
+                            packedLight
+                    );
         } finally {
-            event.getPoseStack().popPose();
+            poseStack.popPose();
         }
     }
 }
