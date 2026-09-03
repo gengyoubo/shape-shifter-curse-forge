@@ -46,8 +46,8 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
 
     /**
      * The Fabric implementation copies the current PlayerModel pose to the form bones every frame.
-     * These forms only ship an empty looping GeckoLib animation, so keep that behaviour here instead
-     * of relying on a missing per-form animation file.
+     * GeckoLib provides the model renderer; the original Bedrock/Azure animation files are applied
+     * by the Forge-side animation state machine after the vanilla player pose is copied.
      */
     @Override
     public void setCustomAnimations(FormGeoAnimatable animatable, long instanceId,

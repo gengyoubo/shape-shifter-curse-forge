@@ -30,7 +30,9 @@ public final class BedrockAnimationPlayer {
     }
 
     public static void apply(GeoModel<?> model, FormAnimationSystem.Selection selection, float timeSeconds) {
-        AnimationDefinition definition = load(selection.resource(), selection.id());
+        // Selection.id is the logical/profile key; the file may expose a different
+        // Bedrock animation key (for example bat_3_sprint -> bat_3_walk).
+        AnimationDefinition definition = load(selection.resource(), selection.animationId());
         if (definition == null) return;
 
         float time = definition.length <= 0.0F ? 0.0F : timeSeconds;

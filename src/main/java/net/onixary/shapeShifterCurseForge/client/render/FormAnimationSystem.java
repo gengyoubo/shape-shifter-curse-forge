@@ -2,7 +2,10 @@ package net.onixary.shapeShifterCurseForge.client.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.vehicle.Boat;
+import net.minecraft.world.entity.vehicle.Minecart;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
@@ -18,23 +21,56 @@ import java.util.UUID;
 public final class FormAnimationSystem {
     private static final String ANIMATION_PATH = "player_animation/";
     private static final ResourceLocation RIDING_ANIMATIONS = resource(ANIMATION_PATH + "form_riding_animation.json");
+    private static final AnimationProfile SHARED_ANIMATIONS = AnimationProfile.builder()
+            .animation("bat_2_riding", "form_riding_animation", "bat_2_riding", 1.0F, 2)
+            .animation("bat_3_riding", "form_riding_animation", "bat_3_riding", 1.0F, 2)
+            .animation("ocelot_2_riding", "form_riding_animation", "ocelot_2_riding", 1.0F, 2)
+            .animation("ocelot_3_riding", "form_riding_animation", "ocelot_3_riding", 1.0F, 2)
+            .animation("familiar_fox_2_riding", "form_riding_animation", "familiar_fox_2_riding", 1.0F, 2)
+            .animation("familiar_fox_3_riding", "form_riding_animation", "familiar_fox_3_riding", 1.0F, 2)
+            .animation("snow_fox_2_riding", "form_riding_animation", "snow_fox_2_riding", 1.0F, 2)
+            .animation("snow_fox_3_riding", "form_riding_animation", "snow_fox_3_riding", 1.0F, 2)
+            .animation("feral_cat_sp_riding", "form_riding_animation", "feral_cat_sp_riding", 1.0F, 2)
+            .build();
+    private static final Map<String, AnimationProfile> ANIMATION_PROFILES = Map.of(
+            "bat_3", AnimationProfile.builder()
+                    // bat_3_run.json deliberately contains the bat_3_walk animation.
+                    .animation("bat_3_sprint", "bat_3_run", "bat_3_walk", 2.4F, 2)
+                    .fallback(SHARED_ANIMATIONS)
+                    .build(),
+            "ocelot_3", AnimationProfile.builder()
+                    .animation("ocelot_3_sneak_rush", "form_feral_common_run", "form_feral_common_run", 3.3F, 2)
+                    .fallback(SHARED_ANIMATIONS)
+                    .build()
+    );
     private static final Map<UUID, FormSnapshot> FORM_SNAPSHOTS = new HashMap<>();
+    private static final Map<UUID, MotionSnapshot> MOTION_SNAPSHOTS = new HashMap<>();
 
     private FormAnimationSystem() {
     }
 
-    public record Selection(String id, ResourceLocation resource, float speed) {
+    public record Selection(String id, String animationId, ResourceLocation resource, float speed, int fade) {
         public static Selection of(String id) {
-            return of(id, 1.0F);
+            return of(id, defaultSpeed(id), 2);
         }
 
         public static Selection of(String id, float speed) {
+            return of(id, speed, 2);
+        }
+
+        public static Selection of(String id, float speed, int fade) {
             ResourceLocation direct = FormAnimationSystem.resource(ANIMATION_PATH + id + ".json");
             ResourceLocation source = direct;
             if (!hasResource(direct) && id.endsWith("_riding") && hasResource(RIDING_ANIMATIONS)) {
                 source = RIDING_ANIMATIONS;
             }
-            return new Selection(id, source, speed);
+            return new Selection(id, id, source, speed, fade);
+        }
+
+        private static Selection fromProfile(String logicalId, AnimationProfile.Clip clip) {
+            return new Selection(logicalId, clip.animationId(),
+                    FormAnimationSystem.resource(ANIMATION_PATH + clip.resourceFile() + ".json"),
+                    clip.speed(), clip.fade());
         }
     }
 
@@ -51,7 +87,7 @@ public final class FormAnimationSystem {
         State state = stateOf(player);
         boolean sneak = player.isCrouching();
         for (String candidate : candidates(path, state, sneak, player)) {
-            Selection selection = Selection.of(candidate);
+            Selection selection = selectionFor(path, state, candidate);
             if (hasAnimation(selection)) return selection;
         }
         return null;
@@ -81,17 +117,20 @@ public final class FormAnimationSystem {
     }
 
     private static State stateOf(Player player) {
+        MotionSnapshot motion = motionOf(player);
         if (player.isSleeping()) return State.SLEEP;
         if (player.isPassenger()) return State.RIDE;
         if (player.onClimbable() && !player.onGround() && !player.getAbilities().flying && !player.isFallFlying()) return State.CLIMB;
-        if (player.isInWaterOrBubble()) return State.SWIM;
+        // Fabric's v3 FSM treats any water contact as the universal swim state.  The
+        // separate isSwimmingAnimation check below then chooses swim versus float.
+        if (isTouchingWater(player)) return State.SWIM;
         if (player.getAbilities().flying) return State.FLYING;
         if (player.isFallFlying()) return State.FALL_FLYING;
         if (!player.onGround()) return player.getDeltaMovement().y < -0.02D ? State.FALL : State.JUMP;
         if (player.isBlocking()) return State.BLOCK;
         if (player.isUsingItem()) return State.USE_ITEM;
-        if (player.swinging) return player.attackAnim > 0.5F ? State.MINING : State.ATTACK;
-        if (player.isCrouching() && player.isVisuallyCrawling()) return State.CRAWL;
+        if (player.swinging) return motion.swingTicks >= 10 ? State.MINING : State.ATTACK;
+        if (player.isVisuallyCrawling()) return State.CRAWL;
         if (player.getDeltaMovement().horizontalDistanceSqr() > 0.0004D) return player.isSprinting() ? State.SPRINT : State.WALK;
         return State.IDLE;
     }
@@ -107,25 +146,30 @@ public final class FormAnimationSystem {
                 case FALL, FLYING, FALL_FLYING -> add(result, "bat_2_slow_falling");
                 case MINING -> add(result, "bat_2_digging");
                 case ATTACK -> add(result, "bat_2_attack");
-                case RIDE -> add(result, "bat_2_riding", "bat_1_sneak_idle");
+                case RIDE -> add(result, rideAnimation(player, "bat_2_riding", "bat_1_sneak_idle"));
                 default -> { }
             }
         } else if (path.equals("bat_3")) {
             switch (state) {
                 case IDLE -> add(result, sneak ? "bat_1_sneak_idle" : "bat_3_idle");
                 case WALK -> add(result, sneak ? "bat_3_sneak_walk" : "bat_3_walk");
-                case SPRINT -> add(result, sneak ? "bat_3_sneak_walk" : "bat_3_run");
+                // The Fabric controller intentionally speeds up the walk cycle for sprinting.
+                case SPRINT -> add(result, sneak ? "bat_3_sneak_walk" : "bat_3_sprint");
                 case JUMP -> add(result, "bat_3_jump");
                 case FALL, FLYING, FALL_FLYING, CRAWL -> add(result, "bat_2_slow_falling");
                 case MINING -> add(result, "bat_3_digging");
                 case ATTACK -> add(result, "bat_3_attack");
                 case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D ? "bat_3_climb" : "bat_3_attach_side");
-                case RIDE -> add(result, "bat_3_riding", "bat_1_sneak_idle");
+                case RIDE -> add(result, rideAnimation(player, "bat_3_riding", "bat_1_sneak_idle"));
                 case SLEEP -> add(result, "bat_3_sleep");
                 default -> { }
             }
+        } else if (path.equals("axolotl_1")) {
+            // Form_Axolotl1 inherits the normal form for every state except water.
+            if (state == State.SWIM) add(result, "axolotl_2_swimming_idle");
         } else if (path.equals("axolotl_2")) {
-            if (state == State.SWIM) add(result, player.isSwimming() ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
+            if (state == State.SWIM) add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
+            else if (state == State.CRAWL) add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
             else if (sneak) {
                 switch (state) {
                     case IDLE -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
@@ -138,7 +182,7 @@ public final class FormAnimationSystem {
             }
         } else if (path.equals("axolotl_3")) {
             switch (state) {
-                case SWIM -> add(result, player.isSwimming() ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
+                case SWIM -> add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
                 case IDLE -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
                 case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
                 case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
@@ -154,19 +198,37 @@ public final class FormAnimationSystem {
         } else if (path.equals("ocelot_2")) {
             switch (state) {
                 case IDLE -> add(result, sneak ? "ocelot_2_sneak_idle" : null);
-                case WALK, SPRINT -> add(result, sneak ? "ocelot_2_sneak_rush_2" : null);
-                case JUMP, FALL -> add(result, "ocelot_2_rush_jump");
-                case RIDE -> add(result, "ocelot_2_riding", "ocelot_2_sneak_idle");
+                case WALK, SPRINT -> add(result, canSneakRush(player, sneak) ? "ocelot_2_sneak_rush_2" : null);
+                case JUMP, FALL -> add(result, canSneakRush(player, sneak) ? "ocelot_2_rush_jump" : null);
+                case RIDE -> add(result, rideAnimation(player, "ocelot_2_riding", "ocelot_2_sneak_idle"));
                 default -> { }
             }
         } else if (path.equals("familiar_fox_2") || path.equals("snow_fox_2")) {
             if (state == State.IDLE && sneak) add(result, "ocelot_2_sneak_idle");
-            if (state == State.RIDE) add(result, path + "_riding", "ocelot_2_sneak_idle");
+            if (state == State.RIDE) add(result, rideAnimation(player, path + "_riding", "ocelot_2_sneak_idle"));
         } else if (path.equals("spider_1")) {
             if (state == State.IDLE) add(result, "spider_1_idle");
             if (state == State.WALK || state == State.SPRINT) add(result, "spider_1_move");
         } else if (path.equals("spider_2")) {
             if (state == State.IDLE && sneak) add(result, "spider_2_sneak_idle");
+        } else if (path.equals("spider_3")) {
+            switch (state) {
+                case IDLE -> add(result, sneak ? "spider_3_sneak_idle" : "spider_3_idle");
+                case WALK -> add(result, sneak ? "spider_3_sneak_walk" : "spider_3_walk");
+                case SPRINT -> add(result, sneak ? "spider_3_sneak_walk" : "spider_3_run");
+                case JUMP -> add(result, "spider_3_jump");
+                case FALL -> add(result, "spider_3_fall");
+                // Fabric only defines a float animation for Spider 3.  It is intentionally
+                // used for both surface floating and the missing active-swim variant.
+                case SWIM -> add(result, "spider_3_swim_idle");
+                case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D
+                        ? "spider_3_climb" : "spider_3_climb_idle");
+                case RIDE -> add(result, "spider_3_ride");
+                case SLEEP -> add(result, "spider_3_sleep");
+                case FLYING -> add(result, "spider_3_creative_flight");
+                case BLOCK -> add(result, "spider_3_shielding");
+                default -> { }
+            }
         } else if (path.equals("allay_sp")) {
             switch (state) {
                 case IDLE -> add(result, sneak ? "allay_sp_sneaking" : "allay_sp_idle");
@@ -182,35 +244,46 @@ public final class FormAnimationSystem {
         } else if (path.equals("snow_fox_3_sub_marbled_polecat")) {
             addWeasel(result, state, sneak, player);
         } else if (path.equals("feral_cat_sp")) {
-            addFeral(result, state, sneak, player, "feral_cat_sp_riding");
+            addFeral(result, state, sneak, player, "feral_cat_sp_riding", "form_feral_common_sneak_idle");
         } else if (path.equals("snow_fox_3")) {
-            addFeral(result, state, sneak, player, "snow_fox_3_riding");
+            addFeral(result, state, sneak, player, "form_feral_common_sneak_idle", "snow_fox_3_riding");
             if (state == State.FALL) replaceLast(result, "form_snow_fox_3_fall");
         } else if (path.equals("ocelot_3")) {
-            addFeral(result, state, sneak, player, "ocelot_3_riding");
+            addFeral(result, state, sneak, player, "ocelot_3_riding", "form_feral_common_sneak_idle", true);
         } else if (path.equals("familiar_fox_3")) {
-            addFeral(result, state, sneak, player, "familiar_fox_3_riding");
+            addFeral(result, state, sneak, player, "familiar_fox_3_riding", "form_feral_common_sneak_idle");
         } else if (path.equals("anubis_wolf_3")) {
-            addFeral(result, state, sneak, player, "snow_fox_3_riding");
+            addFeral(result, state, sneak, player, "form_feral_common_sneak_idle", "snow_fox_3_riding");
         }
         return result;
     }
 
-    private static void addFeral(List<String> result, State state, boolean sneak, Player player, String ride) {
+    private static void addFeral(List<String> result, State state, boolean sneak, Player player,
+                                 String ride, String vehicleRide) {
+        addFeral(result, state, sneak, player, ride, vehicleRide, false);
+    }
+
+    private static void addFeral(List<String> result, State state, boolean sneak, Player player,
+                                 String ride, String vehicleRide, boolean sneakRush) {
         switch (state) {
             case SLEEP -> add(result, "form_feral_common_sleep");
             case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D ? "form_feral_common_climb" : "form_feral_common_climb_idle");
             case FALL -> add(result, "form_feral_common_fall");
             case JUMP -> add(result, "form_feral_common_jump");
-            case RIDE -> add(result, ride, "form_feral_common_sneak_idle");
-            case SWIM -> add(result, player.isSwimming() ? "form_feral_common_swim" : "form_feral_common_float");
+            case RIDE -> add(result, rideAnimation(player, ride, vehicleRide));
+            case SWIM -> add(result, isSwimmingAnimation(player) ? "form_feral_common_swim" : "form_feral_common_float");
             case USE_ITEM, BLOCK -> add(result, sneak ? "form_feral_common_sneak_idle" : "form_feral_common_idle");
-            case WALK -> add(result, sneak ? "form_feral_common_sneak_walk" : "form_feral_common_walk");
-            case SPRINT -> add(result, sneak ? "form_feral_common_sneak_walk" : "form_feral_common_run");
+            case WALK -> add(result, canSneakRush(player, sneakRush && sneak)
+                    ? sneakRush ? "ocelot_3_sneak_rush" : "form_feral_common_run"
+                    : sneak ? "form_feral_common_sneak_walk" : "form_feral_common_walk");
+            case SPRINT -> add(result, canSneakRush(player, sneakRush && sneak)
+                    ? sneakRush ? "ocelot_3_sneak_rush" : "form_feral_common_run"
+                    : sneak ? "form_feral_common_sneak_walk" : "form_feral_common_run");
             case IDLE -> add(result, sneak ? "form_feral_common_sneak_idle" : "form_feral_common_idle");
             case MINING -> add(result, "form_feral_common_dig");
             case ATTACK -> add(result, "form_feral_common_attack");
             case FLYING, FALL_FLYING -> add(result, "form_feral_common_elytra_fly");
+            case CRAWL -> add(result, sneak ? "form_feral_common_sneak_idle" : "form_feral_common_idle");
             default -> { }
         }
     }
@@ -218,7 +291,7 @@ public final class FormAnimationSystem {
     private static void addAvali(List<String> result, State state, boolean sneak, Player player) {
         switch (state) {
             case SLEEP -> add(result, "avali_sleep");
-            case CLIMB -> add(result, "avali_climb");
+            case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D ? "avali_climb" : "avali_attach_side");
             case FALL -> add(result, "avali_slow_falling");
             case JUMP -> add(result, "avali_jump");
             case RIDE -> add(result, "avali_ride");
@@ -231,6 +304,7 @@ public final class FormAnimationSystem {
             case FLYING -> add(result, "avali_slow_falling");
             case FALL_FLYING -> add(result, "avali_elytra_fly");
             case BLOCK -> add(result, "avali_shielding");
+            case CRAWL -> add(result, "avali_slow_falling");
             default -> { }
         }
     }
@@ -241,13 +315,14 @@ public final class FormAnimationSystem {
             case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D ? "weasel_climb" : "weasel_climb_idle");
             case FALL -> add(result, "weasel_fall");
             case JUMP -> add(result, "weasel_jump");
-            case SWIM -> add(result, player.isSwimming() ? "weasel_swim" : "weasel_float");
+            case SWIM -> add(result, isSwimmingAnimation(player) ? "weasel_swim" : "weasel_float");
             case WALK -> add(result, sneak ? "weasel_sneak_walk" : "weasel_walk");
             case SPRINT -> add(result, sneak ? "weasel_sneak_walk" : "weasel_run");
-            case IDLE -> add(result, sneak ? "weasel_sneak_idle" : "weasel_idle");
+            case IDLE -> add(result, !sneak && motionOf(player).idleTicks >= 20 ? "weasel_idle_stay" : sneak ? "weasel_sneak_idle" : "weasel_idle");
             case MINING -> add(result, "weasel_dig");
             case ATTACK -> add(result, "weasel_attack");
             case FALL_FLYING, FLYING -> add(result, "weasel_elytra_fly");
+            case CRAWL -> add(result, sneak ? "weasel_sneak_idle" : "weasel_idle");
             default -> { }
         }
     }
@@ -269,12 +344,94 @@ public final class FormAnimationSystem {
         return hasResource(selection.resource());
     }
 
+    private static Selection selectionFor(String formPath, State state, String animation) {
+        AnimationProfile formProfile = ANIMATION_PROFILES.get(formPath);
+        AnimationProfile.Clip clip = formProfile == null ? SHARED_ANIMATIONS.get(animation) : formProfile.get(animation);
+        if (clip != null) {
+            return Selection.fromProfile(animation, clip);
+        }
+        return Selection.of(animation);
+    }
+
+    private static boolean canSneakRush(Player player, boolean sneaking) {
+        return sneaking && player.getFoodData().getFoodLevel() >= 6;
+    }
+
+    private static String rideAnimation(Player player, String normal, String boatOrMinecart) {
+        return player.getVehicle() instanceof Boat || player.getVehicle() instanceof Minecart
+                ? boatOrMinecart : normal;
+    }
+
+    /**
+     * Equivalent of Fabric's PlayerEntity#isTouchingWater for the animation FSM.
+     * isInWaterOrBubble covers the body and the eye check keeps the state active while
+     * the player's eyes are submerged at the surface, where the body check can flicker.
+     */
+    private static boolean isTouchingWater(Player player) {
+        return player.isInWaterOrBubble() || player.isEyeInFluid(FluidTags.WATER);
+    }
+
+    /**
+     * The original controllers use the swimming animation while the player is in the
+     * swimming pose; the older controller also treated sprinting underwater as swimming.
+     * Keeping both conditions prevents axolotl forms from getting stuck in float idle when
+     * the client has not updated the pose flag yet.
+     */
+    private static boolean isSwimmingAnimation(Player player) {
+        return player.isSwimming() || (player.isSprinting() && isSubmergedInWater(player));
+    }
+
+    private static boolean isSubmergedInWater(Player player) {
+        return player.isEyeInFluid(FluidTags.WATER);
+    }
+
     private static boolean hasResource(ResourceLocation location) {
         return Minecraft.getInstance().getResourceManager().getResource(location).isPresent();
     }
 
     private static ResourceLocation resource(String path) {
         return ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
+    }
+
+    private static float defaultSpeed(String id) {
+        return switch (id) {
+            case "form_feral_common_walk" -> 1.2F;
+            case "form_feral_common_run" -> 2.3F;
+            case "bat_3_walk" -> 1.7F;
+            case "bat_3_digging", "bat_3_attack", "bat_3_jump" -> 1.5F;
+            case "bat_3_climb" -> 1.25F;
+            case "ocelot_2_sneak_rush_2" -> 3.3F;
+            case "spider_3_walk" -> 1.2F;
+            case "spider_3_run" -> 1.8F;
+            case "avali_walk", "avali_run" -> 3.0F;
+            case "avali_digging", "avali_attack" -> 1.8F;
+            case "avali_jump" -> 1.5F;
+            case "weasel_walk" -> 2.6F;
+            case "weasel_run" -> 3.5F;
+            default -> 1.0F;
+        };
+    }
+
+    private static MotionSnapshot motionOf(Player player) {
+        MotionSnapshot snapshot = MOTION_SNAPSHOTS.computeIfAbsent(player.getUUID(), ignored -> new MotionSnapshot());
+        if (snapshot.lastTick != player.tickCount) {
+            boolean moving = player.getDeltaMovement().horizontalDistanceSqr() > 0.0004D;
+            if (player.swinging) {
+                snapshot.swingTicks = snapshot.swinging ? snapshot.swingTicks + 1 : 1;
+            } else {
+                snapshot.swingTicks = 0;
+            }
+            if (!moving && !player.swinging && !player.isUsingItem() && !player.isPassenger()
+                    && !player.isSleeping() && player.onGround()) {
+                snapshot.idleTicks = snapshot.idle ? snapshot.idleTicks + 1 : 1;
+            } else {
+                snapshot.idleTicks = 0;
+            }
+            snapshot.swinging = player.swinging;
+            snapshot.idle = snapshot.idleTicks > 0;
+            snapshot.lastTick = player.tickCount;
+        }
+        return snapshot;
     }
 
     private static final class FormSnapshot {
@@ -289,5 +446,13 @@ public final class FormAnimationSystem {
             this.previousBodyType = previousBodyType;
             this.changedAt = changedAt;
         }
+    }
+
+    private static final class MotionSnapshot {
+        private int lastTick = Integer.MIN_VALUE;
+        private int swingTicks;
+        private int idleTicks;
+        private boolean swinging;
+        private boolean idle;
     }
 }
