@@ -2,6 +2,7 @@ package net.onixary.shapeShifterCurseForge.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.client.render.FormAnimationSystem;
@@ -27,14 +28,18 @@ public final class FormSyncClientHandler {
             syncedLevel = minecraft.level;
             INITIAL_SYNCED_PLAYERS.clear();
             FormAnimationSystem.clearClientState();
+            PowerAnimationClientHandler.clear();
         }
 
-        Player player = minecraft.level.getPlayerByUUID(minecraft.player.getUUID());
-        if (player != null && player.getId() == packet.entityId()) {
+        Entity entity = minecraft.level.getEntity(packet.entityId());
+        if (entity instanceof Player player) {
             FormManager.applySyncedForm(player, packet.formId(), packet.groupId(), packet.tier(), packet.enabled());
-            // The first packet in a client world restores persisted data. It must not look
-            // like a transform from the temporary default form rendered before the sync.
-            if (INITIAL_SYNCED_PLAYERS.add(player.getUUID())) {
+            // Login, respawn and tracking packets initialise the snapshot. Only a server
+            // confirmed form change is allowed to start TransformingController's clip.
+            if (packet.playTransformAnimation()) {
+                FormAnimationSystem.startTransition(player, packet.previousFormId());
+                INITIAL_SYNCED_PLAYERS.add(player.getUUID());
+            } else if (INITIAL_SYNCED_PLAYERS.add(player.getUUID())) {
                 FormAnimationSystem.prime(player);
             }
         }

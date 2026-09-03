@@ -28,6 +28,7 @@ import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.server.level.ServerPlayer;
 
 /** Shared condition and action interpreter for the common Origins JSON building blocks. */
 public final class FormPowerRuntime {
@@ -162,6 +163,10 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:summon_anubis_wolf_minion", "shape-shifter-curse:bi_summon_anubis_wolf_minion"
                     -> AnubisMinionService.summon(actor, target == null ? actor : target, action);
             case "shape-shifter-curse:set_falling_distance" -> actor.fallDistance = floatValue(action, "distance", 0.0F);
+            case "shape-shifter-curse:play_power_animation_with_time" -> playPowerAnimationWithTime(actor, action);
+            case "shape-shifter-curse:play_power_animation_with_count" -> playPowerAnimationWithCount(actor, action);
+            case "shape-shifter-curse:play_power_animation_loop" -> playPowerAnimationLoop(actor, action);
+            case "shape-shifter-curse:stop_power_animation" -> stopPowerAnimation(actor, action);
             default -> {
                 // More specialised actions (projectiles, block placement, mana, and custom entities)
                 // are intentionally retained in the registry and gain handlers incrementally.
@@ -524,6 +529,42 @@ public final class FormPowerRuntime {
     private static void triggerCooldown(Player actor, JsonObject action) {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "power", ""));
         if (id != null) FormActivePowerService.triggerCooldown(actor, id);
+    }
+
+    private static void playPowerAnimationWithTime(Player actor, JsonObject action) {
+        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "power_animation_id", ""));
+        PowerAnimationService.playWithTime(player, id, intValue(action, "animation_time", 0));
+    }
+
+    private static void playPowerAnimationWithCount(Player actor, JsonObject action) {
+        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "power_animation_id", ""));
+        PowerAnimationService.playWithCount(player, id, intValue(action, "animation_count", 1));
+    }
+
+    private static void playPowerAnimationLoop(Player actor, JsonObject action) {
+        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        PowerAnimationService.playLoop(player,
+                ResourceLocation.tryParse(stringValue(action, "power_animation_id", "")));
+    }
+
+    private static void stopPowerAnimation(Player actor, JsonObject action) {
+        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        if (!action.has("anim_id_list") || !action.get("anim_id_list").isJsonArray()) {
+            PowerAnimationService.stop(player);
+            return;
+        }
+        java.util.List<ResourceLocation> ids = new java.util.ArrayList<>();
+        for (JsonElement entry : action.getAsJsonArray("anim_id_list")) {
+            ResourceLocation id = ResourceLocation.tryParse(entry.getAsString());
+            if (id != null) ids.add(id);
+        }
+        PowerAnimationService.stopIfMatches(player, ids.toArray(ResourceLocation[]::new));
+    }
+
+    private static boolean actionAllowsServer(JsonObject action) {
+        return !action.has("can_on_server") || action.get("can_on_server").getAsBoolean();
     }
 
     private static void modifyResource(Player actor, JsonObject action) {

@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.client.PowerAnimationClientHandler;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animatable.instance.SingletonAnimatableInstanceCache;
@@ -62,6 +63,9 @@ public final class FormGeoAnimatable implements GeoAnimatable {
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void prepareVanillaPlayerPose(float partialTick) {
+        // A renderer instance is reused for the same form. Never let a body transform
+        // from a previous render survive a missing/partial player-model render pass.
+        bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
         if (player == null || vanillaPlayerModel == null) {
             return;
         }
@@ -103,9 +107,19 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 limbSwing, limbSwingAmount, partialTick);
         rawModel.setupAnim(player,
                 limbSwing, limbSwingAmount, age, netHeadYaw, headPitch);
-        FormAnimationSystem.Selection selection = FormAnimationSystem.select(player);
-        bodyTransform = BedrockAnimationPlayer.applyToPlayerModel(rawModel, selection,
-                animationTime(selection, partialTick));
+        PowerAnimationClientHandler.ActiveAnimation powerAnimation =
+                inventoryPreview ? null : PowerAnimationClientHandler.active(player, partialTick);
+        FormAnimationSystem.Selection selection = powerAnimation == null
+                ? FormAnimationSystem.select(player) : powerAnimation.selection();
+        float animationTime = powerAnimation == null ? animationTime(selection, partialTick)
+                : powerAnimation.timeSeconds();
+        bodyTransform = BedrockAnimationPlayer.applyToPlayerModel(rawModel, selection, animationTime,
+                powerAnimation != null && powerAnimation.forceLoop());
+    }
+
+    /** A malformed data animation must fall back to vanilla rendering, never hide a player. */
+    public boolean hasSafeRenderState() {
+        return bodyTransform.isFinite();
     }
 
     public void setInventoryPreview(boolean inventoryPreview) {

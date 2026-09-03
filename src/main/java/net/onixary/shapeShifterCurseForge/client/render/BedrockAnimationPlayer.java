@@ -42,6 +42,12 @@ public final class BedrockAnimationPlayer {
      */
     public static BodyTransform applyToPlayerModel(PlayerModel<?> model, FormAnimationSystem.Selection selection,
                                                     float timeSeconds) {
+        return applyToPlayerModel(model, selection, timeSeconds, false);
+    }
+
+    /** Applies an animation to PlayerModel, optionally repeating a non-looping source clip. */
+    public static BodyTransform applyToPlayerModel(PlayerModel<?> model, FormAnimationSystem.Selection selection,
+                                                    float timeSeconds, boolean forceLoop) {
         if (selection == null) {
             return BodyTransform.IDENTITY;
         }
@@ -52,7 +58,7 @@ public final class BedrockAnimationPlayer {
         if (definition == null) {
             return BodyTransform.IDENTITY;
         }
-        float time = animationTime(definition, timeSeconds);
+        float time = animationTime(definition, timeSeconds, forceLoop);
         BodyTransform bodyTransform = BodyTransform.IDENTITY;
         for (Map.Entry<String, BoneAnimation> entry : definition.bones.entrySet()) {
             BoneAnimation animation = entry.getValue();
@@ -144,9 +150,23 @@ public final class BedrockAnimationPlayer {
         return load(resource, animationId) != null;
     }
 
+    /** Returns a selected clip's source duration, including its legacy fallback. */
+    public static float animationLength(FormAnimationSystem.Selection selection) {
+        if (selection == null) return 0.0F;
+        AnimationDefinition definition = load(selection.resource(), selection.animationId());
+        if (definition == null && selection.fallbackResource() != null) {
+            definition = load(selection.fallbackResource(), selection.animationId());
+        }
+        return definition == null ? 0.0F : definition.length;
+    }
+
     private static float animationTime(AnimationDefinition definition, float timeSeconds) {
+        return animationTime(definition, timeSeconds, false);
+    }
+
+    private static float animationTime(AnimationDefinition definition, float timeSeconds, boolean forceLoop) {
         float time = definition.length <= 0.0F ? 0.0F : timeSeconds;
-        if (definition.loop) {
+        if (definition.loop || forceLoop) {
             time %= definition.length;
             if (time < 0.0F) time += definition.length;
         } else {
@@ -282,6 +302,11 @@ public final class BedrockAnimationPlayer {
         public boolean isIdentity() {
             return x == 0.0F && y == 0.0F && z == 0.0F
                     && pitch == 0.0F && yaw == 0.0F && roll == 0.0F;
+        }
+
+        public boolean isFinite() {
+            return Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z)
+                    && Float.isFinite(pitch) && Float.isFinite(yaw) && Float.isFinite(roll);
         }
     }
 

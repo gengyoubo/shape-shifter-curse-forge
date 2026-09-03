@@ -20,13 +20,20 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import org.slf4j.Logger;
+import com.mojang.logging.LogUtils;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class FormClientRenderEvents {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final Map<ResourceLocation, FormGeoRenderer> RENDERERS = new HashMap<>();
+    private static final Set<UUID> REPORTED_RENDER_FAILURES = new HashSet<>();
     private static final float PLAYER_SCALE = 0.9375F;
     private static final float EYE_BED_OFFSET = 0.1F;
 
@@ -63,23 +70,54 @@ public final class FormClientRenderEvents {
                 && event.getPackedLight() == LightTexture.FULL_BRIGHT;
         renderer.setInventoryPreview(inventoryPreview);
         renderer.prepareVanillaPlayerPose(event.getPartialTick());
+        // The original player renderer is cancelled below. If data-driven animation
+        // state is ever invalid, leave the event alone so the player remains visible.
+        if (!renderer.getAnimatable().hasSafeRenderState()) {
+            reportRenderFailure(player, form, null);
+            return;
+        }
 
         PoseStack poseStack = event.getPoseStack();
+        boolean rendered = false;
         poseStack.pushPose();
-        // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
-        // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
-        // PlayerRenderer path before applying its own Geo coordinate conversion.
-        applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick());
-        applyPlayerAnimationBodyTransform(renderer.getAnimatable().getBodyTransform(), poseStack);
-        poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
-        poseStack.translate(0.0D, -1.51D, 0.0D);
-        poseStack.translate(-0.5D, -0.5D, -0.5D);
+        try {
+            // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
+            // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
+            // PlayerRenderer path before applying its own Geo coordinate conversion.
+            applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick());
+            applyPlayerAnimationBodyTransform(renderer.getAnimatable().getBodyTransform(), poseStack);
+            poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
+            poseStack.translate(0.0D, -1.51D, 0.0D);
+            poseStack.translate(-0.5D, -0.5D, -0.5D);
 
-        RenderType renderType = RenderType.entityTranslucent(renderer.getTextureLocation(renderer.getAnimatable()));
-        renderer.render(poseStack, renderer.getAnimatable(), event.getMultiBufferSource(), renderType,
-                event.getMultiBufferSource().getBuffer(renderType), event.getPackedLight());
-        poseStack.popPose();
-        event.setCanceled(true);
+            RenderType renderType = RenderType.entityTranslucent(renderer.getTextureLocation(renderer.getAnimatable()));
+            renderer.render(poseStack, renderer.getAnimatable(), event.getMultiBufferSource(), renderType,
+                    event.getMultiBufferSource().getBuffer(renderType), event.getPackedLight());
+            rendered = true;
+        } catch (RuntimeException exception) {
+            // Do not strand the player invisible if a Gecko model or animation fails.
+            // Returning without cancellation lets vanilla finish this render pass.
+            reportRenderFailure(player, form, exception);
+        } finally {
+            poseStack.popPose();
+        }
+        if (rendered) {
+            REPORTED_RENDER_FAILURES.remove(player.getUUID());
+            event.setCanceled(true);
+        }
+    }
+
+    private static void reportRenderFailure(Player player, FormDefinition form, RuntimeException exception) {
+        if (!REPORTED_RENDER_FAILURES.add(player.getUUID())) {
+            return;
+        }
+        if (exception == null) {
+            LOGGER.warn("Skipping invalid form render state for {}; using the vanilla player model",
+                    player.getGameProfile().getName());
+        } else {
+            LOGGER.error("Unable to render form {} for {}; using the vanilla player model until it recovers",
+                    form.id(), player.getGameProfile().getName(), exception);
+        }
     }
 
     private static ResourceLocation resource(String path) {

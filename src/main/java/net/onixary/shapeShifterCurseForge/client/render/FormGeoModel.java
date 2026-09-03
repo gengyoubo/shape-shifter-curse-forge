@@ -168,9 +168,13 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             bone.setPosX(0.0F);
             bone.setPosY(0.0F);
             bone.setPosZ(0.0F);
+            bone.setRotX(0.0F);
+            bone.setRotY(0.0F);
+            bone.setRotZ(0.0F);
             bone.setScaleX(1.0F);
             bone.setScaleY(1.0F);
             bone.setScaleZ(1.0F);
+            bone.setHidden(false);
         });
     }
 

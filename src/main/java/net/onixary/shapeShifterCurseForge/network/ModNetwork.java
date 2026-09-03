@@ -11,7 +11,7 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import java.util.Optional;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -40,24 +40,47 @@ public final class ModNetwork {
                 ActivePowerKeyPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
         );
+        CHANNEL.registerMessage(
+                2,
+                PowerAnimationPacket.class,
+                PowerAnimationPacket::encode,
+                PowerAnimationPacket::decode,
+                PowerAnimationPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
+        sendFormSync(player, false);
+    }
+
+    /** A true marker is sent only by FormManager after a genuine server-side form change. */
+    public static void sendFormSync(ServerPlayer player, boolean playTransformAnimation) {
         player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> CHANNEL.send(
                 PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
-                packetFor(player, data)
+                packetFor(player, data, playTransformAnimation)
         ));
     }
 
     public static void sendFormSyncTo(ServerPlayer target, ServerPlayer receiver) {
         target.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> CHANNEL.send(
                 PacketDistributor.PLAYER.with(() -> receiver),
-                packetFor(target, data)
+                packetFor(target, data, false)
         ));
     }
 
-    private static SyncFormPacket packetFor(ServerPlayer player, net.onixary.shapeShifterCurseForge.capability.IPlayerFormData data) {
-        return new SyncFormPacket(player.getId(), data.getFormId(), data.getFormGroupId(),
-                data.getFormTier(), data.isContentEnabled());
+    public static void sendPowerAnimation(ServerPlayer player, PowerAnimationPacket packet) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player), packet.forEntity(player.getId()));
+    }
+
+    public static void sendPowerAnimationTo(ServerPlayer target, ServerPlayer receiver, PowerAnimationPacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> receiver), packet.forEntity(target.getId()));
+    }
+
+    private static SyncFormPacket packetFor(ServerPlayer player,
+                                            net.onixary.shapeShifterCurseForge.capability.IPlayerFormData data,
+                                            boolean playTransformAnimation) {
+        return new SyncFormPacket(player.getId(), data.getFormId(), data.getPreviousFormId(), data.getFormGroupId(),
+                data.getFormTier(), data.isContentEnabled(), playTransformAnimation);
     }
 }

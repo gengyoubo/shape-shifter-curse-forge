@@ -6,11 +6,13 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.entity.vehicle.Minecart;
+import net.minecraft.world.phys.AABB;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +47,7 @@ public final class FormAnimationSystem {
                     .fallback(SHARED_ANIMATIONS)
                     .build()
     );
-    private static final Map<UUID, FormSnapshot> FORM_SNAPSHOTS = new HashMap<>();
+    private static final Map<UUID, TransitionSnapshot> TRANSITIONS = new HashMap<>();
     private static final Map<UUID, MotionSnapshot> MOTION_SNAPSHOTS = new HashMap<>();
 
     private FormAnimationSystem() {
@@ -88,7 +90,7 @@ public final class FormAnimationSystem {
     public static Selection select(Player player) {
         FormDefinition form = FormManager.current(player);
         String path = form.id().getPath();
-        Selection transition = transitionAnimation(player, form);
+        Selection transition = transitionAnimation(player);
         if (transition != null) return transition;
         State state = stateOf(player);
         boolean sneak = player.isCrouching();
@@ -99,60 +101,91 @@ public final class FormAnimationSystem {
         return null;
     }
 
+    /** Resolves Fabric's registered power-animation ids to a concrete SSC player clip. */
+    public static Selection powerSelection(Player player, ResourceLocation powerAnimationId) {
+        if (powerAnimationId == null) return null;
+        String path = powerAnimationId.getPath();
+        String animation = switch (path) {
+            case "attach_side" -> FormManager.current(player).id().getPath().equals("bat_3_sub_avali")
+                    ? "avali_attach_side" : "bat_3_attach_side";
+            case "attach_bottom" -> "bat_3_attach_bottom";
+            default -> path;
+        };
+        Selection selection = Selection.of(animation);
+        return hasAnimation(selection) ? selection : null;
+    }
+
     /**
      * Seeds the current form without a transition. Used for the first server sync after
      * joining a world, where the old client-side fallback form was never a real transform.
      */
     public static void prime(Player player) {
-        FormDefinition form = FormManager.current(player);
-        FORM_SNAPSHOTS.put(player.getUUID(), new FormSnapshot(
-                form.id().getPath(), form.bodyType(), form.bodyType(),
+        TRANSITIONS.remove(player.getUUID());
+    }
+
+    /** Starts TransformingController only after a server-confirmed form change. */
+    public static void startTransition(Player player, String previousFormId) {
+        ResourceLocation previousId = ResourceLocation.tryParse(previousFormId);
+        FormDefinition previous = previousId == null ? null : FormRegistry.get(previousId);
+        FormDefinition current = FormManager.current(player);
+        TRANSITIONS.put(player.getUUID(), new TransitionSnapshot(
+                previous == null ? current.bodyType() : previous.bodyType(), current.bodyType(),
                 player.tickCount + Minecraft.getInstance().getFrameTime()));
     }
 
     /** Clears world-specific animation snapshots before the next client world is initialized. */
     public static void clearClientState() {
-        FORM_SNAPSHOTS.clear();
+        TRANSITIONS.clear();
         MOTION_SNAPSHOTS.clear();
     }
 
-    private static Selection transitionAnimation(Player player, FormDefinition form) {
+    private static Selection transitionAnimation(Player player) {
         UUID uuid = player.getUUID();
         double now = player.tickCount + Minecraft.getInstance().getFrameTime();
-        FormSnapshot snapshot = FORM_SNAPSHOTS.get(uuid);
+        TransitionSnapshot snapshot = TRANSITIONS.get(uuid);
         if (snapshot == null) {
-            FORM_SNAPSHOTS.put(uuid, new FormSnapshot(form.id().getPath(), form.bodyType(), form.bodyType(), now));
             return null;
         }
-        if (!snapshot.formPath.equals(form.id().getPath())) {
-            snapshot = new FormSnapshot(form.id().getPath(), form.bodyType(), snapshot.currentBodyType, now);
-            FORM_SNAPSHOTS.put(uuid, snapshot);
-        }
-        if (now - snapshot.changedAt >= 160.0D) return null;
         String animation = "player_on_transform";
-        if (snapshot.previousBodyType == FormBodyType.FERAL && form.bodyType() != FormBodyType.FERAL) {
+        if (snapshot.previousBodyType == FormBodyType.FERAL && snapshot.currentBodyType != FormBodyType.FERAL) {
             animation = "player_on_transform_feral_to_normal";
-        } else if (snapshot.previousBodyType == FormBodyType.NORMAL && form.bodyType() == FormBodyType.FERAL) {
+        } else if (snapshot.previousBodyType == FormBodyType.NORMAL && snapshot.currentBodyType == FormBodyType.FERAL) {
             animation = "player_on_transform_normal_to_feral";
         }
         Selection selection = Selection.of(animation);
-        return hasAnimation(selection) ? selection : null;
+        if (!hasAnimation(selection)) {
+            TRANSITIONS.remove(uuid);
+            return null;
+        }
+        if (now - snapshot.changedAt >= Math.max(1.0F, BedrockAnimationPlayer.animationLength(selection)) * 20.0D) {
+            TRANSITIONS.remove(uuid);
+            return null;
+        }
+        return selection;
     }
 
     private static State stateOf(Player player) {
         MotionSnapshot motion = motionOf(player);
+        boolean onGround = groundedForAnimation(player);
         if (player.isSleeping()) return State.SLEEP;
         if (player.isPassenger()) return State.RIDE;
-        if (player.onClimbable() && !player.onGround() && !player.getAbilities().flying && !player.isFallFlying()) return State.CLIMB;
+        if (isClimbingForAnimation(player, onGround)) return State.CLIMB;
         // Fabric's v3 FSM treats any water contact as the universal swim state.  The
         // separate isSwimmingAnimation check below then chooses swim versus float.
         if (isTouchingWater(player)) return State.SWIM;
-        if (player.getAbilities().flying) return State.FLYING;
-        if (player.isFallFlying()) return State.FALL_FLYING;
-        if (!player.onGround()) return player.getDeltaMovement().y < -0.02D ? State.FALL : State.JUMP;
-        if (player.isBlocking()) return State.BLOCK;
-        if (player.isUsingItem()) return State.USE_ITEM;
-        if (player.swinging) return motion.swingTicks >= 10 ? State.MINING : State.ATTACK;
+        if (!onGround) {
+            if (player.getAbilities().flying) return State.FLYING;
+            if (player.isFallFlying()) return State.FALL_FLYING;
+            if (motion.verticalDelta < 0.0D
+                    && (FormManager.current(player).hasFlag("slow_fall") || player.fallDistance > 0.6F)) {
+                return State.FALL;
+            }
+            return State.JUMP;
+        }
+        if (player.isUsingItem() || player.swinging) {
+            if (player.isUsingItem()) return player.isBlocking() ? State.BLOCK : State.USE_ITEM;
+            return motion.swingTicks >= 10 ? State.MINING : State.ATTACK;
+        }
         if (player.isVisuallyCrawling()) return State.CRAWL;
         if (motion.moving) return player.isSprinting() ? State.SPRINT : State.WALK;
         return State.IDLE;
@@ -341,7 +374,7 @@ public final class FormAnimationSystem {
             case SWIM -> add(result, isSwimmingAnimation(player) ? "weasel_swim" : "weasel_float");
             case WALK -> add(result, sneak ? "weasel_sneak_walk" : "weasel_walk");
             case SPRINT -> add(result, sneak ? "weasel_sneak_walk" : "weasel_run");
-            case IDLE -> add(result, !sneak && motionOf(player).idleTicks >= 20 ? "weasel_idle_stay" : sneak ? "weasel_sneak_idle" : "weasel_idle");
+            case IDLE -> add(result, !sneak && motionOf(player).idleTicks >= 100 ? "weasel_idle_stay" : sneak ? "weasel_sneak_idle" : "weasel_idle");
             case MINING -> add(result, "weasel_dig");
             case ATTACK -> add(result, "weasel_attack");
             case FALL_FLYING, FLYING -> add(result, "weasel_elytra_fly");
@@ -383,6 +416,26 @@ public final class FormAnimationSystem {
 
     private static boolean canSneakRush(Player player, boolean sneaking) {
         return sneaking && player.getFoodData().getFoodLevel() >= 6;
+    }
+
+    /** Fabric's checkOnGroundSuper: flight is never grounded; otherwise include the tiny
+     * collision volume immediately below the player to avoid frame-level ground flicker. */
+    private static boolean groundedForAnimation(Player player) {
+        if (player.onGround()) return true;
+        if (player.getAbilities().flying) return false;
+        AABB box = player.getBoundingBox().move(0.0D, -0.01D, 0.0D);
+        AABB below = new AABB(box.minX, box.minY, box.minZ, box.maxX, player.getY(), box.maxZ);
+        return !player.level().noCollision(player, below);
+    }
+
+    /** Fabric's climb FSM additionally rejects the situation where the lower body is
+     * already supported by a collision shape, preventing a ground pose from flickering
+     * into a climb pose at ladder bottoms. */
+    private static boolean isClimbingForAnimation(Player player, boolean onGround) {
+        if (!player.onClimbable() || onGround || player.getAbilities().flying || player.isFallFlying()) return false;
+        AABB box = player.getBoundingBox().move(0.0D, -0.6D, 0.0D);
+        AABB probe = new AABB(box.minX, box.minY, box.minZ, box.maxX, player.getY(), box.maxZ);
+        return player.level().noCollision(player, probe);
     }
 
     private static String rideAnimation(Player player, String normal, String boatOrMinecart) {
@@ -452,14 +505,18 @@ public final class FormAnimationSystem {
             // SSC Fabric v3 derives IsWalking from the player's actual movement between
             // ticks. Client delta movement can be zero while the local player is walking,
             // which previously made the Forge renderer fall through to vanilla idle arms.
-            boolean moving = !snapshot.lastPosition.equals(player.position());
+            net.minecraft.world.phys.Vec3 position = player.position();
+            boolean moving = !snapshot.lastPosition.equals(position);
+            snapshot.verticalDelta = position.y - snapshot.lastPosition.y;
             if (player.swinging) {
                 snapshot.swingTicks = snapshot.swinging ? snapshot.swingTicks + 1 : 1;
             } else {
                 snapshot.swingTicks = 0;
             }
             if (!moving && !player.swinging && !player.isUsingItem() && !player.isPassenger()
-                    && !player.isSleeping() && player.onGround()) {
+                    && !player.isSleeping() && groundedForAnimation(player) && !player.isCrouching()
+                    && !player.isVisuallyCrawling() && !isTouchingWater(player)
+                    && !isClimbingForAnimation(player, groundedForAnimation(player))) {
                 snapshot.idleTicks = snapshot.idle ? snapshot.idleTicks + 1 : 1;
             } else {
                 snapshot.idleTicks = 0;
@@ -467,22 +524,20 @@ public final class FormAnimationSystem {
             snapshot.swinging = player.swinging;
             snapshot.idle = snapshot.idleTicks > 0;
             snapshot.moving = moving;
-            snapshot.lastPosition = player.position();
+            snapshot.lastPosition = position;
             snapshot.lastTick = player.tickCount;
         }
         return snapshot;
     }
 
-    private static final class FormSnapshot {
-        private final String formPath;
-        private final FormBodyType currentBodyType;
+    private static final class TransitionSnapshot {
         private final FormBodyType previousBodyType;
+        private final FormBodyType currentBodyType;
         private final double changedAt;
 
-        private FormSnapshot(String formPath, FormBodyType currentBodyType, FormBodyType previousBodyType, double changedAt) {
-            this.formPath = formPath;
-            this.currentBodyType = currentBodyType;
+        private TransitionSnapshot(FormBodyType previousBodyType, FormBodyType currentBodyType, double changedAt) {
             this.previousBodyType = previousBodyType;
+            this.currentBodyType = currentBodyType;
             this.changedAt = changedAt;
         }
     }
@@ -495,6 +550,7 @@ public final class FormAnimationSystem {
         private boolean swinging;
         private boolean idle;
         private boolean moving;
+        private double verticalDelta;
 
         private MotionSnapshot(net.minecraft.world.phys.Vec3 lastPosition) {
             this.lastPosition = lastPosition;

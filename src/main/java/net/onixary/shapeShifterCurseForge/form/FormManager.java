@@ -45,7 +45,7 @@ public final class FormManager {
         }).orElse(false);
 
         if (player instanceof ServerPlayer serverPlayer) {
-            ModNetwork.sendFormSync(serverPlayer);
+            ModNetwork.sendFormSync(serverPlayer, changed);
             if (changed) {
                 InstinctService.applyImmediatePowers(serverPlayer);
             }

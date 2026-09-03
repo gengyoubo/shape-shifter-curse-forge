@@ -7,11 +7,11 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArgs;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
 
 /**
  * Applies {@code apoli:modify_jump} to the return value of
@@ -86,14 +86,27 @@ public abstract class LivingEntityMixin {
      * after Dolphin's Grace, rather than multiplying already-completed travel again
      * during PlayerTick.END.
      */
-    @ModifyArgs(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/phys/Vec3;multiply(DDD)Lnet/minecraft/world/phys/Vec3;",
-                    ordinal = 0))
-    private void ssc$modifyInWaterFlexibility(Args args) {
+                    ordinal = 0), index = 0)
+    private double ssc$modifyInWaterFlexibilityX(double original) {
+        return ssc$waterFlexibilityDamping(original);
+    }
+
+    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/phys/Vec3;multiply(DDD)Lnet/minecraft/world/phys/Vec3;",
+                    ordinal = 0), index = 2)
+    private double ssc$modifyInWaterFlexibilityZ(double original) {
+        return ssc$waterFlexibilityDamping(original);
+    }
+
+    @Unique
+    private double ssc$waterFlexibilityDamping(double original) {
         LivingEntity self = (LivingEntity) (Object) this;
         if (!(self instanceof Player player) || !player.isInWater()) {
-            return;
+            return original;
         }
 
         final float[] flexibility = {-1.0F};
@@ -105,11 +118,9 @@ public abstract class LivingEntityMixin {
             }
         });
         if (flexibility[0] < 0.0F) {
-            return;
+            return original;
         }
 
-        double damping = 0.8D + (SSC_MAX_WATER_FLEXIBILITY - 0.8D) * flexibility[0];
-        args.set(0, damping);
-        args.set(2, damping);
+        return 0.8D + (SSC_MAX_WATER_FLEXIBILITY - 0.8D) * flexibility[0];
     }
 }

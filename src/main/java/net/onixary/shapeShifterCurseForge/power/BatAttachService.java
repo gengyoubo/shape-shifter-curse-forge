@@ -50,6 +50,8 @@ public final class BatAttachService {
                 Math.max(1, FormPowerRuntime.intValue(power, "bottom_attach_interval", 20)), 0);
         ATTACHMENTS.put(player.getUUID(), attachment);
         lockToAttachment(player, attachment);
+        PowerAnimationService.playLoop(player, bottom
+                ? PowerAnimationService.ATTACH_BOTTOM : PowerAnimationService.ATTACH_SIDE);
         return true;
     }
 
@@ -90,6 +92,8 @@ public final class BatAttachService {
         if (attachment == null) {
             return;
         }
+        PowerAnimationService.stopIfMatches(player, PowerAnimationService.ATTACH_SIDE,
+                PowerAnimationService.ATTACH_BOTTOM);
         if (!attachment.bottom() && attachment.sideAction() != null) {
             FormPowerRuntime.execute(player, player, attachment.sideAction());
         }

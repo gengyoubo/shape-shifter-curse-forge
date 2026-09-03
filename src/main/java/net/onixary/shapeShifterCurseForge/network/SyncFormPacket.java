@@ -8,13 +8,17 @@ import net.onixary.shapeShifterCurseForge.client.FormSyncClientHandler;
 
 import java.util.function.Supplier;
 
-public record SyncFormPacket(int entityId, String formId, String groupId, int tier, boolean enabled) {
+/** Form state plus an explicit real-transform marker; login/respawn synchronisation never sets it. */
+public record SyncFormPacket(int entityId, String formId, String previousFormId, String groupId, int tier,
+                             boolean enabled, boolean playTransformAnimation) {
     public static void encode(SyncFormPacket packet, FriendlyByteBuf buffer) {
         buffer.writeInt(packet.entityId);
         buffer.writeUtf(packet.formId);
+        buffer.writeUtf(packet.previousFormId);
         buffer.writeUtf(packet.groupId);
         buffer.writeInt(packet.tier);
         buffer.writeBoolean(packet.enabled);
+        buffer.writeBoolean(packet.playTransformAnimation);
     }
 
     public static SyncFormPacket decode(FriendlyByteBuf buffer) {
@@ -22,7 +26,9 @@ public record SyncFormPacket(int entityId, String formId, String groupId, int ti
                 buffer.readInt(),
                 buffer.readUtf(256),
                 buffer.readUtf(256),
+                buffer.readUtf(256),
                 buffer.readInt(),
+                buffer.readBoolean(),
                 buffer.readBoolean()
         );
     }

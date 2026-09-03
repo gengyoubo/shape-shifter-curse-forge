@@ -71,6 +71,7 @@ public final class FormPowerEvents {
         FormActivePowerService.tick(player);
         InstinctService.tick((net.minecraft.server.level.ServerPlayer) player);
         BatAttachService.tick(player);
+        PowerAnimationService.tick((net.minecraft.server.level.ServerPlayer) player);
         MovementPowerService.tick(player);
         enforceSprinting(player);
         adjustFoodHealTimer(player);
@@ -98,6 +99,16 @@ public final class FormPowerEvents {
             }
         });
         if (modified[0]) player.nextStep = player.moveDist + 1.0F / multiplier[0];
+    }
+
+    @SubscribeEvent
+    public static void startTracking(PlayerEvent.StartTracking event) {
+        if (event.getEntity().level().isClientSide
+                || !(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer receiver)
+                || !(event.getTarget() instanceof net.minecraft.server.level.ServerPlayer target)) {
+            return;
+        }
+        PowerAnimationService.synchronizeTo(target, receiver);
     }
 
     @SubscribeEvent
