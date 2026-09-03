@@ -49,11 +49,13 @@ public final class FormClientRenderEvents {
 
         FormGeoRenderer renderer = RENDERERS.computeIfAbsent(form.id(), ignored -> new FormGeoRenderer(model, texture));
         renderer.setPlayer(player);
+        renderer.setVanillaPlayerModel(event.getRenderer().getModel());
         // Both survival and creative inventories render their player preview full-bright.  This
         // is stable across the two screen classes, unlike instanceof InventoryScreen.
         boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
                 && event.getPackedLight() == LightTexture.FULL_BRIGHT;
         renderer.setInventoryPreview(inventoryPreview);
+        renderer.prepareVanillaPlayerPose(event.getPartialTick());
 
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
