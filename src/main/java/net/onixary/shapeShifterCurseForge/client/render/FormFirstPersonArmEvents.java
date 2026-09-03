@@ -90,11 +90,11 @@ public final class FormFirstPersonArmEvents {
         }
         GeoBone geoBone = armBone.get();
 
-        // Mirrors processAnimationFirstPerson: reset the bone, then copy the vanilla
-        // first-person arm part pose onto it.
+        // Mirrors processAnimationFirstPerson: reset the bone to its initial state,
+        // then copy the vanilla first-person arm part pose onto it.
         PlayerModel<AbstractClientPlayer> rendererModel = playerRenderer.getModel();
         ModelPart armPart = right ? rendererModel.rightArm : rendererModel.leftArm;
-        resetBone(geoBone);
+        FormGeoModel.resetToInitial(geoBone);
         geoBone.setPosX(geoBone.getPosX() + (-armPart.x));
         geoBone.setPosY(geoBone.getPosY() + (-armPart.y));
         geoBone.setPosZ(geoBone.getPosZ() + (-armPart.z));
@@ -147,19 +147,6 @@ public final class FormFirstPersonArmEvents {
             renderHeldItem(event.getPoseStack(), animatable, event.getMultiBufferSource(),
                     event.getPackedLight(), right);
         }
-    }
-
-    /** Mirrors Azurite's resetBone for the single reposed arm bone. */
-    private static void resetBone(GeoBone bone) {
-        bone.setPosX(0.0F);
-        bone.setPosY(0.0F);
-        bone.setPosZ(0.0F);
-        bone.setRotX(0.0F);
-        bone.setRotY(0.0F);
-        bone.setRotZ(0.0F);
-        bone.setScaleX(1.0F);
-        bone.setScaleY(1.0F);
-        bone.setScaleZ(1.0F);
     }
 
     private static void renderHeldItem(

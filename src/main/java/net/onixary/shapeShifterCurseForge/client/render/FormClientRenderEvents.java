@@ -35,6 +35,7 @@ public final class FormClientRenderEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Map<ResourceLocation, FormGeoRenderer> RENDERERS = new HashMap<>();
     private static final Set<UUID> REPORTED_RENDER_FAILURES = new HashSet<>();
+    private static final Map<UUID, String> LAST_RENDER_OUTCOME = new HashMap<>();
     private static final float PLAYER_SCALE = 0.9375F;
     private static final float EYE_BED_OFFSET = 0.1F;
 
@@ -45,14 +46,16 @@ public final class FormClientRenderEvents {
     public static void renderPlayer(RenderPlayerEvent.Pre event) {
         Player player = event.getEntity();
         PlayerModel<?> vanillaModel = event.getRenderer().getModel();
+        FormDefinition form = FormManager.current(player);
         if (player.isSpectator() || player.isInvisible()) {
             setAllPartsVisible(vanillaModel);
+            logRenderOutcome(player, form, "skip:spectator-or-invisible");
             return;
         }
 
-        FormDefinition form = FormManager.current(player);
         if (!form.hasFlag("special_form") && form.tier() <= 0) {
             setAllPartsVisible(vanillaModel);
+            logRenderOutcome(player, form, "skip:vanilla-form");
             return;
         }
 
@@ -66,12 +69,20 @@ public final class FormClientRenderEvents {
         if (!inventoryPreview && player == minecraft.player
                 && minecraft.options.getCameraType().isFirstPerson()) {
             setAllPartsVisible(vanillaModel);
+            logRenderOutcome(player, form, "skip:first-person-self");
             return;
         }
 
         FormGeoRenderer renderer = rendererFor(form);
         if (renderer == null) {
             setAllPartsVisible(vanillaModel);
+            logRenderOutcome(player, form, "no-renderer:" + missingAssetSuffix(form));
+            return;
+        }
+        if (renderer.getAnimatable() == null) {
+            setAllPartsVisible(vanillaModel);
+            logRenderOutcome(player, form, "null-animatable");
+            reportRenderFailure(player, form, null);
             return;
         }
         // Audit ③: the whole pose preparation must live inside the guarded region.
@@ -88,6 +99,7 @@ public final class FormClientRenderEvents {
             // the player remains visible.
             if (!renderer.getAnimatable().hasSafeRenderState()) {
                 setAllPartsVisible(vanillaModel);
+                logRenderOutcome(player, form, "unsafe-state");
                 reportRenderFailure(player, form, null);
                 return;
             }
@@ -113,10 +125,12 @@ public final class FormClientRenderEvents {
             renderer.render(poseStack, renderer.getAnimatable(), event.getMultiBufferSource(), renderType,
                     event.getMultiBufferSource().getBuffer(renderType), event.getPackedLight());
             REPORTED_RENDER_FAILURES.remove(player.getUUID());
+            logRenderOutcome(player, form, inventoryPreview ? "rendered-geo:inventory" : "rendered-geo");
         } catch (RuntimeException exception) {
             // Do not strand the player invisible if a Gecko model or animation fails.
             // Restore the vanilla parts so vanilla finishes this render pass whole.
             setAllPartsVisible(vanillaModel);
+            logRenderOutcome(player, form, "render-failed:" + exception.getClass().getSimpleName());
             reportRenderFailure(player, form, exception);
         } finally {
             poseStack.popPose();
@@ -176,9 +190,8 @@ public final class FormClientRenderEvents {
 
     /** Shared form renderer lookup; null when the form has no Geo model or texture. */
     public static FormGeoRenderer rendererFor(FormDefinition form) {
-        ResourceLocation model = resource("geo/form/form_" + form.id().getPath() + ".geo.json");
-        ResourceLocation texture = resource("textures/form/form_" + form.id().getPath()
-                + "/form_" + form.id().getPath() + ".png");
+        ResourceLocation model = modelResource(form);
+        ResourceLocation texture = textureResource(form);
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.getResourceManager().getResource(model).isEmpty()
                 || minecraft.getResourceManager().getResource(texture).isEmpty()) {
@@ -188,6 +201,44 @@ public final class FormClientRenderEvents {
                 + form.id().getNamespace() + ".form_" + form.id().getPath() + ".json");
         return RENDERERS.computeIfAbsent(form.id(),
                 ignored -> new FormGeoRenderer(model, texture, animationConfig));
+    }
+
+    private static ResourceLocation modelResource(FormDefinition form) {
+        return resource("geo/form/form_" + form.id().getPath() + ".geo.json");
+    }
+
+    private static ResourceLocation textureResource(FormDefinition form) {
+        return resource("textures/form/form_" + form.id().getPath()
+                + "/form_" + form.id().getPath() + ".png");
+    }
+
+    private static String missingAssetSuffix(FormDefinition form) {
+        Minecraft minecraft = Minecraft.getInstance();
+        boolean noModel = minecraft.getResourceManager().getResource(modelResource(form)).isEmpty();
+        boolean noTexture = minecraft.getResourceManager().getResource(textureResource(form)).isEmpty();
+        if (noModel && noTexture) {
+            return "missing-model-and-texture";
+        }
+        if (noModel) {
+            return "missing-model";
+        }
+        if (noTexture) {
+            return "missing-texture";
+        }
+        return "unknown";
+    }
+
+    /**
+     * Model-render tracing: logs each player's render outcome only when it changes, so
+     * a missing model (or a null animatable, an unsafe state, a throw) shows up as one
+     * line instead of per-frame spam.
+     */
+    private static void logRenderOutcome(Player player, FormDefinition form, String outcome) {
+        if (outcome.equals(LAST_RENDER_OUTCOME.get(player.getUUID()))) {
+            return;
+        }
+        LAST_RENDER_OUTCOME.put(player.getUUID(), outcome);
+        LOGGER.info("[SSC-RENDER] {} {} {}", player.getGameProfile().getName(), form.id(), outcome);
     }
 
     private static void reportRenderFailure(Player player, FormDefinition form, RuntimeException exception) {

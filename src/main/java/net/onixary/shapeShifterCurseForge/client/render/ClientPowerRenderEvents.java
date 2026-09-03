@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.client.render;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderArmEvent;
 import net.minecraftforge.client.event.ViewportEvent;
@@ -32,7 +33,26 @@ public final class ClientPowerRenderEvents {
 
     @SubscribeEvent
     public static void cameraAngles(ViewportEvent.ComputeCameraAngles event) {
-        if (!(Minecraft.getInstance().getCameraEntity() instanceof AbstractClientPlayer player)) return;
+        Entity camera = Minecraft.getInstance().getCameraEntity();
+//
+//        System.out.println("=== SSC CAMERA DEBUG ===");
+//        System.out.println("camera = " + camera);
+//        System.out.println("camera class = " + (camera == null ? null : camera.getClass()));
+//        System.out.println("AbstractClientPlayer class = " + AbstractClientPlayer.class);
+//        System.out.println("instanceof = " + (camera instanceof AbstractClientPlayer));
+//        System.out.println("assignable = " + (
+//                camera != null
+//                        && AbstractClientPlayer.class.isAssignableFrom(camera.getClass())
+//        ));
+//
+//        if (!(camera instanceof AbstractClientPlayer)) {
+//            System.out.println("SSC CAMERA DEBUG: RETURN");
+//            return;
+//        }
+//
+//        System.out.println("SSC CAMERA DEBUG: PASSED");
+
+        AbstractClientPlayer player = (AbstractClientPlayer) camera;
         final String[] type = {null};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("shape-shifter-curse:form_camera_bobbing".equals(FormPowerRegistry.typeOf(power))) {

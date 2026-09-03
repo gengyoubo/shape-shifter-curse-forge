@@ -14,6 +14,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
+import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class FormAbilityEvents {
@@ -29,12 +30,22 @@ public final class FormAbilityEvents {
         }
 
         FormDefinition form = FormManager.current(player);
-        EntityDimensions original = event.getOriginalSize();
-        event.setNewSize(EntityDimensions.scalable(
-                original.width * form.widthScale(),
-                original.height * form.heightScale()
-        ));
-        event.setNewEyeHeight(event.getNewEyeHeight() * form.eyeScale());
+
+        event.setNewSize(CrawlingScaleService.expectedDimensions(player, event.getPose()));
+
+        float baseEyeHeight = event.getOldEyeHeight();
+
+        event.setNewEyeHeight(
+                baseEyeHeight
+                        * form.eyeScale()
+                        * CrawlingScaleService.eyeScale(player)
+        );
+        System.out.println(
+                "[SSC SIZE] pose=" + player.getPose()
+                        + " new=" + event.getNewSize().width + "x" + event.getNewSize().height
+                        + " form=" + form.widthScale() + "," + form.heightScale()
+                        + " crawl=" + CrawlingScaleService.heightScale(player)
+        );
     }
 
     @SubscribeEvent
@@ -60,6 +71,9 @@ public final class FormAbilityEvents {
         }
 
         updateStepHeight(player, form);
+        // Sneak toggles do not refresh dimensions by themselves; without this the
+        // crawling scale would stick after release instead of returning to default.
+        CrawlingScaleService.tick(player);
     }
 
     @SubscribeEvent

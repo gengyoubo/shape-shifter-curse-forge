@@ -86,12 +86,12 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             return;
         }
 
-        resetTransform("bipedHead");
-        resetTransform("bipedBody");
-        resetTransform("bipedLeftArm");
-        resetTransform("bipedRightArm");
-        resetTransform("bipedLeftLeg");
-        resetTransform("bipedRightLeg");
+        resetToInitial("bipedHead");
+        resetToInitial("bipedBody");
+        resetToInitial("bipedLeftArm");
+        resetToInitial("bipedRightArm");
+        resetToInitial("bipedLeftLeg");
+        resetToInitial("bipedRightLeg");
         ModelAnimationConfig config = animationConfig();
         // Tail/head-tail/wing bones are form-only.  They must begin from their baked pose on
         // every render, otherwise GeckoLib's shared model cache makes their previous frame leak
@@ -159,6 +159,42 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         }
     }
 
+    /**
+     * Fabric-counterpart reset: bones are restored from their baked initial snapshot
+     * before animation, exactly like Azurite's {@code resetBone} (pos/rot/scale, never
+     * pivots). Unlike the old zeroing version this preserves a rest pose authored in
+     * the Geo file, which matters for custom form packs. Hidden flags are left alone
+     * like Fabric: nothing in the third-person pass hides bones.
+     */
+    void resetToInitial(String boneName) {
+        getBone(boneName).ifPresent(FormGeoModel::resetToInitial);
+    }
+
+    static void resetToInitial(software.bernie.geckolib.cache.object.GeoBone bone) {
+        var initial = bone.getInitialSnapshot();
+        if (initial == null) {
+            bone.setPosX(0.0F);
+            bone.setPosY(0.0F);
+            bone.setPosZ(0.0F);
+            bone.setRotX(0.0F);
+            bone.setRotY(0.0F);
+            bone.setRotZ(0.0F);
+            bone.setScaleX(1.0F);
+            bone.setScaleY(1.0F);
+            bone.setScaleZ(1.0F);
+            return;
+        }
+        bone.setPosX(initial.getOffsetX());
+        bone.setPosY(initial.getOffsetY());
+        bone.setPosZ(initial.getOffsetZ());
+        bone.setRotX(initial.getRotX());
+        bone.setRotY(initial.getRotY());
+        bone.setRotZ(initial.getRotZ());
+        bone.setScaleX(initial.getScaleX());
+        bone.setScaleY(initial.getScaleY());
+        bone.setScaleZ(initial.getScaleZ());
+    }
+
     private void setRotation(String boneName, float x, float y, float z) {
         getBone(boneName).ifPresent(bone -> {
             bone.setRotX(x);
@@ -182,21 +218,6 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             bone.setPosX(x);
             bone.setPosY(y);
             bone.setPosZ(z);
-        });
-    }
-
-    private void resetTransform(String boneName) {
-        getBone(boneName).ifPresent(bone -> {
-            bone.setPosX(0.0F);
-            bone.setPosY(0.0F);
-            bone.setPosZ(0.0F);
-            bone.setRotX(0.0F);
-            bone.setRotY(0.0F);
-            bone.setRotZ(0.0F);
-            bone.setScaleX(1.0F);
-            bone.setScaleY(1.0F);
-            bone.setScaleZ(1.0F);
-            bone.setHidden(false);
         });
     }
 
@@ -291,16 +312,11 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     private void applyExtraBones(ModelAnimationConfig config, FormGeoAnimatable animatable) {
         for (ExtraBoneMapping mapping : config.extraBones) {
             BedrockAnimationPlayer.BoneSample sample = animatable.sampleExtraBone(mapping.animBone());
+            resetToInitial(mapping.geoBone());
+            if (sample == null) {
+                continue;
+            }
             getBone(mapping.geoBone()).ifPresent(bone -> {
-                bone.setPosX(0.0F);
-                bone.setPosY(0.0F);
-                bone.setPosZ(0.0F);
-                bone.setRotX(0.0F);
-                bone.setRotY(0.0F);
-                bone.setRotZ(0.0F);
-                if (sample == null) {
-                    return;
-                }
                 bone.setPosX(-sample.posX());
                 bone.setPosY(-sample.posY());
                 bone.setPosZ(-sample.posZ());
@@ -357,10 +373,8 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             String boneName = index < neck.chain.size() ? neck.chain.get(index) : neck.headBone;
             float yaw = index < neck.yawWeights.length ? yawRad * neck.yawWeights[index] : 0.0F;
             float pitch = index < neck.pitchWeights.length ? pitchRad * neck.pitchWeights[index] : 0.0F;
+            resetToInitial(boneName);
             getBone(boneName).ifPresent(bone -> {
-                bone.setRotX(0.0F);
-                bone.setRotY(0.0F);
-                bone.setRotZ(0.0F);
                 setAxisRotation(bone, neck.yawAxis, yaw);
                 setAxisRotation(bone, neck.pitchAxis, pitch);
             });
