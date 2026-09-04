@@ -35,6 +35,22 @@ public interface IPlayerFormData {
 
     void setInstinctEffects(CompoundTag effects);
 
+    boolean isCursedMoonApplied();
+
+    void setCursedMoonApplied(boolean applied);
+
+    boolean wasLastTransformByCure();
+
+    void setLastTransformByCure(boolean cured);
+
+    String getBeforeCursedMoonAppliedForm();
+
+    void setBeforeCursedMoonAppliedForm(String formId);
+
+    String getAfterCursedMoonAppliedForm();
+
+    void setAfterCursedMoonAppliedForm(String formId);
+
     void copyFrom(IPlayerFormData other);
 
     CompoundTag serializeNBT();

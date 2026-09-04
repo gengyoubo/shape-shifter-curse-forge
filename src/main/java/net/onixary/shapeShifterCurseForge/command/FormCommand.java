@@ -15,6 +15,7 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerEvents;
+import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -76,7 +77,21 @@ public final class FormCommand {
                         .executes(context -> showPowerStatus(context.getSource().getPlayerOrException(), context)))
                 .then(Commands.literal("list")
                         .executes(context -> showPowerList(context.getSource().getPlayerOrException(), context)));
-        event.getDispatcher().register(Commands.literal("ssc").then(form).then(power));
+        var cursedMoon = Commands.literal("cursed_moon")
+                .then(Commands.literal("status").executes(context -> {
+                    var level = context.getSource().getServer().overworld();
+                    context.getSource().sendSuccess(() -> Component.literal(
+                            "Cursed Moon: day=" + CursedMoonService.isCursedMoonDay(level)
+                                    + ", night=" + CursedMoonService.isInCursedMoon(level)
+                                    + ", phase=" + level.getMoonPhase()), false);
+                    return SINGLE_SUCCESS;
+                }))
+                .then(Commands.literal("force").requires(source -> source.hasPermission(2)).executes(context -> {
+                    CursedMoonService.forceTriggerCursedMoon(context.getSource().getServer().overworld());
+                    context.getSource().sendSuccess(() -> Component.literal("The next Cursed Moon was scheduled."), true);
+                    return SINGLE_SUCCESS;
+                }));
+        event.getDispatcher().register(Commands.literal("ssc").then(form).then(power).then(cursedMoon));
     }
 
     private static int move(ServerPlayer player, boolean next) {

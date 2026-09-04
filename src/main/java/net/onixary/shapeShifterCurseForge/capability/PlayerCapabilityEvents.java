@@ -9,6 +9,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class PlayerCapabilityEvents {
@@ -57,6 +58,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
+            CursedMoonService.sendDaySync(player);
         }
     }
 
@@ -65,6 +67,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
+            CursedMoonService.sendDaySync(player);
         }
     }
 
@@ -73,6 +76,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
+            CursedMoonService.sendDaySync(player);
         }
     }
 

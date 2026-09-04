@@ -105,6 +105,14 @@ public final class ModNetwork {
                 OpenColorMenuPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                10,
+                CursedMoonSyncPacket.class,
+                CursedMoonSyncPacket::encode,
+                CursedMoonSyncPacket::decode,
+                CursedMoonSyncPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -146,6 +154,10 @@ public final class ModNetwork {
                 PacketDistributor.PLAYER.with(() -> receiver),
                 SyncSkinPacket.forPlayer(target, data)
         ));
+    }
+
+    public static void sendCursedMoonSync(ServerPlayer player, boolean cursedMoonDay) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new CursedMoonSyncPacket(cursedMoonDay));
     }
 
     /** Opens the form select menu for {@code player}, acting on {@code target}. */
