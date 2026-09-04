@@ -18,7 +18,12 @@ public class CuriosMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.contains("accessory.CurioImpl")) {
-            return ModList.get().isLoaded("curios");
+            try {
+                Class.forName("top.theillusivec4.curios.api.type.capability.ICurioItem", false, getClass().getClassLoader());
+                return true;
+            } catch (ClassNotFoundException e) {
+                return false;
+            }
         }
         return true;
     }

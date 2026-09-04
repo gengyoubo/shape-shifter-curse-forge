@@ -131,6 +131,12 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         resetToInitial("bipedLeftLeg");
         resetToInitial("bipedRightLeg");
         ModelAnimationConfig config = animationConfig();
+        // Surface-sprint is a form-only clip. Keep its target chain deterministic even when a
+        // custom/old metadata file cannot be loaded; otherwise additive samples can leak from
+        // the previous GeckoLib render pass and appear as tail twitching.
+        for (String boneName : AXOLOTL_TAIL_BONES) {
+            resetToInitial(boneName);
+        }
         // Tail/head-tail/wing bones are form-only.  They must begin from their baked pose on
         // every render, otherwise GeckoLib's shared model cache makes their previous frame leak
         // into the next player or render pass.
