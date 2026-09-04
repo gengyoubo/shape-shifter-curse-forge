@@ -43,6 +43,108 @@ public final class FormTextureUtils {
     public record GreyAverage(int red, int green, int blue) {
     }
 
+    /**
+     * Samples a form's own stock colors from its texture plus mask, one average ARGB
+     * color per mask region (same region priority as the baker). Empty regions fall
+     * back to the neutral default. Used for initial colors on new games and the V2
+     * reset button, so the editor never starts from blank zeros.
+     */
+    @Nullable
+    public static ColorSetting sampleStockColors(ResourceLocation texture, ResourceLocation mask) {
+        if (texture == null || mask == null) {
+            return null;
+        }
+        try {
+            NativeImage textureImage = toNativeImage(texture);
+            NativeImage maskImage = toNativeImage(mask);
+            if (textureImage == null || maskImage == null) {
+                return null;
+            }
+            int width = Math.min(textureImage.getWidth(), maskImage.getWidth());
+            int height = Math.min(textureImage.getHeight(), maskImage.getHeight());
+            // Regions: primary, accent1, accent2, eyeA, eyeB; channels A,R,G,B in ABGR ints.
+            long[][] sums = new long[5][4];
+            long[] counts = new long[5];
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    int maskPixel = maskImage.getPixelRGBA(x, y);
+                    if (maskPixel == 0) {
+                        continue;
+                    }
+                    int region = -1;
+                    int maskAlpha = maskPixel >>> 24;
+                    if (maskAlpha != 255) {
+                        if (maskAlpha == 1) {
+                            region = 3;
+                        } else if (maskAlpha == 2) {
+                            region = 4;
+                        }
+                    } else if (((maskPixel >> 16) & 0xFF) > 0) {
+                        region = 2;
+                    } else if (((maskPixel >> 8) & 0xFF) > 0) {
+                        region = 1;
+                    } else if ((maskPixel & 0xFF) > 0) {
+                        region = 0;
+                    }
+                    if (region < 0) {
+                        continue;
+                    }
+                    int color = textureImage.getPixelRGBA(x, y);
+                    sums[region][0] += (color >>> 24) & 0xFF;
+                    sums[region][1] += color & 0xFF;
+                    sums[region][2] += (color >> 8) & 0xFF;
+                    sums[region][3] += (color >> 16) & 0xFF;
+                    counts[region]++;
+                }
+            }
+            int[] argb = new int[5];
+            for (int i = 0; i < 5; i++) {
+                if (counts[i] == 0) {
+                    argb[i] = 0x00FFFFFF;
+                    continue;
+                }
+                int alpha = (int) Math.min(255, sums[i][0] / counts[i]);
+                int red = (int) Math.min(255, sums[i][1] / counts[i]);
+                int green = (int) Math.min(255, sums[i][2] / counts[i]);
+                int blue = (int) Math.min(255, sums[i][3] / counts[i]);
+                argb[i] = (alpha << 24) | (red << 16) | (green << 8) | blue;
+            }
+            return new ColorSetting(argb[0], argb[1], argb[2], argb[3], argb[4], false, false, false);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Failed to sample stock colors from {}: {}", texture, exception.toString());
+            return null;
+        }
+    }
+
+    /** Stock colors for a form id, read from its ssc model JSON texture entries. */
+    @Nullable
+    public static ColorSetting stockColorsForForm(ResourceLocation formId) {
+        if (formId == null) {
+            return null;
+        }
+        try {
+            ResourceLocation configId = ResourceLocation.fromNamespaceAndPath(
+                    ShapeShifterCurseForge.RESOURCE_NAMESPACE, "ssc_form_model/origins.origin."
+                            + formId.getNamespace() + ".form_" + formId.getPath() + ".json");
+            var resource = Minecraft.getInstance().getResourceManager().getResource(configId);
+            if (resource.isEmpty()) {
+                return null;
+            }
+            try (var reader = new java.io.InputStreamReader(resource.get().open(), java.nio.charset.StandardCharsets.UTF_8)) {
+                var root = com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+                if (!root.has("texture") || !root.has("texture_mask")) {
+                    return null;
+                }
+                ResourceLocation texture = ResourceLocation.tryParse(root.get("texture").getAsString());
+                ResourceLocation mask = ResourceLocation.tryParse(root.get("texture_mask").getAsString());
+                return sampleStockColors(texture, mask);
+            }
+        } catch (Exception exception) {
+            LOGGER.warn("Failed to resolve stock colors for form {}: {}", formId, exception.toString());
+            return null;
+        }
+    }
+
     public static NativeImage toNativeImage(ResourceLocation texture) {
         try {
             Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(texture);

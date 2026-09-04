@@ -578,6 +578,7 @@
     "gui.shape_shifter_curse_fabric.fcs.is_enable_layer": "启用当前配色层",
     "gui.shape_shifter_curse_fabric.fcsv2.is_enable_layer": "启用当前配色层",
     "gui.shape_shifter_curse_fabric.fcs.exit_slider_button": "退出",
+    "gui.shape_shifter_curse_fabric.fcs.reset_color": "重置颜色",
     "gui.shape_shifter_curse_fabric.fcs.from_server": "↓服务器↓",
     "gui.shape_shifter_curse_fabric.fcs.to_server": "↑服务器↑",
     "gui.shape_shifter_curse_fabric.fcs.from_client": "↓客户端↓",

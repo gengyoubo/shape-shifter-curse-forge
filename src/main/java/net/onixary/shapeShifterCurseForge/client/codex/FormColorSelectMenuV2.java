@@ -96,6 +96,8 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
             Component.translatable("gui.shape_shifter_curse_fabric.fcs.color_channel_v");
     private static final Component EXIT_SLIDER_BUTTON_LABEL =
             Component.translatable("gui.shape_shifter_curse_fabric.fcs.exit_slider_button");
+    private static final Component RESET_COLOR_LABEL =
+            Component.translatable("gui.shape_shifter_curse_fabric.fcs.reset_color");
 
     private Button formNameLabel = null;
 
@@ -682,6 +684,10 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         this.onData1Changed();
     }
 
+    private static final FormTextureUtils.ColorSetting NEUTRAL_DEFAULT =
+            new FormTextureUtils.ColorSetting(0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00000000, 0x00000000,
+                    false, false, false);
+
     public void loadData() {
         if (minecraftClient.player != null) {
             var skin = minecraftClient.player.getCapability(ModCapabilities.PLAYER_SKIN).orElse(null);
@@ -689,7 +695,16 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
                 FormTextureUtils.ColorSetting colorSetting = skin.getFormColor();
                 this.keepCustomSkin = skin.isKeepOriginalSkin();
                 this.enableFormColorSystem = skin.isEnableFormColor();
-                this.loadServerData(colorSetting);
+                FormTextureUtils.ColorSetting stock = null;
+                if (NEUTRAL_DEFAULT.equals(colorSetting)) {
+                    stock = FormTextureUtils.stockColorsForForm(
+                            FormManager.current(minecraftClient.player).id());
+                }
+                if (stock != null) {
+                    this.loadData(stock);
+                } else {
+                    this.loadServerData(colorSetting);
+                }
             } else {
                 this.onData1Changed();
             }
@@ -707,6 +722,16 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
             this.onData1Changed();
         }
         isColorSettingDirty = true;
+    }
+
+    private void resetToStock() {
+        FormTextureUtils.ColorSetting stock = FormTextureUtils.stockColorsForForm(getFormNoCheckUnlock());
+        if (stock == null && minecraftClient.player != null) {
+            stock = FormTextureUtils.stockColorsForForm(FormManager.current(minecraftClient.player).id());
+        }
+        if (stock != null) {
+            loadData(stock);
+        }
     }
 
     public FormColorSelectMenuV2(Component title) {
@@ -851,6 +876,10 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         this.addRenderableWidget(enableFormColorButton);
         this.enableFormColorSystemButton = enableFormColorButton;
         this.configPanel01.add(enableFormColorButton);
+        Button resetColorButton = Button.builder(RESET_COLOR_LABEL, button -> this.resetToStock())
+                .pos(bPosX + 177, bPosY + 206).size(138, 11).build();
+        this.addRenderableWidget(resetColorButton);
+        this.configPanel01.add(resetColorButton);
         StringWidget configLabel = new StringWidget(bPosX + 177, bPosY + 68, 41, 11,
                 HEX_TEXT, this.font).setColor(textColor);
         this.addRenderableWidget(configLabel);

@@ -575,6 +575,7 @@
     "gui.shape_shifter_curse_fabric.fcs.is_enable_layer": "Activate Layer",
     "gui.shape_shifter_curse_fabric.fcsv2.is_enable_layer": "Activate This Layer",
     "gui.shape_shifter_curse_fabric.fcs.exit_slider_button": "Exit",
+    "gui.shape_shifter_curse_fabric.fcs.reset_color": "Reset Colours",
     "gui.shape_shifter_curse_fabric.fcs.from_server": "↓Server↓",
     "gui.shape_shifter_curse_fabric.fcs.to_server": "↑Server↑",
     "gui.shape_shifter_curse_fabric.fcs.from_client": "↓Client↓",
