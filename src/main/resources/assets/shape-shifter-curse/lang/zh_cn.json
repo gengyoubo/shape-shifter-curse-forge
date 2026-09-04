@@ -686,6 +686,6 @@
     "gamerule.category.ssc_gamerule": "Shape Shifter Curse",
     "gamerule.sscUseInitialForm": "以SSC配置的初始形态开局",
     "gamerule.sscUseInitialForm.description": "开启后，新玩家加入世界时会立即变为服务器配置的初始形态",
-    "text.cloth-config.boolean.value.true": "真",
-    "text.cloth-config.boolean.value.false": "假"
+    "text.cloth-config.boolean.value.true": "开",
+    "text.cloth-config.boolean.value.false": "关"
 }

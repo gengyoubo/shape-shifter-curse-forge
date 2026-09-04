@@ -142,7 +142,10 @@ public final class FormTextureUtils {
         int greyScaleOffset = reverseGreyScale ? averageGreyScale - colorGreyScale : colorGreyScale - averageGreyScale;
         int colorSettingGreyScale = getGreyScale(colorSetting);
         int targetGreyScale = Math.min(255, Math.max(colorSettingGreyScale + greyScaleOffset, 0));
-        int colorResult = greyScaleMul(colorSetting | 0xFF000000, (float) targetGreyScale / colorSettingGreyScale);
+        // A pure-black setting color has grey 0; keep it black instead of dividing by zero
+        // (which would abort the whole player render through the bake call).
+        float ratio = colorSettingGreyScale == 0 ? 1.0F : (float) targetGreyScale / colorSettingGreyScale;
+        int colorResult = greyScaleMul(colorSetting | 0xFF000000, ratio);
         return colorMulBytes(colorResult, mask);
     }
 
@@ -196,26 +199,36 @@ public final class FormTextureUtils {
         return color;
     }
 
-    /** Bakes a recolored copy of a form texture plus its mask. Caller owns registration. */
+    private static final java.util.Set<String> REPORTED_BAKE_FAILURES = new java.util.HashSet<>();
+
+    /** Bakes a recolored copy of a form texture plus its mask. Null on any failure. */
     @Nullable
     public static NativeImage bakeTextureImage(ResourceLocation texture, ResourceLocation mask,
                                                ColorSetting colorSetting, boolean onlyMultiply) {
         if (texture == null || mask == null) {
             return null;
         }
-        NativeImage textureImage = toNativeImage(texture);
-        NativeImage maskImage = toNativeImage(mask);
-        if (textureImage == null || maskImage == null) {
+        try {
+            NativeImage textureImage = toNativeImage(texture);
+            NativeImage maskImage = toNativeImage(mask);
+            if (textureImage == null || maskImage == null) {
+                return null;
+            }
+            GreyAverage average = getAverageGreyScale(textureImage, maskImage);
+            for (int x = 0; x < textureImage.getWidth(); x++) {
+                for (int y = 0; y < textureImage.getHeight(); y++) {
+                    textureImage.setPixelRGBA(x, y, processPixel(textureImage.getPixelRGBA(x, y),
+                            maskImage.getPixelRGBA(x, y), colorSetting, average, onlyMultiply));
+                }
+            }
+            return textureImage;
+        } catch (RuntimeException exception) {
+            String key = texture + "|" + mask;
+            if (REPORTED_BAKE_FAILURES.add(key)) {
+                LOGGER.warn("Failed to bake recolored texture {}: {}", texture, exception.toString());
+            }
             return null;
         }
-        GreyAverage average = getAverageGreyScale(textureImage, maskImage);
-        for (int x = 0; x < textureImage.getWidth(); x++) {
-            for (int y = 0; y < textureImage.getHeight(); y++) {
-                textureImage.setPixelRGBA(x, y, processPixel(textureImage.getPixelRGBA(x, y),
-                        maskImage.getPixelRGBA(x, y), colorSetting, average, onlyMultiply));
-            }
-        }
-        return textureImage;
     }
 
     /** Registers a baked copy under a generated id. */
