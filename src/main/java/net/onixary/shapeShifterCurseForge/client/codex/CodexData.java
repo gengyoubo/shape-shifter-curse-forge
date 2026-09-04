@@ -55,7 +55,7 @@ public final class CodexData {
     public static Component getPlayerStatusText(Player player) {
         // Mirrors Fabric: infected when a transformative effect is present, then the
         // cursed-moon day/night states, otherwise normal.
-        // TODO: picks up once the transformative effect and cursed-moon systems land.
+        // TODO: transformative effect check picks up once that system lands.
         StringBuilder statusTextBuilder = new StringBuilder();
         boolean hasAnyStatus = false;
 
@@ -64,8 +64,8 @@ public final class CodexData {
             hasAnyStatus = true;
         }
 
-        if (isCursedMoonDay(player)) {
-            if (isNight(player)) {
+        if (CursedMoonData.isCursedMoonDay(player.level())) {
+            if (CursedMoonData.isNight(player.level())) {
                 statusTextBuilder.append(statusUnderMoon.getString());
             } else {
                 statusTextBuilder.append(statusBeforeMoon.getString());
@@ -83,15 +83,6 @@ public final class CodexData {
     private static boolean hasTransformativeEffect(Player player) {
         // TODO: transformative mob-effect system is not ported yet.
         return false;
-    }
-
-    private static boolean isCursedMoonDay(Player player) {
-        // TODO: cursed-moon system is not ported yet.
-        return false;
-    }
-
-    private static boolean isNight(Player player) {
-        return player.level().isNight();
     }
 
     public static Component getDescText(ContentType type, Player player) {

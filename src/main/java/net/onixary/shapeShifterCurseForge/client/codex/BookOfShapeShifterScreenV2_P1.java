@@ -20,8 +20,6 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/codex_page_1.png");
     private static final ResourceLocation CURSED_MOON_ICON_TEXTURE = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/book_cursed_moon_icon.png");
-    // TODO: wire to the cursed-moon system once ported (always unlit for now).
-    private static final boolean IS_CURSED_MOON = false;
 
     public Player currentPlayer;
     public static final int BOOK_SIZE_X = 350;
@@ -139,8 +137,9 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
                     (float) (playerX - mouseX), (float) (playerY - 37 * bookScale - mouseY), previewPlayer);
         }
         // Cursed moon icon, Size -> (8, 8), Pos -> (115, 92).
+        boolean isCursedMoon = CursedMoonData.isCursedMoonDay(Minecraft.getInstance().level);
         graphics.blit(CURSED_MOON_ICON_TEXTURE, bookPosX + 115 * bookScale, bookPosY + 92 * bookScale,
-                IS_CURSED_MOON ? 8 : 0, 0, 8 * bookScale, 8 * bookScale, 16, 8);
+                isCursedMoon ? 8 : 0, 0, 8 * bookScale, 8 * bookScale, 16, 8);
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
