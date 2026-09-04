@@ -64,6 +64,14 @@ public final class ModNetwork {
                 SyncSkinPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                5,
+                ValidateStartBookPacket.class,
+                ValidateStartBookPacket::encode,
+                ValidateStartBookPacket::decode,
+                ValidateStartBookPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {

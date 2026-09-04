@@ -234,6 +234,15 @@ public class ScaleScrollTextWidget extends AbstractWidget implements WidgetEXUti
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // Never consume clicks through vanilla dispatch: vanilla forwards children in
+        // insertion order, so this full-area text widget would otherwise swallow clicks
+        // meant for buttons overlapping its rect (StartBook confirm, P1 detail buttons).
+        // Scroll interaction arrives separately through WidgetEX dispatch instead.
+        return false;
+    }
+
+    @Override
     protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
         narrationElementOutput.add(NarratedElementType.TITLE, this.getMessage());
     }

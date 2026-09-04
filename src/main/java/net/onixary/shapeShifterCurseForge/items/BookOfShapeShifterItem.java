@@ -10,8 +10,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
 import net.onixary.shapeShifterCurseForge.client.codex.BookOfShapeShifterScreenV2_P1;
+import net.onixary.shapeShifterCurseForge.client.codex.StartBookScreenV2;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 
@@ -30,27 +30,21 @@ public final class BookOfShapeShifterItem extends Item {
             net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(
                     net.minecraftforge.api.distmarker.Dist.CLIENT,
                     () -> () -> openBookScreen(player));
-        } else {
-            player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(formData -> {
-                if (FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(net.minecraft.resources.ResourceLocation.tryParse(formData.getFormId()))) {
-                    FormManager.setForm(player, FormRegistry.ORIGINAL_SHIFTER);
-                    player.sendSystemMessage(Component.translatable(
-                            "info.shape-shifter-curse.on_enable_mod"
-                    ).withStyle(ChatFormatting.LIGHT_PURPLE));
-                } else {
-                    player.sendSystemMessage(Component.translatable(
-                            "info.shape-shifter-curse.on_enable_mod_after"
-                    ).withStyle(ChatFormatting.LIGHT_PURPLE));
-                }
-            });
         }
+        // Server side intentionally does nothing here: enabling moved to the
+        // StartBook confirm button (ValidateStartBookPacket), mirroring Fabric.
+        // TODO: ON_OPEN_BOOK_OF_SHAPE_SHIFTER advancement trigger once triggers land.
 
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
     }
 
     @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     private static void openBookScreen(Player player) {
-        Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P1(player));
+        if (FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(FormManager.current(player).id())) {
+            Minecraft.getInstance().setScreen(new StartBookScreenV2(player));
+        } else {
+            Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P1(player));
+        }
     }
 
     @Override
