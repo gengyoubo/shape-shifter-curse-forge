@@ -5,6 +5,11 @@
     "refmap": "shape_shifter_curse.refmap.json",
     "mixins": [
         "LivingEntityMixin",
+        "PlayerEntityPoseMixin",
+        "PowderSnowBlockMixin",
+        "SweetBerryBushBlockMixin",
+        "EntitySlipperinessMixin",
+        "CancelEntityStepSoundMixin",
         "PlayerModelAnimMixin",
         "PlayerRendererBodyMixin"
     ],
