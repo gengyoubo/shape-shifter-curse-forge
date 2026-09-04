@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.network;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
@@ -72,6 +73,38 @@ public final class ModNetwork {
                 ValidateStartBookPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
         );
+        CHANNEL.registerMessage(
+                6,
+                OpenSelectFormPacket.class,
+                OpenSelectFormPacket::encode,
+                OpenSelectFormPacket::decode,
+                OpenSelectFormPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
+        CHANNEL.registerMessage(
+                7,
+                SetFormPacket.class,
+                SetFormPacket::encode,
+                SetFormPacket::decode,
+                SetFormPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
+        );
+        CHANNEL.registerMessage(
+                8,
+                ModifyFcdPacket.class,
+                ModifyFcdPacket::encode,
+                ModifyFcdPacket::decode,
+                ModifyFcdPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
+        CHANNEL.registerMessage(
+                9,
+                OpenColorMenuPacket.class,
+                OpenColorMenuPacket::encode,
+                OpenColorMenuPacket::decode,
+                OpenColorMenuPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -113,6 +146,12 @@ public final class ModNetwork {
                 PacketDistributor.PLAYER.with(() -> receiver),
                 SyncSkinPacket.forPlayer(target, data)
         ));
+    }
+
+    /** Opens the form select menu for {@code player}, acting on {@code target}. */
+    public static void sendOpenSelectForm(ServerPlayer player, Player target) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new OpenSelectFormPacket(target.getGameProfile().getName(), target.getUUID()));
     }
 
     private static SyncFormPacket packetFor(ServerPlayer player,

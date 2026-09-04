@@ -19,6 +19,29 @@ public final class FormSyncClientHandler {
     private FormSyncClientHandler() {
     }
 
+    /** Applies a per-form default color on form change, mirroring onClientFormChange. */
+    private static void applyDefaultFormColor(ResourceLocation form) {
+        net.onixary.shapeShifterCurseForge.client.color.FormColorData data =
+                net.onixary.shapeShifterCurseForge.client.color.FormColorData.client();
+        if (!data.enableDefaultFormColor
+                || !net.onixary.shapeShifterCurseForge.config.SscClientConfig
+                        .CUSTOM_ENABLE_FORM_DEFAULT_COLOR_SYSTEM.get()) {
+            return;
+        }
+        net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils.ColorSetting def =
+                data.formDefaultSetting.get(form);
+        if (def == null) {
+            return;
+        }
+        net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils.ColorSetting abgr =
+                net.onixary.shapeShifterCurseForge.client.color.FormColorData.argb2Abgr(def);
+        net.onixary.shapeShifterCurseForge.network.ModNetwork.CHANNEL.sendToServer(
+                new net.onixary.shapeShifterCurseForge.network.UpdateSkinPacket(false, false, false,
+                        abgr.primaryColor(), abgr.accentColor1(), abgr.accentColor2(),
+                        abgr.eyeColorA(), abgr.eyeColorB(), abgr.primaryGreyReverse(),
+                        abgr.accent1GreyReverse(), abgr.accent2GreyReverse()));
+    }
+
     public static void apply(SyncFormPacket packet) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || minecraft.player == null) {
@@ -38,6 +61,7 @@ public final class FormSyncClientHandler {
             ResourceLocation syncedForm = ResourceLocation.tryParse(packet.formId());
             if (syncedForm != null) {
                 net.onixary.shapeShifterCurseForge.client.color.FormColorData.client().unlockForm(syncedForm);
+                applyDefaultFormColor(syncedForm);
             }
             // Login, respawn and tracking packets initialise the snapshot. Only a server
             // confirmed form change is allowed to start TransformingController's clip.

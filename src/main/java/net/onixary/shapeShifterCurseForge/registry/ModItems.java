@@ -8,6 +8,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.items.BookOfShapeShifterItem;
+import net.onixary.shapeShifterCurseForge.items.SelectFormItem;
 import net.onixary.shapeShifterCurseForge.items.TooltipItem;
 import net.onixary.shapeShifterCurseForge.items.FormGrowthItem;
 import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
@@ -21,6 +22,11 @@ public final class ModItems {
     public static final RegistryObject<Item> BOOK_OF_SHAPE_SHIFTER = ITEMS.register(
             "book_of_shape_shifter",
             () -> new BookOfShapeShifterItem(new Item.Properties())
+    );
+
+    public static final RegistryObject<Item> SELECT_FORM_ITEM = ITEMS.register(
+            "select_form_item",
+            () -> new SelectFormItem(new Item.Properties())
     );
 
     public static final RegistryObject<Item> UNTREATED_MOONDUST = ITEMS.register(

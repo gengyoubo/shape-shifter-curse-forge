@@ -20,6 +20,7 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
@@ -693,6 +694,16 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
                 this.onData1Changed();
             }
         } else {
+            primaryColor = SscClientConfig.CUSTOM_PRIMARY_COLOR.get();
+            accentColor1Color = SscClientConfig.CUSTOM_ACCENT_COLOR_1.get();
+            accentColor2Color = SscClientConfig.CUSTOM_ACCENT_COLOR_2.get();
+            eyeColorA = SscClientConfig.CUSTOM_EYE_COLOR_A.get();
+            eyeColorB = SscClientConfig.CUSTOM_EYE_COLOR_B.get();
+            primaryGreyReverse = SscClientConfig.CUSTOM_PRIMARY_GREY_REVERSE.get();
+            accent1GreyReverse = SscClientConfig.CUSTOM_ACCENT_1_GREY_REVERSE.get();
+            accent2GreyReverse = SscClientConfig.CUSTOM_ACCENT_2_GREY_REVERSE.get();
+            this.keepCustomSkin = SscClientConfig.CUSTOM_KEEP_ORIGINAL_SKIN.get();
+            this.enableFormColorSystem = SscClientConfig.CUSTOM_ENABLE_FORM_COLOR.get();
             this.onData1Changed();
         }
         isColorSettingDirty = true;
@@ -1021,6 +1032,24 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
+    public void saveDataToClient(boolean saveColorData, boolean saveExtraData) {
+        if (saveColorData) {
+            SscClientConfig.CUSTOM_PRIMARY_COLOR.set(primaryColor);
+            SscClientConfig.CUSTOM_ACCENT_COLOR_1.set(accentColor1Color);
+            SscClientConfig.CUSTOM_ACCENT_COLOR_2.set(accentColor2Color);
+            SscClientConfig.CUSTOM_EYE_COLOR_A.set(eyeColorA);
+            SscClientConfig.CUSTOM_EYE_COLOR_B.set(eyeColorB);
+            SscClientConfig.CUSTOM_PRIMARY_GREY_REVERSE.set(primaryGreyReverse);
+            SscClientConfig.CUSTOM_ACCENT_1_GREY_REVERSE.set(accent1GreyReverse);
+            SscClientConfig.CUSTOM_ACCENT_2_GREY_REVERSE.set(accent2GreyReverse);
+        }
+        if (saveExtraData) {
+            SscClientConfig.CUSTOM_KEEP_ORIGINAL_SKIN.set(keepCustomSkin);
+            SscClientConfig.CUSTOM_ENABLE_FORM_COLOR.set(enableFormColorSystem);
+        }
+        SscClientConfig.SPEC.save();
+    }
+
     @Override
     public void onClose() {
         this.cleanColorSettingCache();
@@ -1038,6 +1067,7 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
                     setting.primaryGreyReverse(), setting.accent1GreyReverse(), setting.accent2GreyReverse()));
         } catch (Exception ignored) {
         }
+        this.saveDataToClient(true, true);
         FormColorData.client().writeToConfig();
         if (this.parsetScreen != null && this.minecraft != null) {
             this.minecraft.setScreen(this.parsetScreen);

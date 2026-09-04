@@ -18,6 +18,7 @@ public final class ModCreativeModeTabs {
                     .icon(() -> new ItemStack(ModItems.BOOK_OF_SHAPE_SHIFTER.get()))
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.BOOK_OF_SHAPE_SHIFTER.get());
+                        output.accept(ModItems.SELECT_FORM_ITEM.get());
                         output.accept(ModItems.UNTREATED_MOONDUST.get());
                         output.accept(ModItems.MOONDUST_MATRIX.get());
                         output.accept(ModItems.MOONDUST_CRYSTAL_SHARD.get());

@@ -26,6 +26,11 @@ public final class FormManager {
     }
 
     public static boolean setForm(Player player, ResourceLocation targetId) {
+        return setForm(player, targetId, true);
+    }
+
+    /** @param playTransformAnimation whether clients play the transform clip on change. */
+    public static boolean setForm(Player player, ResourceLocation targetId, boolean playTransformAnimation) {
         FormDefinition target = FormRegistry.get(targetId);
         if (target == null) {
             return false;
@@ -45,7 +50,7 @@ public final class FormManager {
         }).orElse(false);
 
         if (player instanceof ServerPlayer serverPlayer) {
-            ModNetwork.sendFormSync(serverPlayer, changed);
+            ModNetwork.sendFormSync(serverPlayer, changed && playTransformAnimation);
             if (changed) {
                 InstinctService.applyImmediatePowers(serverPlayer);
             }

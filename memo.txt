@@ -1,5 +1,4 @@
 迁移内容：
 1. Cursed Moon / 诅咒之月系统
-2. Codex / 变身之书 / 形态资料 UI
 4. Trinkets / 饰品系统（这里直接依赖Curios API）
 5. Form 选择和 Form 自定义
