@@ -9,6 +9,10 @@ public final class ModCapabilities {
             new CapabilityToken<>() {
             }
     );
+    public static final Capability<IPlayerSkinData> PLAYER_SKIN = CapabilityManager.get(
+            new CapabilityToken<>() {
+            }
+    );
 
     private ModCapabilities() {
     }

@@ -21,12 +21,16 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
     private static final ResourceLocation CURSED_MOON_ICON_TEXTURE = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/book_cursed_moon_icon.png");
 
-    public Player currentPlayer;
+    public static final Component OPEN_FCS_MENU_BUTTON_LABEL =
+            Component.translatable("gui.shape_shifter_curse_fabric.book_2_1.open_fcs_menu");
+
+    public final Player currentPlayer;
     public static final int BOOK_SIZE_X = 350;
     public static final int BOOK_SIZE_Y = 220;
 
-    public BookOfShapeShifterScreenV2_P1() {
+    public BookOfShapeShifterScreenV2_P1(Player currentPlayer) {
         super(Component.literal("ShapeShifterCurse_Book_Screen_V2"));
+        this.currentPlayer = currentPlayer;
     }
 
     @Override
@@ -65,7 +69,14 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         statusLabel.setEnableScrollableIconRender(true);
         this.getWidgetList().add(statusLabel);
         this.addRenderableWidget(statusLabel);
-        // TODO: form color menu (FormColorSelectMenuV2) is deferred; no button for now.
+        // Open FCS Menu Button
+        // 21,194,98,11
+        this.addRenderableWidget(Button.builder(OPEN_FCS_MENU_BUTTON_LABEL, button -> {
+            if (FormColorSelectMenuV2.instance == null) {
+                this.minecraft.setScreen(new FormColorSelectMenuV2(
+                        Component.literal("text.shape-shifter-curse.config.form_color_select_menu_v2"), this));
+            }
+        }).pos(bookPosX + 31 * bookScale, bookPosY + 194 * bookScale).size(78 * bookScale, 14 * bookScale).build());
         // Appearance
         // D -> (9, 9), (311, 13)
         // Size -> (176, 184) Pos -> (142, 23)
@@ -101,9 +112,7 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
     }
 
     private void nextPage() {
-        BookOfShapeShifterScreenV2_P2 nextPage = new BookOfShapeShifterScreenV2_P2();
-        nextPage.currentPlayer = this.currentPlayer;
-        Minecraft.getInstance().setScreen(nextPage);
+        Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P2(this.currentPlayer));
     }
 
     private Button buildDetailScreenButton(int inBookPosX, int inBookPosY, int sizeX, int sizeY,
@@ -130,12 +139,8 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         // Size -> (70, 66) Pos -> (35, 15)
         int playerX = bookPosX + 70 * bookScale;
         int playerY = bookPosY + 75 * bookScale;
-        Player previewPlayer = this.currentPlayer != null ? this.currentPlayer
-                : Minecraft.getInstance().player;
-        if (previewPlayer != null) {
-            InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, playerX, playerY, 30 * bookScale,
-                    (float) (playerX - mouseX), (float) (playerY - 37 * bookScale - mouseY), previewPlayer);
-        }
+        InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, playerX, playerY, 30 * bookScale,
+                (float) (playerX - mouseX), (float) (playerY - 37 * bookScale - mouseY), this.currentPlayer);
         // Cursed moon icon, Size -> (8, 8), Pos -> (115, 92).
         boolean isCursedMoon = CursedMoonData.isCursedMoonDay(Minecraft.getInstance().level);
         graphics.blit(CURSED_MOON_ICON_TEXTURE, bookPosX + 115 * bookScale, bookPosY + 92 * bookScale,

@@ -2,6 +2,7 @@ package net.onixary.shapeShifterCurseForge.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
@@ -34,6 +35,10 @@ public final class FormSyncClientHandler {
         Entity entity = minecraft.level.getEntity(packet.entityId());
         if (entity instanceof Player player) {
             FormManager.applySyncedForm(player, packet.formId(), packet.groupId(), packet.tier(), packet.enabled());
+            ResourceLocation syncedForm = ResourceLocation.tryParse(packet.formId());
+            if (syncedForm != null) {
+                net.onixary.shapeShifterCurseForge.client.color.FormColorData.client().unlockForm(syncedForm);
+            }
             // Login, respawn and tracking packets initialise the snapshot. Only a server
             // confirmed form change is allowed to start TransformingController's clip.
             if (packet.playTransformAnimation()) {

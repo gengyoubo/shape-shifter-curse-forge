@@ -40,6 +40,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     private final Map<UUID, BlinkState> blinkStates = new HashMap<>();
     private final Map<UUID, NeckState> neckStates = new HashMap<>();
     private final Map<UUID, NeckState> inventoryNeckStates = new HashMap<>();
+    private final Map<FormTextureUtils.ColorSetting, ResourceLocation> bakedSkins = new HashMap<>();
 
     public FormGeoModel(ResourceLocation model, ResourceLocation texture, ResourceLocation animationConfigResource) {
         this.model = model;
@@ -60,12 +61,41 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
 
     @Override
     public ResourceLocation getTextureResource(FormGeoAnimatable animatable) {
+        Player player = animatable.getPlayer();
+        ModelAnimationConfig config = animationConfig();
+        ResourceLocation mask = config.textureMask();
+        if (player != null && mask != null) {
+            if (FormTextureUtils.useTempFormTexture
+                    && FormTextureUtils.tempFormTextureProcessor != null
+                    && player == Minecraft.getInstance().player) {
+                ResourceLocation temp = FormTextureUtils.tempFormTextureProcessor.getTexture(
+                        model.getPath(), texture, mask, config.useMultiplyMask());
+                if (temp != null) {
+                    return temp;
+                }
+            }
+            FormTextureUtils.ColorSetting setting = FormTextureUtils.getPlayerColorSetting(player);
+            if (setting != null) {
+                ResourceLocation baked = bakedSkins.get(setting);
+                if (baked == null) {
+                    com.mojang.blaze3d.platform.NativeImage image = FormTextureUtils.bakeTextureImage(
+                            texture, mask, setting, config.useMultiplyMask());
+                    if (image != null) {
+                        baked = FormTextureUtils.registerBakedTexture(image, "ssc_skin_");
+                        bakedSkins.put(setting, baked);
+                    }
+                }
+                if (baked != null) {
+                    return baked;
+                }
+            }
+        }
         return texture;
     }
 
     @Override
     public ResourceLocation getTextureResource(FormGeoAnimatable animatable, GeoRenderer<FormGeoAnimatable> renderer) {
-        return texture;
+        return getTextureResource(animatable);
     }
 
     @Override
@@ -713,9 +743,9 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
                                         String eyeBone, float openEyeScale, float closedEyeScale,
                                         Set<String> hiddenParts, List<ExtraBoneMapping> extraBones,
                                         String firstPersonLeftArm, String firstPersonRightArm,
-                                        NeckConfig neck) {
+                                        NeckConfig neck, ResourceLocation textureMask, boolean useMultiplyMask) {
         private static final ModelAnimationConfig EMPTY = new ModelAnimationConfig(List.of(), List.of(), List.of(),
-                List.of(), null, 1.0F, 0.01F, Set.of(), List.of(), null, null, null);
+                List.of(), null, 1.0F, 0.01F, Set.of(), List.of(), null, null, null, null, false);
 
         private static ModelAnimationConfig parse(JsonObject root) {
             Set<String> hidden = new HashSet<>();
@@ -726,9 +756,13 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
                     }
                 }
             }
+            ResourceLocation textureMask = root.has("texture_mask") && root.get("texture_mask").isJsonPrimitive()
+                    ? ResourceLocation.tryParse(root.get("texture_mask").getAsString()) : null;
+            boolean useMultiplyMask = root.has("use_multiply_mask") && root.get("use_multiply_mask").isJsonPrimitive()
+                    && root.get("use_multiply_mask").getAsBoolean();
             if (!root.has("animation_system_config") || !root.get("animation_system_config").isJsonObject()) {
                 return new ModelAnimationConfig(List.of(), List.of(), List.of(), List.of(), null, 1.0F, 0.01F,
-                        Set.copyOf(hidden), List.of(), null, null, null);
+                        Set.copyOf(hidden), List.of(), null, null, null, textureMask, useMultiplyMask);
             }
             JsonObject config = root.getAsJsonObject("animation_system_config");
             JsonObject blink = object(config, "eye_blink");
@@ -764,7 +798,8 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
                     chains(object(config, "wing_l")), chains(object(config, "wing_r")),
                     blink == null || !blink.has("eye") ? null : blink.get("eye").getAsString(),
                     number(blink, "open_scale", 1.0F), number(blink, "close_scale", 0.01F),
-                    Set.copyOf(hidden), List.copyOf(extraBones), firstPersonLeft, firstPersonRight, neck);
+                    Set.copyOf(hidden), List.copyOf(extraBones), firstPersonLeft, firstPersonRight, neck,
+                    textureMask, useMultiplyMask);
         }
 
         private boolean isEmpty() {

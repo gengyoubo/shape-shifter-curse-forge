@@ -16,6 +16,10 @@ public final class PlayerCapabilityEvents {
             ShapeShifterCurseForge.RESOURCE_NAMESPACE,
             "player_form"
     );
+    private static final ResourceLocation PLAYER_SKIN_ID = ResourceLocation.fromNamespaceAndPath(
+            ShapeShifterCurseForge.RESOURCE_NAMESPACE,
+            "player_skin"
+    );
 
     private PlayerCapabilityEvents() {
     }
@@ -23,9 +27,12 @@ public final class PlayerCapabilityEvents {
     @SubscribeEvent
     public static void attachCapabilities(AttachCapabilitiesEvent<Entity> event) {
         if (event.getObject() instanceof Player) {
-            PlayerFormProvider provider = new PlayerFormProvider();
-            event.addCapability(PLAYER_FORM_ID, provider);
-            event.addListener(provider.getCapability(ModCapabilities.PLAYER_FORM, null)::invalidate);
+            PlayerFormProvider formProvider = new PlayerFormProvider();
+            event.addCapability(PLAYER_FORM_ID, formProvider);
+            event.addListener(formProvider.getCapability(ModCapabilities.PLAYER_FORM, null)::invalidate);
+            PlayerSkinProvider skinProvider = new PlayerSkinProvider();
+            event.addCapability(PLAYER_SKIN_ID, skinProvider);
+            event.addListener(skinProvider.getCapability(ModCapabilities.PLAYER_SKIN, null)::invalidate);
         }
     }
 
@@ -37,6 +44,11 @@ public final class PlayerCapabilityEvents {
                         newData.copyFrom(oldData)
                 )
         );
+        event.getOriginal().getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(oldData ->
+                event.getEntity().getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(newData ->
+                        newData.copyFrom(oldData)
+                )
+        );
         event.getOriginal().invalidateCaps();
     }
 
@@ -44,6 +56,7 @@ public final class PlayerCapabilityEvents {
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
+            ModNetwork.sendSkinSync(player);
         }
     }
 
@@ -51,6 +64,7 @@ public final class PlayerCapabilityEvents {
     public static void playerRespawned(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
+            ModNetwork.sendSkinSync(player);
         }
     }
 
@@ -58,6 +72,7 @@ public final class PlayerCapabilityEvents {
     public static void playerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
+            ModNetwork.sendSkinSync(player);
         }
     }
 
@@ -66,6 +81,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer tracker
                 && event.getTarget() instanceof net.minecraft.server.level.ServerPlayer target) {
             ModNetwork.sendFormSyncTo(target, tracker);
+            ModNetwork.sendSkinSyncTo(target, tracker);
         }
     }
 }

@@ -18,12 +18,13 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
     private static final ResourceLocation PAGE_TEXTURE = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/codex_page_2.png");
 
-    public Player currentPlayer;
+    public final Player currentPlayer;
     public static final int BOOK_SIZE_X = 350;
     public static final int BOOK_SIZE_Y = 220;
 
-    public BookOfShapeShifterScreenV2_P2() {
+    public BookOfShapeShifterScreenV2_P2(Player currentPlayer) {
         super(Component.literal("ShapeShifterCurse_Book_Screen_V2"));
+        this.currentPlayer = currentPlayer;
     }
 
     @Override
@@ -107,9 +108,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
     }
 
     private void nextPage() {
-        BookOfShapeShifterScreenV2_P1 nextPage = new BookOfShapeShifterScreenV2_P1();
-        nextPage.currentPlayer = this.currentPlayer;
-        Minecraft.getInstance().setScreen(nextPage);
+        Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P1(this.currentPlayer));
     }
 
     private Button buildDetailScreenButton(int inBookPosX, int inBookPosY, int sizeX, int sizeY,

@@ -48,6 +48,22 @@ public final class ModNetwork {
                 PowerAnimationPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                3,
+                UpdateSkinPacket.class,
+                UpdateSkinPacket::encode,
+                UpdateSkinPacket::decode,
+                UpdateSkinPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
+        );
+        CHANNEL.registerMessage(
+                4,
+                SyncSkinPacket.class,
+                SyncSkinPacket::encode,
+                SyncSkinPacket::decode,
+                SyncSkinPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -75,6 +91,20 @@ public final class ModNetwork {
 
     public static void sendPowerAnimationTo(ServerPlayer target, ServerPlayer receiver, PowerAnimationPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> receiver), packet.forEntity(target.getId()));
+    }
+
+    public static void sendSkinSync(ServerPlayer player) {
+        player.getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(data -> CHANNEL.send(
+                PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
+                SyncSkinPacket.forPlayer(player, data)
+        ));
+    }
+
+    public static void sendSkinSyncTo(ServerPlayer target, ServerPlayer receiver) {
+        target.getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(data -> CHANNEL.send(
+                PacketDistributor.PLAYER.with(() -> receiver),
+                SyncSkinPacket.forPlayer(target, data)
+        ));
     }
 
     private static SyncFormPacket packetFor(ServerPlayer player,

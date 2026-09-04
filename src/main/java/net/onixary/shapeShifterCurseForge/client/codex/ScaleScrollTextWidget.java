@@ -158,8 +158,9 @@ public class ScaleScrollTextWidget extends AbstractWidget implements WidgetEXUti
     }
 
     public void reloadText(Component message) {
+        // setMessage already recalculates once; calling reloadText() again here
+        // would wrap twice and reset the scroll position redundantly.
         this.setMessage(message);
-        this.reloadText();
     }
 
     @Override

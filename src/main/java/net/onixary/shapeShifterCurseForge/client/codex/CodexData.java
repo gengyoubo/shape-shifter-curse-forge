@@ -101,7 +101,11 @@ public final class CodexData {
     }
 
     public static Component getContentText(ContentType type, Player player) {
-        return Component.translatable("codex.form." + FormManager.current(player).id().getNamespace()
-                + "." + FormManager.current(player).id().getPath() + "." + type.toString().toLowerCase());
+        return getContentText(FormManager.current(player).id(), type);
+    }
+
+    public static Component getContentText(net.minecraft.resources.ResourceLocation formId, ContentType type) {
+        return Component.translatable("codex.form." + formId.getNamespace()
+                + "." + formId.getPath() + "." + type.toString().toLowerCase());
     }
 }

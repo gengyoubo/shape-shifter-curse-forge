@@ -50,9 +50,7 @@ public final class BookOfShapeShifterItem extends Item {
 
     @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
     private static void openBookScreen(Player player) {
-        BookOfShapeShifterScreenV2_P1 bookScreen = new BookOfShapeShifterScreenV2_P1();
-        bookScreen.currentPlayer = player;
-        Minecraft.getInstance().setScreen(bookScreen);
+        Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P1(player));
     }
 
     @Override

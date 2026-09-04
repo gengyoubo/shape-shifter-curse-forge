@@ -685,5 +685,7 @@
     "text.autoconfig.shape-shifter-curse-common.option.witchPotionForPreBook": "Witch can throw transformative potion to pre-book player",
     "gamerule.category.ssc_gamerule": "Shape Shifter Curse",
     "gamerule.sscUseInitialForm": "Use SSC custom initial form",
-    "gamerule.sscUseInitialForm.description": "When enabled, players who have not chosen a form will immediately transform into the server-configured initial form on join"
+    "gamerule.sscUseInitialForm.description": "When enabled, players who have not chosen a form will immediately transform into the server-configured initial form on join",
+    "text.cloth-config.boolean.value.true": "True",
+    "text.cloth-config.boolean.value.false": "False"
 }
