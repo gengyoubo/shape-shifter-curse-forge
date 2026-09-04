@@ -16,6 +16,9 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoRenderer;
 import software.bernie.geckolib.core.animation.AnimationState;
 
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
+
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,6 +32,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
+    private static final Logger TAIL_DEBUG_LOGGER = LogUtils.getLogger();
     private static final float DEG_TO_RAD = (float) Math.PI / 180.0F;
     private final ResourceLocation model;
     private final ResourceLocation texture;
@@ -40,6 +44,10 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     private final Map<UUID, BlinkState> blinkStates = new HashMap<>();
     private final Map<UUID, NeckState> neckStates = new HashMap<>();
     private final Map<UUID, NeckState> inventoryNeckStates = new HashMap<>();
+    private static final String[] AXOLOTL_TAIL_BONES = {"tail_0", "tail_1", "tail_2", "tail_3"};
+    private float axolotlTailFlightPitch = 0.0F;
+    private float axolotlTailFlightPitchVelocity = 0.0F;
+    private float axolotlPreviousFlightTrajectory = 0.0F;
     private final Map<FormTextureUtils.ColorSetting, ResourceLocation> bakedSkins = new HashMap<>();
 
     public FormGeoModel(ResourceLocation model, ResourceLocation texture, ResourceLocation animationConfigResource) {
@@ -187,6 +195,39 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
                     FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ANIMATION,
                     FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ID, surfaceSprintTime);
         }
+
+        debugTailPlayerLocal(player, partialTick);
+    }
+
+    // DEBUG ONLY: raw modelPos to test reference frame. See if it already is player-local.
+    private final Map<UUID, Long> tailDebugLastLogTick = new HashMap<>();
+
+    private void debugTailPlayerLocal(Player player, float partialTick) {
+        if (!"axolotl_3".equals(FormManager.current(player).id().getPath())) {
+            return;
+        }
+        long last = tailDebugLastLogTick.getOrDefault(player.getUUID(), -100L);
+        long now = player.tickCount;
+        if (now - last < 10) {
+            return;
+        }
+        tailDebugLastLogTick.put(player.getUUID(), now);
+        float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
+        for (String boneName : AXOLOTL_TAIL_BONES) {
+            getBone(boneName).ifPresent(bone -> {
+                var modelPos = bone.getModelPosition();
+                double mx = modelPos.x;
+                double my = modelPos.y;
+                double mz = modelPos.z;
+                TAIL_DEBUG_LOGGER.info(
+                        "[SSC-TAIL-DEBUG] player={} bone={} yaw={} modelPos=({}, {}, {})",
+                        player.getGameProfile().getName(),
+                        boneName,
+                        bodyYaw,
+                        mx, my, mz
+                );
+            });
+        }
     }
 
     /**
@@ -306,8 +347,23 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         float verticalDrag = tail.currentVertical(partialTick);
         boolean feral = FormManager.current(player).bodyType() == FormBodyType.FERAL;
 
-        for (List<String> chain : config.tailChains) {
-            applyTailChain(chain, feral, age, limbAngle, limbDistance, horizontalDrag, verticalDrag);
+        // Axolotl elytra: flat tail base + trajectory-driven pitch (Forge-side extension).
+        // Uses flight trajectory angle (atan2 vertical/horizontal) rather than raw world Y,
+        // so fast forward vs slow forward with same vy don't look identical, and not just view pitch
+        // (head may look elsewhere while body follows velocity).
+        boolean isAxolotl = "axolotl_3".equals(FormManager.current(player).id().getPath());
+        if (player.isFallFlying() && isAxolotl) {
+            applyAxolotlElytraTail(player, partialTick, inventoryPreview);
+        } else {
+            if (isAxolotl) {
+                // Axolotl has no configured tail chain; ensure elytra offsets don't leak when landing
+                for (String boneName : new String[]{"tail_0", "tail_1", "tail_2", "tail_3"}) {
+                    resetToInitial(boneName);
+                }
+            }
+            for (List<String> chain : config.tailChains) {
+                applyTailChain(chain, feral, age, limbAngle, limbDistance, horizontalDrag, verticalDrag);
+            }
         }
         // Fabric's head-tail controller uses the smoothed neck yaw when a neck exists.
         // Axolotl does not have a long-neck configuration, so the prepared head yaw is its exact input.
@@ -455,8 +511,83 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         }
     }
 
+    private void applyAxolotlElytraTail(Player player, float partialTick, boolean inventoryPreview) {
+        for (String boneName : AXOLOTL_TAIL_BONES) {
+            resetToInitial(boneName);
+        }
+
+        BedrockAnimationPlayer.applyAdditiveGeoRotation(
+                this,
+                FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ANIMATION,
+                FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ID,
+                0.75F
+        );
+
+        // Velocity vector base: tail aligns with flight trajectory, then layered variations
+        var velocity = player.getDeltaMovement();
+        float worldTrajectory = (float) Math.toDegrees(Math.atan2(
+                velocity.y,
+                Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z)
+        ));
+        if (!Float.isFinite(worldTrajectory)) {
+            worldTrajectory = 0.0F;
+        }
+        float trajectory = worldTrajectory;
+
+        if (!Float.isFinite(axolotlTailFlightPitch)
+                || !Float.isFinite(axolotlTailFlightPitchVelocity)
+                || !Float.isFinite(axolotlPreviousFlightTrajectory)) {
+            TAIL_DEBUG_LOGGER.error(
+                    String.format(
+                            java.util.Locale.ROOT,
+                            "[SSC-TAIL-NAN] pitch=%.4f velocity=%.4f trajectory=%.4f previous=%.4f",
+                            axolotlTailFlightPitch,
+                            axolotlTailFlightPitchVelocity,
+                            trajectory,
+                            axolotlPreviousFlightTrajectory
+                    )
+            );
+            axolotlTailFlightPitch = 0.0F;
+            axolotlTailFlightPitchVelocity = 0.0F;
+            axolotlPreviousFlightTrajectory = trajectory;
+        }
+
+        float deltaTrajectory = Mth.wrapDegrees(trajectory - axolotlPreviousFlightTrajectory);
+        axolotlPreviousFlightTrajectory = trajectory;
+
+        TAIL_DEBUG_LOGGER.info(
+                String.format(
+                        java.util.Locale.ROOT,
+                        "[SSC-TAIL-STATE] worldVel=(%.4f, %.4f, %.4f) worldTrajectory=%.2f trajectory=%.2f delta=%.2f pitch=%.2f velocity=%.2f",
+                        velocity.x, velocity.y, velocity.z,
+                        worldTrajectory,
+                        trajectory,
+                        deltaTrajectory,
+                        axolotlTailFlightPitch,
+                        axolotlTailFlightPitchVelocity
+                )
+        );
+
+        axolotlTailFlightPitchVelocity += -deltaTrajectory * 0.18F;
+        axolotlTailFlightPitchVelocity *= 0.82F;
+        axolotlTailFlightPitch += axolotlTailFlightPitchVelocity;
+        axolotlTailFlightPitch *= 0.90F;
+        axolotlTailFlightPitch = Mth.clamp(axolotlTailFlightPitch, -25.0F, 25.0F);
+
+        // Only control tail_0; children follow via parent transform. Prevents cumulative bend.
+        float sway = Mth.cos((player.tickCount + partialTick) * 0.20F) * 1.5F;
+        float segmentPitch = axolotlTailFlightPitch + sway;
+
+        getBone("tail_0").ifPresent(bone -> {
+            bone.setRotX(
+                    bone.getRotX()
+                            + segmentPitch * DEG_TO_RAD
+            );
+        });
+    }
+
     private void applyTailChain(List<String> chain, boolean feral, float age, float limbAngle, float limbDistance,
-                                float horizontalDrag, float verticalDrag) {
+                                 float horizontalDrag, float verticalDrag) {
         if (chain.isEmpty()) {
             return;
         }

@@ -27,8 +27,9 @@ public final class PlayerBoundsDebug {
     private PlayerBoundsDebug() {
     }
 
-    //@SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent event) {
+    //    // DEBUG OFF: tail player-local is the single log source
+    // @SubscribeEvent
+    public static void onClientTick_Disabled(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }

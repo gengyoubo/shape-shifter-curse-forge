@@ -8,7 +8,6 @@
         "PlayerEntityPoseMixin",
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
-        "EntitySlipperinessMixin",
         "CancelEntityStepSoundMixin",
         "PlayerModelAnimMixin",
         "PlayerRendererBodyMixin"

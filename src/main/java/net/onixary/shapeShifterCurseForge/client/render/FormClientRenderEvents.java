@@ -234,11 +234,12 @@ public final class FormClientRenderEvents {
      * line instead of per-frame spam.
      */
     private static void logRenderOutcome(Player player, FormDefinition form, String outcome) {
+        // DEBUG OFF: tail player-local logging is now the single source
         if (outcome.equals(LAST_RENDER_OUTCOME.get(player.getUUID()))) {
             return;
         }
         LAST_RENDER_OUTCOME.put(player.getUUID(), outcome);
-        LOGGER.info("[SSC-RENDER] {} {} {}", player.getGameProfile().getName(), form.id(), outcome);
+        // LOGGER.info("[SSC-RENDER] {} {} {}", player.getGameProfile().getName(), form.id(), outcome);
     }
 
     private static void reportRenderFailure(Player player, FormDefinition form, RuntimeException exception) {
