@@ -1,6 +1,7 @@
 {
     "required": true,
     "package": "net.onixary.shapeShifterCurseForge.mixin",
+    "plugin": "net.onixary.shapeShifterCurseForge.mixin.plugin.CuriosMixinPlugin",
     "compatibilityLevel": "JAVA_17",
     "refmap": "shape_shifter_curse.refmap.json",
     "mixins": [
@@ -10,7 +11,8 @@
         "SweetBerryBushBlockMixin",
         "CancelEntityStepSoundMixin",
         "PlayerModelAnimMixin",
-        "PlayerRendererBodyMixin"
+        "PlayerRendererBodyMixin",
+        "accessory.CurioImpl"
     ],
     "client": [
         "client.InventoryScreenMixin"

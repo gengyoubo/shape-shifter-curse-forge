@@ -11,6 +11,7 @@ import net.onixary.shapeShifterCurseForge.items.BookOfShapeShifterItem;
 import net.onixary.shapeShifterCurseForge.items.SelectFormItem;
 import net.onixary.shapeShifterCurseForge.items.TooltipItem;
 import net.onixary.shapeShifterCurseForge.items.FormGrowthItem;
+import net.onixary.shapeShifterCurseForge.items.trinkets.*;
 import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
 
 public final class ModItems {
@@ -28,6 +29,34 @@ public final class ModItems {
             "select_form_item",
             () -> new SelectFormItem(new Item.Properties())
     );
+
+    // Curios trinkets (accessory slots)
+    public static final RegistryObject<Item> AMULET_BRACELET = ITEMS.register(
+            "amulet_bracelet", () -> new AmuletBraceletTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> ATTACH_HOOK = ITEMS.register(
+            "attach_hook", () -> new AttachHookTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> CHARM_OF_HOLLOW_FANG = ITEMS.register(
+            "charm_of_hollow_fang", () -> new CharmOfHollowFangTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> CHARM_OF_NIGHT_CRYSTAL = ITEMS.register(
+            "charm_of_night_crystal", () -> new CharmOfNightCrystalTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> CHARM_OF_REVERSE_THERMOMETER = ITEMS.register(
+            "charm_of_reverse_thermometer", () -> new CharmOfReverseThermometerTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> COLLAR_OF_TENSION = ITEMS.register(
+            "collar_of_tension", () -> new CollarOfTensionTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> COLLAR_OF_WHISKERS = ITEMS.register(
+            "collar_of_whiskers", () -> new CollarOfWhiskersTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> DIGESTION_FIBER_BALL = ITEMS.register(
+            "digestion_fiber_ball", () -> new DigestionFiberBallTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> FOUNTAIN_BELT = ITEMS.register(
+            "fountain_belt", () -> new FountainBeltTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> FROST_PAWGLOVE = ITEMS.register(
+            "frost_pawglove", () -> new FrostPawgloveTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> RESONANT_CORE = ITEMS.register(
+            "resonant_core", () -> new ResonantCoreTrinket(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> VENOM_SPINDLE = ITEMS.register(
+            "venom_spindle", () -> new VenomSpindle(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> WITHERED_BANDAGE = ITEMS.register(
+            "withered_bandage", () -> new WitheredBandageTrinket(new Item.Properties().stacksTo(1)));
 
     public static final RegistryObject<Item> UNTREATED_MOONDUST = ITEMS.register(
             "untreated_moondust", () -> new TooltipItem(

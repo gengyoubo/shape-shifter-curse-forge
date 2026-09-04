@@ -81,7 +81,8 @@ public final class FormPowerRuntime {
             case "apoli:entity_group" -> matchesEntityGroup(target, stringValue(condition, "group", ""));
             case "apoli:in_block" -> matchesBlockAt(actor, actor.blockPosition(), condition.getAsJsonObject("block_condition"));
             case "apoli:block_collision" -> matchesBlockCollision(actor, condition);
-            case "shape-shifter-curse:check_accessory", "shape-shifter-curse:has_accessory" -> false;
+            case "shape-shifter-curse:check_accessory" -> checkAccessory(actor, condition);
+            case "shape-shifter-curse:has_accessory" -> hasAccessory(actor, condition);
             case "shape-shifter-curse:has_mana" -> FormActivePowerService.hasMana(actor,
                     floatValue(condition, "mana", 0.0F));
             case "shape-shifter-curse:has_mana_percent" -> compare(FormActivePowerService.manaPercent(actor), condition);
@@ -93,6 +94,64 @@ public final class FormPowerRuntime {
             default -> true;
         };
         return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
+    }
+
+    private static boolean checkAccessory(Player actor, JsonObject condition) {
+        if (condition == null) return false;
+        String slot = stringValue(condition, "slot", "");
+        int slotIndex = condition.has("slot_index") ? condition.get("slot_index").getAsInt() : 0;
+        JsonObject ingredientCond = condition.has("condition") ? condition.getAsJsonObject("condition") : null;
+        // Try Curios slot lookup
+        try {
+            var curiosOpt = top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(actor).resolve();
+            if (curiosOpt.isPresent()) {
+                var handler = curiosOpt.get();
+                // Try exact slot (e.g., "extra_hand", "belt" etc.)
+                var stacksOpt = handler.getStacksHandler(slot);
+                if (stacksOpt.isPresent()) {
+                    var stacks = stacksOpt.get().getStacks();
+                    if (slotIndex >= 0 && slotIndex < stacksOpt.get().getSlots()) {
+                        net.minecraft.world.item.ItemStack stack = stacks.getStackInSlot(slotIndex);
+                        if (!stack.isEmpty() && ingredientCond != null) {
+                            return matchesItem(stack, ingredientCond);
+                        } else if (!stack.isEmpty() && ingredientCond == null) {
+                            return true;
+                        }
+                    }
+                }
+                // Fallback: scan all curios slots for matching ingredient
+                if (ingredientCond != null) {
+                    for (var entry : handler.getCurios().entrySet()) {
+                        var h = entry.getValue();
+                        for (int i = 0; i < h.getSlots(); i++) {
+                            var s = h.getStacks().getStackInSlot(i);
+                            if (!s.isEmpty() && matchesItem(s, ingredientCond)) return true;
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private static boolean hasAccessory(Player actor, JsonObject condition) {
+        // has_accessory without slot filter: true if any accessory equipped matching ingredient
+        if (condition == null) return false;
+        JsonObject ingredientCond = condition.has("condition") ? condition.getAsJsonObject("condition") : condition;
+        try {
+            var curiosOpt = top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(actor).resolve();
+            if (curiosOpt.isPresent()) {
+                var handler = curiosOpt.get();
+                for (var entry : handler.getCurios().entrySet()) {
+                    var h = entry.getValue();
+                    for (int i = 0; i < h.getSlots(); i++) {
+                        var s = h.getStacks().getStackInSlot(i);
+                        if (!s.isEmpty() && matchesItem(s, ingredientCond)) return true;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 
     /**

@@ -19,6 +19,19 @@ public final class ModCreativeModeTabs {
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.BOOK_OF_SHAPE_SHIFTER.get());
                         output.accept(ModItems.SELECT_FORM_ITEM.get());
+                        output.accept(ModItems.AMULET_BRACELET.get());
+                        output.accept(ModItems.ATTACH_HOOK.get());
+                        output.accept(ModItems.CHARM_OF_HOLLOW_FANG.get());
+                        output.accept(ModItems.CHARM_OF_NIGHT_CRYSTAL.get());
+                        output.accept(ModItems.CHARM_OF_REVERSE_THERMOMETER.get());
+                        output.accept(ModItems.COLLAR_OF_TENSION.get());
+                        output.accept(ModItems.COLLAR_OF_WHISKERS.get());
+                        output.accept(ModItems.DIGESTION_FIBER_BALL.get());
+                        output.accept(ModItems.FOUNTAIN_BELT.get());
+                        output.accept(ModItems.FROST_PAWGLOVE.get());
+                        output.accept(ModItems.RESONANT_CORE.get());
+                        output.accept(ModItems.VENOM_SPINDLE.get());
+                        output.accept(ModItems.WITHERED_BANDAGE.get());
                         output.accept(ModItems.UNTREATED_MOONDUST.get());
                         output.accept(ModItems.MOONDUST_MATRIX.get());
                         output.accept(ModItems.MOONDUST_CRYSTAL_SHARD.get());
