@@ -314,13 +314,15 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 : null;
 
         boolean crawling =
-                "axolotl_3_crawling_idle".equals(animationId)
-                || "axolotl_3_crawling".equals(animationId);
+                ("axolotl_3_crawling_idle".equals(animationId)
+                || "axolotl_3_crawling".equals(animationId))
+                && !player.isFallFlying();
 
         boolean surfaceSprinting =
                 "axolotl_3".equals(FormManager.current(player).id().getPath())
                 && player.isSprinting()
-                && player.isInWater();
+                && player.isInWater()
+                && !player.isFallFlying();
 
         boolean active = crawling || surfaceSprinting;
 

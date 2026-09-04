@@ -352,8 +352,19 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         // so fast forward vs slow forward with same vy don't look identical, and not just view pitch
         // (head may look elsewhere while body follows velocity).
         boolean isAxolotl = "axolotl_3".equals(FormManager.current(player).id().getPath());
-        if (player.isFallFlying() && isAxolotl) {
+        boolean isWaterFallFlying = player.isFallFlying() && player.isInWater();
+        if (isAxolotl && player.isFallFlying()) {
+            // Water-fall-flying is a feature: elytra is main, swim tail is suppressed
+            // to avoid two full animations fighting (elytra base + swim procedural)
             applyAxolotlElytraTail(player, partialTick, inventoryPreview);
+            if (isWaterFallFlying) {
+                // Keep elytra as main; optionally add small water sway overlay here
+                // applySmallWaterTailOverlay(...); // reserved for future
+            }
+        } else if (isWaterFallFlying) {
+            // Generic forms: also suppress normal swim tail when elytra in water
+            // to prevent乱跳/翻转, keep flat base
+            // No tailChains applied, leave at initial (flat) pose
         } else {
             if (isAxolotl) {
                 // Axolotl has no configured tail chain; ensure elytra offsets don't leak when landing

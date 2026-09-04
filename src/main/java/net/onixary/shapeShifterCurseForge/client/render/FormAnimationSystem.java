@@ -184,11 +184,11 @@ public final class FormAnimationSystem {
         if (player.isSleeping()) return State.SLEEP;
         if (player.isPassenger()) return State.RIDE;
         if (isClimbingForAnimation(player, onGround)) return State.CLIMB;
-        // Fabric's v3 FSM treats any water contact as the universal swim state.  The
-        // separate isSwimmingAnimation check below then chooses swim versus float.
+        // Fabric's v3 FSM treats any water contact as the universal swim state, but
+        // elytra flight must keep its own animation even when clipping water surface.
         // Uses the graced contact from motionOf so surface bobbing cannot flip SWIM
         // against ground states frame to frame.
-        if (motion.touchingWater) return State.SWIM;
+        if (motion.touchingWater && !player.isFallFlying()) return State.SWIM;
         if (!onGround) {
             if (player.getAbilities().flying) return State.FLYING;
             if (player.isFallFlying()) return State.FALL_FLYING;
@@ -266,7 +266,7 @@ public final class FormAnimationSystem {
                 // attack/mining animation for Axolotl 3.
                 case ATTACK -> add(result, sneak ? "axolotl_2_crawling_attack_once" : null);
                 case MINING -> add(result, sneak ? "axolotl_2_crawling_tool_swing" : null);
-                case FLYING -> add(result, "axolotl_3_creative_flight");
+                case FLYING, FALL_FLYING -> add(result, "axolotl_3_creative_flight");
                 case SLEEP -> add(result, "axolotl_3_sleep");
                 case CRAWL -> add(result, "axolotl_3_idle");
                 default -> { }
