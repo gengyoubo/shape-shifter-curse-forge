@@ -8,6 +8,9 @@
         "PlayerModelAnimMixin",
         "PlayerRendererBodyMixin"
     ],
+    "client": [
+        "client.InventoryScreenMixin"
+    ],
     "injectors": {
         "defaultRequire": 1
     }
