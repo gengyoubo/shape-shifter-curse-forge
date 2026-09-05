@@ -7,6 +7,8 @@ import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.raid.Raider;
 import net.minecraft.world.entity.monster.Witch;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.Skeleton;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -29,6 +31,12 @@ public final class MobRelationEvents {
                     || ("shape-shifter-curse:pillager_friendly".equals(type) && mob instanceof Raider)
                     || ("shape-shifter-curse:fox_friendly".equals(type) && mob instanceof net.minecraft.world.entity.animal.Fox)
                     || ("shape-shifter-curse:t_wolf_friendly".equals(type) && mob instanceof Wolf);
+            if ("apoli:simple".equals(type)) {
+                applies = ("scare_creepers".equals(id.getPath()) && mob instanceof Creeper)
+                        || ("scare_skeleton".equals(id.getPath()) && mob instanceof Skeleton)
+                        || ("cat_friendly".equals(id.getPath()) && mob instanceof net.minecraft.world.entity.animal.Cat)
+                        || ("spider_friendly".equals(id.getPath()) && mob instanceof net.minecraft.world.entity.monster.Spider);
+            }
             if (applies && FormPowerRuntime.test(player, mob, power.getAsJsonObject("condition"))) friendly[0] = true;
         });
         if (friendly[0]) event.setCanceled(true);

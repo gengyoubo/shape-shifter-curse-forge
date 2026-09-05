@@ -13,6 +13,7 @@ import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -104,7 +105,9 @@ public final class FormAnimationSystem {
         State state = stateOf(player);
         // Yarn PlayerEntity#isSneaking is Mojmap Player#isShiftKeyDown. isCrouching
         // is the pose flag instead and becomes false/late during several crawl states.
-        boolean sneak = player.isShiftKeyDown();
+        // Automatic one-block crawling follows the same animation branch as
+        // holding Shift; actual water contact is resolved as SWIM separately.
+        boolean sneak = player.isShiftKeyDown() || CrawlingScaleService.isForcedCrawling(player);
         List<String> offered = candidates(path, state, sneak, player);
         for (String candidate : offered) {
             Selection selection = selectionFor(path, state, candidate);

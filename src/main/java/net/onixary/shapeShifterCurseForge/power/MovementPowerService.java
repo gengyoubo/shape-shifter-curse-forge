@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -30,7 +31,7 @@ public final class MovementPowerService {
                 case "shape-shifter-curse:slowdown_percent" -> resistWebSlowdown(player, power);
                 case "shape-shifter-curse:soul_speed" -> applySoulSpeed(player, power);
                 case "shape-shifter-curse:attract_by_entity" -> attractEntity(player, power);
-                case "shape-shifter-curse:always_sprint_swimming" -> forceSprintSwimming(player, power);
+                case "shape-shifter-curse:always_sprint_swimming" -> forceSprintSwimming(player);
                 case "apoli:modify_falling" -> modifyFalling(player, power);
                 default -> { }
             }
@@ -94,12 +95,26 @@ public final class MovementPowerService {
         }
     }
 
-    private static void forceSprintSwimming(Player player, JsonObject power) {
-        if (player.isInWater()
-                && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+    /** Whether an active power requires the player to swim in deep water. */
+    public static boolean shouldForceSwimming(Player player) {
+        if (!player.isEyeInFluid(FluidTags.WATER) || player.isPassenger()) {
+            return false;
+        }
+
+        final boolean[] force = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!force[0] && "shape-shifter-curse:always_sprint_swimming".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                force[0] = true;
+            }
+        });
+        return force[0];
+    }
+
+    /** Applies the power before travel, so the swim-speed attribute is used immediately. */
+    public static void forceSprintSwimming(Player player) {
+        if (shouldForceSwimming(player)) {
             player.setSprinting(true);
-            // Fabric applies this before the player's travel logic.  Updating both
-            // flags here keeps the pose and movement state in sync during this tick.
             player.setSwimming(true);
         }
     }

@@ -69,6 +69,7 @@ public final class FormPowerRuntime {
             case "apoli:empty" -> true;
             case "apoli:fall_distance" -> compare(actor.fallDistance, condition);
             case "apoli:fall_flying" -> actor.isFallFlying();
+            case "apoli:creative_flying" -> actor.getAbilities().flying;
             case "apoli:swimming" -> actor.isSwimming();
             case "apoli:riding" -> actor.isPassenger();
             case "apoli:climbing" -> actor.onClimbable();
@@ -81,6 +82,7 @@ public final class FormPowerRuntime {
             case "apoli:entity_group" -> matchesEntityGroup(target, stringValue(condition, "group", ""));
             case "apoli:in_block" -> matchesBlockAt(actor, actor.blockPosition(), condition.getAsJsonObject("block_condition"));
             case "apoli:block_collision" -> matchesBlockCollision(actor, condition);
+            case "shape-shifter-curse:must_crawling" -> mustCrawl(actor, condition);
             case "shape-shifter-curse:check_accessory" -> checkAccessory(actor, condition);
             case "shape-shifter-curse:has_accessory" -> hasAccessory(actor, condition);
             case "shape-shifter-curse:has_mana" -> FormActivePowerService.hasMana(actor,
@@ -201,6 +203,7 @@ public final class FormPowerRuntime {
             case "apoli:gain_air" -> actor.setAirSupply(actor.getAirSupply() + intValue(action, "value", 0));
             case "apoli:exhaust" -> actor.causeFoodExhaustion(floatValue(action, "amount", 0.0F));
             case "apoli:consume" -> consumeHeldItem(actor, intValue(action, "amount", 1));
+            case "apoli:drop_inventory" -> dropInventory(actor, action);
             case "apoli:target_action" -> execute(actor, target, action.getAsJsonObject("action"));
             case "apoli:actor_action" -> execute(actor, actor, action.getAsJsonObject("action"));
             case "apoli:trigger_cooldown" -> triggerCooldown(actor, action);
@@ -401,7 +404,10 @@ public final class FormPowerRuntime {
 
     private static boolean hasPower(Player actor, JsonObject condition) {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "power", ""));
-        return id != null && FormPowerRegistry.has(actor, id);
+        if (id == null || !FormPowerRegistry.has(actor, id)) return false;
+        FormPowerDefinition definition = FormPowerRegistry.all().get(id);
+        return definition == null || !"origins:toggle".equals(FormPowerRegistry.typeOf(definition.data()))
+                || FormActivePowerService.isToggleActive(actor, id);
     }
 
     private static boolean matchesResource(Player actor, JsonObject condition) {
@@ -443,6 +449,10 @@ public final class FormPowerRuntime {
                 yield matches;
             }
             case "shape-shifter-curse:is_weapon" -> stack.getItem() instanceof SwordItem || stack.getItem() instanceof AxeItem;
+            case "shape-shifter-curse:is_morph_scale_item", "shape-shifter-curse:is_morph_scale_food"
+                    -> isMorphScaleItem(stack);
+            case "apoli:armor_value" -> stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor
+                    && compare(armor.getDefense(), condition);
             case "apoli:empty" -> stack.isEmpty();
             case "apoli:food" -> stack.isEdible();
             default -> true;
@@ -458,6 +468,13 @@ public final class FormPowerRuntime {
             if (all != matches) return !all;
         }
         return all;
+    }
+
+    private static boolean isMorphScaleItem(ItemStack stack) {
+        if (!stack.hasTag()) return false;
+        var tag = stack.getTag();
+        return tag.getBoolean("MorphScale") || tag.getBoolean("morphscale")
+                || tag.getBoolean("shape_shifter_curse_morphscale");
     }
 
     private static boolean inverted(JsonObject condition, boolean value) {
@@ -483,6 +500,33 @@ public final class FormPowerRuntime {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "block", ""));
         Block block = id == null ? null : BuiltInRegistries.BLOCK.get(id);
         return block != null && actor.level().getBlockState(pos).is(block);
+    }
+
+    public static boolean matchesBlockState(net.minecraft.world.level.Level level, BlockPos pos, JsonObject condition) {
+        if (condition == null) return true;
+        String type = FormPowerRegistry.typeOf(condition);
+        boolean result;
+        if ("apoli:and".equals(type)) {
+            result = true;
+            for (JsonElement child : condition.getAsJsonArray("conditions")) {
+                if (child.isJsonObject() && !matchesBlockState(level, pos, child.getAsJsonObject())) result = false;
+            }
+        } else if ("apoli:or".equals(type)) {
+            result = false;
+            for (JsonElement child : condition.getAsJsonArray("conditions")) {
+                if (child.isJsonObject() && matchesBlockState(level, pos, child.getAsJsonObject())) result = true;
+            }
+        } else if ("apoli:in_tag".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
+            result = id != null && level.getBlockState(pos).is(TagKey.create(Registries.BLOCK, id));
+        } else if ("apoli:block".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "block", ""));
+            Block block = id == null ? null : BuiltInRegistries.BLOCK.get(id);
+            result = block != null && level.getBlockState(pos).is(block);
+        } else {
+            result = true;
+        }
+        return inverted(condition, result);
     }
 
     private static boolean matchesBlockAnywhere(Player actor, JsonObject condition) {
@@ -513,6 +557,29 @@ public final class FormPowerRuntime {
         BlockPos pos = BlockPos.containing(actor.getX() + direction.x * 0.45D + doubleValue(condition, "offset_x", 0.0D),
                 actor.getY() + 0.2D, actor.getZ() + direction.z * 0.45D + doubleValue(condition, "offset_z", 0.0D));
         return matchesBlockAt(actor, pos, condition.getAsJsonObject("block_condition"));
+    }
+
+    /**
+     * Returns true when the player's current position cannot fit in the
+     * dimensions used by the crawling pose.  This is the Forge equivalent of
+     * the Fabric must_crawling condition used by the axolotl forms.
+     */
+    private static boolean mustCrawl(Player actor, JsonObject condition) {
+        if (actor.noPhysics || actor.isSpectator() || actor.isPassenger()) {
+            return false;
+        }
+
+        double width = Math.max(0.0D, doubleValue(condition, "width", 0.6D));
+        double height = Math.max(0.0D, doubleValue(condition, "height", 1.5D));
+        double halfWidth = width * 0.5D;
+        var box = new net.minecraft.world.phys.AABB(
+                actor.getX() - halfWidth,
+                actor.getY(),
+                actor.getZ() - halfWidth,
+                actor.getX() + halfWidth,
+                actor.getY() + height,
+                actor.getZ() + halfWidth).deflate(1.0E-7D);
+        return !actor.level().noCollision(actor, box);
     }
 
     private static void applyEffect(LivingEntity recipient, JsonObject effectData) {
@@ -564,6 +631,21 @@ public final class FormPowerRuntime {
     /** Item actions in the source data always target the used main-hand stack. */
     public static void consumeHeldItem(Player actor, int amount) {
         if (!actor.getAbilities().instabuild) actor.getMainHandItem().shrink(Math.max(0, amount));
+    }
+
+    private static void dropInventory(Player actor, JsonObject action) {
+        if (action == null || !action.has("slots") || !action.get("slots").isJsonArray()) return;
+        for (JsonElement slot : action.getAsJsonArray("slots")) {
+            if (!slot.isJsonPrimitive()) continue;
+            ItemStack stack = "weapon.offhand".equals(slot.getAsString())
+                    ? actor.getOffhandItem() : actor.getMainHandItem();
+            if (stack.isEmpty() || !matchesItem(stack, action.getAsJsonObject("item_condition"))) continue;
+            ItemStack dropped = stack.copy();
+            if ("weapon.offhand".equals(slot.getAsString())) actor.setItemInHand(
+                    net.minecraft.world.InteractionHand.OFF_HAND, ItemStack.EMPTY);
+            else actor.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            actor.drop(dropped, false);
+        }
     }
 
     public static boolean matchesHeldItem(Player actor, JsonObject condition) {
@@ -747,6 +829,10 @@ public final class FormPowerRuntime {
 
     public static int intValue(JsonObject json, String key, int fallback) {
         return json != null && json.has(key) ? json.get(key).getAsInt() : fallback;
+    }
+
+    public static boolean booleanValue(JsonObject json, String key, boolean fallback) {
+        return json != null && json.has(key) ? json.get(key).getAsBoolean() : fallback;
     }
 
     public static float floatValue(JsonObject json, String key, float fallback) {

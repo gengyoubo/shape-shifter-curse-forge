@@ -10,6 +10,7 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.client.PowerAnimationClientHandler;
+import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animatable.instance.SingletonAnimatableInstanceCache;
@@ -308,14 +309,13 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 ignored -> new OverlayTimeline()
         );
 
-        AnimationTimeline baseTimeline = timelines.get(player.getUUID());
-        String animationId = baseTimeline != null && baseTimeline.animation != null
-                ? baseTimeline.animation.animationId()
-                : null;
-
+        // The crawl jump uses the axolotl_2_crawling_jump base clip, so checking
+        // the selected base animation would incorrectly reset this overlay during
+        // the jump. Keep the overlay alive from the logical crawl state instead.
         boolean crawling =
-                ("axolotl_3_crawling_idle".equals(animationId)
-                || "axolotl_3_crawling".equals(animationId))
+                "axolotl_3".equals(FormManager.current(player).id().getPath())
+                && (player.isShiftKeyDown() || CrawlingScaleService.isForcedCrawling(player))
+                && !player.isInWater()
                 && !player.isFallFlying();
 
         boolean surfaceSprinting =

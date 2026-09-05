@@ -32,8 +32,9 @@ public final class CrawlingScaleService {
 
     /** Drift enforcer: refresh dimensions whenever live bounds leave form default. */
     public static void tick(Player player) {
-        JsonObject power = crawlingPower(player);
-        if (power == null) {
+        JsonObject crawling = crawlingPower(player);
+        JsonObject conditional = conditionScalePower(player);
+        if (crawling == null && conditional == null) {
             return;
         }
         Pose pose = player.getPose();
@@ -54,9 +55,10 @@ public final class CrawlingScaleService {
     public static EntityDimensions expectedDimensions(Player player, Pose pose) {
         EntityDimensions base = vanillaPlayerDimensions(pose);
         FormDefinition form = FormManager.current(player);
+        float formScale = conditionalScale(player, form.widthScale());
         return EntityDimensions.scalable(
-                base.width * form.widthScale(),
-                base.height * form.heightScale() * heightScale(player));
+                base.width * formScale,
+                base.height * conditionalScale(player, form.heightScale()) * heightScale(player));
     }
 
     private static EntityDimensions vanillaPlayerDimensions(Pose pose) {
@@ -93,7 +95,22 @@ public final class CrawlingScaleService {
     /** Authoritative eye height: pristine vanilla eye × form eye × crawling eye. */
     public static float expectedEyeHeight(Player player, Pose pose) {
         FormDefinition form = FormManager.current(player);
-        return vanillaPlayerEyeHeight(pose) * form.eyeScale() * eyeScale(player);
+        return vanillaPlayerEyeHeight(pose) * conditionalEyeScale(player, form.eyeScale())
+                * eyeScale(player);
+    }
+
+    private static float conditionalScale(Player player, float fallback) {
+        JsonObject power = conditionScalePower(player);
+        if (power == null) return fallback;
+        boolean active = isActive(power, player);
+        return FormPowerRuntime.floatValue(power, active ? "scale" : "original_scale", fallback);
+    }
+
+    private static float conditionalEyeScale(Player player, float fallback) {
+        JsonObject power = conditionScalePower(player);
+        if (power == null) return fallback;
+        boolean active = isActive(power, player);
+        return FormPowerRuntime.floatValue(power, active ? "eye_scale" : "original_eye_scale", fallback);
     }
 
     /** Height multiplier from the crawling power (active ? active_scale : scale). */
@@ -119,8 +136,40 @@ public final class CrawlingScaleService {
     }
 
     private static boolean isActive(JsonObject power, Player player) {
-        return !power.has("condition")
-                || FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
+        if (!power.has("condition")
+                || FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+            return true;
+        }
+        // The automatic one-block crawl is represented by keep_sneaking.  Its
+        // purpose is to force the crawl state even though the player is not
+        // physically holding sneak, so the crawling power's active scale must
+        // follow that state as well.
+        return "shape-shifter-curse:crawling".equals(FormPowerRegistry.typeOf(power))
+                && isForcedCrawling(player);
+    }
+
+    public static boolean isForcedCrawling(Player player) {
+        if (player.isInWater() || player.isPassenger() || player.isSpectator()) {
+            return false;
+        }
+        final boolean[] forced = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!forced[0] && "shape-shifter-curse:keep_sneaking".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                forced[0] = true;
+            }
+        });
+        return forced[0];
+    }
+
+    private static JsonObject conditionScalePower(Player player) {
+        final JsonObject[] found = {null};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (found[0] == null && "shape-shifter-curse:condition_scale".equals(FormPowerRegistry.typeOf(power))) {
+                found[0] = power;
+            }
+        });
+        return found[0];
     }
 
     private static JsonObject crawlingPower(Player player) {

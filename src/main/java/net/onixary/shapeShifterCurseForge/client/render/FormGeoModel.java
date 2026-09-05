@@ -149,7 +149,8 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         float age = player.tickCount + partialTick;
         float movement = inventoryPreview ? 0.0F : (float) Math.min(1.0D,
                 Math.sqrt(player.getDeltaMovement().horizontalDistanceSqr()) * 8.0D);
-        if (!player.onGround() || player.isFallFlying() || player.isSwimming()) {
+        if (!player.onGround() || player.isFallFlying() || player.isSwimming()
+                || player.isVisuallyCrawling()) {
             movement = 0.0F;
         }
 

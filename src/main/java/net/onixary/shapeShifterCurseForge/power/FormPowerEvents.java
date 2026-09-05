@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.AbstractArrow;
@@ -832,6 +833,9 @@ public final class FormPowerEvents {
     }
 
     private static boolean attributeConditionMet(Player player, JsonObject power, String type, UUID modifierId) {
+        if (isLegacyWaterSpeed(power, type) && !player.isEyeInFluid(FluidTags.WATER)) {
+            return false;
+        }
         if ("apoli:attribute".equals(type)) {
             return true;
         }
@@ -871,6 +875,17 @@ public final class FormPowerEvents {
             state.transitionTicks++;
         }
         return state.applied;
+    }
+
+    private static boolean isLegacyWaterSpeed(JsonObject power, String type) {
+        if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)
+                && !"shape-shifter-curse:delay_attribute".equals(type)) {
+            return false;
+        }
+        JsonObject modifier = power.getAsJsonObject("modifier");
+        ResourceLocation attributeId = ResourceLocation.tryParse(
+                FormPowerRuntime.stringValue(modifier, "attribute", ""));
+        return LEGACY_WATER_SPEED.equals(attributeId);
     }
 
     /** Server-side probe used by /ssc power status to verify the complete swim-speed chain. */

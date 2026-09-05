@@ -6,12 +6,14 @@
     "refmap": "shape_shifter_curse.refmap.json",
     "mixins": [
         "LivingEntityMixin",
+        "EntityRotationMixin",
         "PlayerEntityPoseMixin",
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
         "CancelEntityStepSoundMixin",
         "PlayerModelAnimMixin",
         "PlayerRendererBodyMixin",
+        "HideThirdPersonItemMixin",
         "accessory.CurioImpl"
     ],
     "client": [

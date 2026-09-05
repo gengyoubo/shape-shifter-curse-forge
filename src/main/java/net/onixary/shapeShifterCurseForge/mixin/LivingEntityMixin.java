@@ -1,11 +1,13 @@
 package net.onixary.shapeShifterCurseForge.mixin;
 
 import com.google.gson.JsonObject;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
+import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -166,6 +168,54 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         }
 
         cir.setReturnValue(modified[0]);
+    }
+
+    @Inject(method = "getBlockSpeedFactor", at = @At("RETURN"), cancellable = true)
+    private void ssc$modifyGroundSlipperiness(CallbackInfoReturnable<Float> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player)) return;
+        float factor = cir.getReturnValue();
+        final float[] modified = {factor};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            String type = FormPowerRegistry.typeOf(power);
+            if (!("apoli:modify_slipperiness".equals(type)
+                    || "shape-shifter-curse:conditioned_modify_slipperiness".equals(type))) return;
+            if (!FormPowerRuntime.matchesBlockState(player.level(), player.blockPosition().below(),
+                    power.getAsJsonObject("block_condition"))) return;
+            if ("shape-shifter-curse:conditioned_modify_slipperiness".equals(type)
+                    && !FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) return;
+            if ("shape-shifter-curse:conditioned_modify_slipperiness".equals(type)
+                    && power.has("modifier") && power.get("modifier").isJsonPrimitive()) {
+                modified[0] = power.get("modifier").getAsFloat();
+            } else {
+                modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], power.getAsJsonObject("modifier"));
+            }
+        });
+        cir.setReturnValue(modified[0]);
+    }
+
+    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;moveRelative(FLnet/minecraft/world/phys/Vec3;)V"),
+            index = 0)
+    private float ssc$modifyAirSpeed(float speed) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player)) return speed;
+        final float[] modified = {speed};
+        // Automatic one-block crawling has no real sneak input packet, so it
+        // would otherwise move at full walking speed. Apply vanilla's sneak
+        // input factor only when the player is not already holding Shift.
+        if (CrawlingScaleService.isForcedCrawling(player) && !player.isShiftKeyDown()) {
+            modified[0] *= 0.3F;
+        }
+        if (player.onGround() || player.isInWater()) return modified[0];
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("apoli:modify_air_speed".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], power.getAsJsonObject("modifier"));
+            }
+        });
+        return modified[0];
     }
 
     /** Fabric's BreathingUnderWaterPower changes the vanilla water-air drain to a 1% chance. */

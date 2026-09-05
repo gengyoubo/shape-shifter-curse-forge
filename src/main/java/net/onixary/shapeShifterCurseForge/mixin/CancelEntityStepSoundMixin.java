@@ -32,6 +32,11 @@ public abstract class CancelEntityStepSoundMixin {
                 if ("apoli:no_step_sound".equals(FormPowerRegistry.typeOf(power))) {
                     hasPower[0] = true;
                 }
+                if ("apoli:prevent_game_event".equals(FormPowerRegistry.typeOf(power))
+                        && "minecraft:step".equals(FormPowerRuntime.stringValue(power, "event", ""))
+                        && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                    hasPower[0] = true;
+                }
             });
             if (hasPower[0]) {
                 ci.cancel();

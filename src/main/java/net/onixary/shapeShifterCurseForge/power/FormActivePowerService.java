@@ -21,6 +21,7 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<ResourceLocation, Integer>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> CHARGES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Double>> RESOURCES = new HashMap<>();
+    private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
     private static final Map<UUID, Map<String, Float>> MANA = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
     private static final Map<UUID, Boolean> CROUCHING = new HashMap<>();
@@ -51,6 +52,12 @@ public final class FormActivePowerService {
                     player.isEyeInFluid(FluidTags.WATER), player.getDeltaMovement());
         }
         if (pressed && !wasPressed) {
+            if (toggle(player, key)) {
+                return;
+            }
+            if ("key.shape-shifter-curse.make_sound".equals(key) && triggerHiss(player)) {
+                return;
+            }
             // A surface-water active_self power (jump_out_water) must win over the
             // generic air-jump branch. Water-surface players are not onGround(), so
             // checking air jump first made the original SSC launch unreachable.
@@ -115,6 +122,36 @@ public final class FormActivePowerService {
 
     public static boolean hasMana(Player player, float amount) {
         return mana(player) >= amount;
+    }
+
+    public static boolean isToggleActive(Player player, ResourceLocation id) {
+        FormPowerDefinition definition = FormPowerRegistry.all().get(id);
+        boolean defaultValue = definition != null
+                && FormPowerRuntime.booleanValue(definition.data(), "active_by_default", false);
+        return TOGGLES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+                .getOrDefault(id, defaultValue);
+    }
+
+    private static boolean toggle(ServerPlayer player, String key) {
+        final boolean[] changed = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"origins:toggle".equals(FormPowerRegistry.typeOf(power))
+                    || !key.equals(FormPowerRuntime.stringValue(power.getAsJsonObject("key"), "key", ""))) return;
+            boolean active = isToggleActive(player, id);
+            TOGGLES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(id, !active);
+            changed[0] = true;
+        });
+        return changed[0];
+    }
+
+    private static boolean triggerHiss(ServerPlayer player) {
+        final boolean[] triggered = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:hiss_phantom_power".equals(FormPowerRegistry.typeOf(power))) return;
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("on_hiss_phantom_action"));
+            triggered[0] = true;
+        });
+        return triggered[0];
     }
 
     public static void triggerVanillaKey(Player player, String key) {
