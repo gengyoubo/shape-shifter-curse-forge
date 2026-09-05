@@ -7,14 +7,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.items.accessory.AccessoryItem;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
 import javax.annotation.Nullable;
 import java.util.*;
 
-// Forge port: retains data structures for accessory_powers JSON, but power apply is via FormPowerRegistry conditions
-// rather than Apoli PowerHolderComponent. Curios inventory is the source of truth for isEquipped.
+// Forge port: Curios inventory is the source of truth for equipped accessories. The effective
+// power list is rebuilt from that inventory so equip, unequip and form changes are reflected.
 public class TrinketUtils {
     public interface CustomPowerTrinketInterface {
         void onFormChange(ItemStack stack, AccessoryItem.SlotData slot, Player entity);
@@ -130,6 +131,10 @@ public class TrinketUtils {
         }
     }
 
+    public static void clearAccessoryPower() {
+        accessoryPowerRegistry.clear();
+    }
+
     public static void registerAccessoryMixinAuto(ResourceLocation itemIdentifier, boolean auto) {
         accessoryMixinAutoRegistry.put(itemIdentifier, auto);
     }
@@ -143,9 +148,60 @@ public class TrinketUtils {
         return accessoryMixinAutoRegistry.getOrDefault(itemIdentifier, true);
     }
 
-    public static void ApplyAccessoryPowerOnEquip(Player player, ResourceLocation accessoryID) {}
-    public static void ApplyAccessoryPowerOnUnEquip(Player player, ResourceLocation accessoryID) {}
-    public static void ApplyAccessoryPowerOnPlayerFormChange(Player player, ResourceLocation accessoryID) {}
+    public static void ApplyAccessoryPowerOnEquip(Player player, ResourceLocation accessoryID) {
+        TrinketPowerData powerData = getAccessoryPower(accessoryID);
+        if (powerData != null) powerData.onPlayerFormChangeReApply(player);
+    }
+
+    public static void ApplyAccessoryPowerOnUnEquip(Player player, ResourceLocation accessoryID) {
+        TrinketPowerData powerData = getAccessoryPower(accessoryID);
+        if (powerData != null) powerData.onPlayerFormChangeReApply(player);
+    }
+
+    public static void ApplyAccessoryPowerOnPlayerFormChange(Player player, ResourceLocation accessoryID) {
+        if (player.level().isClientSide) return;
+        TrinketPowerData powerData = getAccessoryPower(accessoryID);
+        if (powerData != null) powerData.onPlayerFormChangeReApply(player);
+    }
+
+    /** Builds the active power set using the currently equipped accessory JSON. */
+    public static List<ResourceLocation> effectivePowerIds(Player player, List<ResourceLocation> formPowerIds) {
+        LinkedHashSet<ResourceLocation> effective = new LinkedHashSet<>(formPowerIds);
+        LinkedHashSet<ResourceLocation> additions = new LinkedHashSet<>();
+        LinkedHashSet<ResourceLocation> removals = new LinkedHashSet<>();
+        ResourceLocation currentFormId = FormManager.current(player).id();
+        ResourceLocation originLayer = ResourceLocation.fromNamespaceAndPath("origins", "origin");
+
+        for (net.minecraft.util.Tuple<AccessoryItem.SlotData, ItemStack> pair : getAllAccessory(player)) {
+            ItemStack stack = pair.getB();
+            if (stack.isEmpty()) continue;
+            ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
+            TrinketPowerData data = itemId == null ? null : getAccessoryPower(itemId);
+            if (data == null) continue;
+
+            additions.addAll(data.accessoryPowers);
+            additions.addAll(data.allFormPowerAdd);
+            removals.addAll(data.allFormPowerRemove);
+
+            List<ResourceLocation> formAdd = data.formPowerAdd.get(currentFormId);
+            List<ResourceLocation> formRemove = data.formPowerRemove.get(currentFormId);
+            if (formAdd != null) additions.addAll(formAdd);
+            if (formRemove != null) removals.addAll(formRemove);
+
+            HashMap<ResourceLocation, List<ResourceLocation>> layerAdds = data.layerPowerAddMap.get(originLayer);
+            HashMap<ResourceLocation, List<ResourceLocation>> layerRemoves = data.layerPowerRemoveMap.get(originLayer);
+            if (layerAdds != null && layerAdds.get(currentFormId) != null) {
+                additions.addAll(layerAdds.get(currentFormId));
+            }
+            if (layerRemoves != null && layerRemoves.get(currentFormId) != null) {
+                removals.addAll(layerRemoves.get(currentFormId));
+            }
+        }
+
+        effective.removeAll(removals);
+        effective.addAll(additions);
+        return List.copyOf(effective);
+    }
 
     public static List<net.minecraft.util.Tuple<AccessoryItem.SlotData, ItemStack>> getAllAccessory(Player player) {
         List<net.minecraft.util.Tuple<AccessoryItem.SlotData, ItemStack>> allAccessory = new ArrayList<>();

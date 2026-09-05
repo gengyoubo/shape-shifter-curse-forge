@@ -16,6 +16,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.util.TrinketUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,6 +46,7 @@ public final class FormPowerRegistry {
     public static void addReloadListeners(AddReloadListenerEvent event) {
         event.addListener(new PowerReloadListener());
         event.addListener(new OriginReloadListener());
+        event.addListener(new AccessoryPowerReloadListener());
     }
 
     public static FormPowerDefinition get(ResourceLocation id) {
@@ -67,7 +69,7 @@ public final class FormPowerRegistry {
 
         List<ResourceLocation> direct = formPowers.get(formId);
         if (direct != null) {
-            return direct;
+            return TrinketUtils.effectivePowerIds(player, direct);
         }
 
         ResourceLocation legacyOriginId = ResourceLocation.fromNamespaceAndPath(
@@ -75,7 +77,7 @@ public final class FormPowerRegistry {
                 "form_" + formId.getPath()
         );
 
-        return formPowers.getOrDefault(legacyOriginId, List.of());
+        return TrinketUtils.effectivePowerIds(player, formPowers.getOrDefault(legacyOriginId, List.of()));
     }
 
     public static boolean has(Player player, ResourceLocation id) {
@@ -178,6 +180,22 @@ public final class FormPowerRegistry {
                 loaded.put(id, new ArrayList<>(powerIds));
             });
             replaceOrigins(loaded);
+        }
+    }
+
+    private static final class AccessoryPowerReloadListener extends SimpleJsonResourceReloadListener {
+        private AccessoryPowerReloadListener() {
+            super(GSON, "accessory_power");
+        }
+
+        @Override
+        protected void apply(Map<ResourceLocation, JsonElement> json, ResourceManager manager,
+                             ProfilerFiller profiler) {
+            TrinketUtils.clearAccessoryPower();
+            json.values().forEach(element -> {
+                if (element.isJsonObject()) TrinketUtils.loadAccessoryPowerData(element.getAsJsonObject());
+            });
+            LOGGER.info("Loaded {} accessory power definitions", TrinketUtils.accessoryPowerRegistry.size());
         }
     }
 

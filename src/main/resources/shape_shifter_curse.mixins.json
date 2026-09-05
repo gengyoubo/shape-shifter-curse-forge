@@ -18,7 +18,8 @@
         "accessory.CurioImpl"
     ],
     "client": [
-        "client.InventoryScreenMixin"
+        "client.InventoryScreenMixin",
+        "client.PlayerEdgeClipMixin"
     ],
     "injectors": {
         "defaultRequire": 1

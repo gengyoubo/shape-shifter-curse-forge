@@ -14,7 +14,8 @@ import java.util.List;
 public final class FormKeyMappings {
     public static final KeyMapping ACTIVE_SKILL_1 = key("active_skill_1");
     public static final KeyMapping ACTIVE_SKILL_2 = key("active_skill_2");
-    public static final KeyMapping TOGGLE_CLIP_AT_LEDGE = key("toggle_clip_at_ledge");
+    // Fabric binds this Origins toggle to the sixth active-skill slot.
+    public static final KeyMapping TOGGLE_CLIP_AT_LEDGE = key("active_skill_6");
     public static final KeyMapping MAKE_SOUND = key("make_sound");
 
     /** The four user-configurable SSC entries shown on Minecraft's Controls screen. */
