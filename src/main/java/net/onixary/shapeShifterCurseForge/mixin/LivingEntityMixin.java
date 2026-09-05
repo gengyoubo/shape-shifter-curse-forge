@@ -204,8 +204,10 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         final float[] modified = {speed};
         // Automatic one-block crawling has no real sneak input packet, so it
         // would otherwise move at full walking speed. Apply vanilla's sneak
-        // input factor only when the player is not already holding Shift.
-        if (CrawlingScaleService.isForcedCrawling(player) && !player.isShiftKeyDown()) {
+        // input factor only to grounded movement; applying it in the air
+        // removes most of the forward carry from a crawl jump.
+        if (player.onGround() && CrawlingScaleService.isForcedCrawling(player)
+                && !player.isShiftKeyDown()) {
             modified[0] *= 0.3F;
         }
         if (player.onGround() || player.isInWater()) return modified[0];

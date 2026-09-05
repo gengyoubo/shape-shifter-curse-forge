@@ -149,7 +149,7 @@ public final class CrawlingScaleService {
     }
 
     public static boolean isForcedCrawling(Player player) {
-        if (player.isInWater() || player.isPassenger() || player.isSpectator()) {
+        if (player.isInWaterOrBubble() || player.isPassenger() || player.isSpectator()) {
             return false;
         }
         final boolean[] forced = {false};

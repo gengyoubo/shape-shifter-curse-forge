@@ -2,7 +2,6 @@ package net.onixary.shapeShifterCurseForge.client.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.entity.vehicle.Minecart;
@@ -25,8 +24,6 @@ import java.util.UUID;
 public final class FormAnimationSystem {
     private static final String ANIMATION_PATH = "player_animation/";
     private static final String NEW_ANIMATION_PATH = ANIMATION_PATH + "new/";
-    /** Ticks of dry time bridged before leaving the swim state (surface-bob flicker). */
-    private static final int WATER_EXIT_GRACE_TICKS = 4;
     private static final ResourceLocation RIDING_ANIMATIONS = resource(ANIMATION_PATH + "form_riding_animation.json");
     private static final AnimationProfile SHARED_ANIMATIONS = AnimationProfile.builder()
             .animation("bat_2_riding", "form_riding_animation", "bat_2_riding", 1.0F, 2)
@@ -187,11 +184,8 @@ public final class FormAnimationSystem {
         if (player.isSleeping()) return State.SLEEP;
         if (player.isPassenger()) return State.RIDE;
         if (isClimbingForAnimation(player, onGround)) return State.CLIMB;
-        // Fabric's v3 FSM treats any water contact as the universal swim state, but
-        // elytra flight must keep its own animation even when clipping water surface.
-        // Uses the graced contact from motionOf so surface bobbing cannot flip SWIM
-        // against ground states frame to frame.
-        if (motion.touchingWater && !player.isFallFlying()) return State.SWIM;
+        // Fabric's v3 FSM treats any water contact as the universal swim state.
+        if (isTouchingWater(player)) return State.SWIM;
         if (!onGround) {
             if (player.getAbilities().flying) return State.FLYING;
             if (player.isFallFlying()) return State.FALL_FLYING;
@@ -263,7 +257,7 @@ public final class FormAnimationSystem {
                 case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
                 case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
                 case JUMP -> add(result, sneak ? "axolotl_2_crawling_jump"
-                        : isRisingRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
+                        : isRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
                 case FALL -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
                 // The Fabric WithSneak controllers intentionally have no normal
                 // attack/mining animation for Axolotl 3.
@@ -468,11 +462,9 @@ public final class FormAnimationSystem {
 
     /**
      * Equivalent of Fabric's PlayerEntity#isTouchingWater for the animation FSM.
-     * isInWaterOrBubble covers the body and the eye check keeps the state active while
-     * the player's eyes are submerged at the surface, where the body check can flicker.
      */
     private static boolean isTouchingWater(Player player) {
-        return player.isInWaterOrBubble() || player.isEyeInFluid(FluidTags.WATER);
+        return player.isInWaterOrBubble();
     }
 
     /**
@@ -484,19 +476,10 @@ public final class FormAnimationSystem {
         return player.isSwimming();
     }
 
-    /** Exact RushJumpAnimController threshold: either horizontal component exceeds 0.15. */
+    /** Fabric's RushJumpAnimController selects rush from horizontal velocity alone. */
     private static boolean isRushJump(Player player) {
         net.minecraft.world.phys.Vec3 velocity = player.getDeltaMovement();
         return Math.abs(velocity.x) > 0.15D || Math.abs(velocity.z) > 0.15D;
-    }
-
-    /**
-     * The rush-jump pose exits as soon as vertical motion turns downward, rather than
-     * lingering through the falling phase. Position-based delta is used instead of the
-     * velocity field so the apex frame is evaluated exactly like the FALL state above.
-     */
-    private static boolean isRisingRushJump(Player player) {
-        return isRushJump(player) && motionOf(player).verticalDelta >= 0.0D;
     }
 
     private static boolean hasResource(ResourceLocation location) {
@@ -557,16 +540,6 @@ public final class FormAnimationSystem {
             snapshot.swinging = player.swinging;
             snapshot.idle = snapshot.idleTicks > 0;
             snapshot.moving = moving;
-            // Water contact gets a short exit grace: bobbing at the surface flickers
-            // the raw body/eye checks frame to frame, and each flip restarts the
-            // cross-fade from t=0 on both clips, which reads as a head twitch.
-            // Entry stays immediate so dives respond at once.
-            if (isTouchingWater(player)) {
-                snapshot.lastWetTick = player.tickCount;
-                snapshot.touchingWater = true;
-            } else {
-                snapshot.touchingWater = player.tickCount - snapshot.lastWetTick <= WATER_EXIT_GRACE_TICKS;
-            }
             snapshot.lastPosition = position;
             snapshot.lastTick = player.tickCount;
         }
@@ -590,11 +563,9 @@ public final class FormAnimationSystem {
         private int lastTick = Integer.MIN_VALUE;
         private int swingTicks;
         private int idleTicks;
-        private int lastWetTick = -1000;
         private boolean swinging;
         private boolean idle;
         private boolean moving;
-        private boolean touchingWater;
         private double verticalDelta;
 
         private MotionSnapshot(net.minecraft.world.phys.Vec3 lastPosition) {

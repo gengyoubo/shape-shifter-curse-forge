@@ -5,7 +5,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -31,7 +30,6 @@ public final class MovementPowerService {
                 case "shape-shifter-curse:slowdown_percent" -> resistWebSlowdown(player, power);
                 case "shape-shifter-curse:soul_speed" -> applySoulSpeed(player, power);
                 case "shape-shifter-curse:attract_by_entity" -> attractEntity(player, power);
-                case "shape-shifter-curse:always_sprint_swimming" -> forceSprintSwimming(player);
                 case "apoli:modify_falling" -> modifyFalling(player, power);
                 default -> { }
             }
@@ -95,12 +93,8 @@ public final class MovementPowerService {
         }
     }
 
-    /** Whether an active power requires the player to swim in deep water. */
+    /** Whether an active power provides Fabric's always-sprint-swimming behavior. */
     public static boolean shouldForceSwimming(Player player) {
-        if (!player.isEyeInFluid(FluidTags.WATER) || player.isPassenger()) {
-            return false;
-        }
-
         final boolean[] force = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!force[0] && "shape-shifter-curse:always_sprint_swimming".equals(FormPowerRegistry.typeOf(power))
@@ -109,14 +103,6 @@ public final class MovementPowerService {
             }
         });
         return force[0];
-    }
-
-    /** Applies the power before travel, so the swim-speed attribute is used immediately. */
-    public static void forceSprintSwimming(Player player) {
-        if (shouldForceSwimming(player)) {
-            player.setSprinting(true);
-            player.setSwimming(true);
-        }
     }
 
     private static void attractEntity(Player player, JsonObject power) {

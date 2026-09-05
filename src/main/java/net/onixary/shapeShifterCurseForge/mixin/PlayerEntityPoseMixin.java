@@ -4,8 +4,10 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
@@ -13,30 +15,58 @@ import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Player.class)
 public abstract class PlayerEntityPoseMixin extends LivingEntity {
 
+    @Unique
+    private boolean ssc$wasSwimming;
+
     protected PlayerEntityPoseMixin(EntityType<? extends LivingEntity> entityType, Level level) {
         super(entityType, level);
     }
 
-    /**
-     * The Forge tick event runs after travel.  Apply the deep-water swimming
-     * state at the same point vanilla updates it so the current travel call
-     * sees both sprinting and the swim-speed attribute.
-     */
+    /** Applies the Fabric swimming-state fallback at the same point vanilla updates it. */
+    @Inject(method = "updateSwimming", at = @At("HEAD"))
+    private void ssc$rememberSwimming(CallbackInfo ci) {
+        ssc$wasSwimming = ((Player) (Object) this).isSwimming();
+    }
+
     @Inject(method = "updateSwimming", at = @At("TAIL"))
     private void ssc$forceSwimmingUnderwater(CallbackInfo ci) {
         Player player = (Player) (Object) this;
-        if (MovementPowerService.shouldForceSwimming(player)) {
-            player.setSprinting(true);
-            player.setSwimming(true);
+        if (player.isSwimming() || !MovementPowerService.shouldForceSwimming(player)
+                || player.isPassenger()) return;
+
+        // Match Fabric's EntityMixin: entering swimming requires full
+        // submersion; an already swimming player may remain swimming while
+        // still touching water. Do not force the sprint flag itself.
+        boolean shouldSwim = ssc$wasSwimming
+                ? player.isInWaterOrBubble()
+                : player.isUnderWater()
+                && player.level().getFluidState(player.blockPosition()).is(FluidTags.WATER);
+        if (shouldSwim) player.setSwimming(true);
+    }
+
+    /** Fabric removes vanilla's upward swim impulse while this power is not sprinting. */
+    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/player/Player;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V"),
+            index = 0)
+    private Vec3 ssc$preserveNonSprintSwimVerticalVelocity(Vec3 original) {
+        Player player = (Player) (Object) this;
+        if (!player.isSwimming() || player.isPassenger()
+                || !MovementPowerService.shouldForceSwimming(player) || player.isSprinting()) {
+            return original;
         }
+        Vec3 current = player.getDeltaMovement();
+        return new Vec3(original.x, current.y, original.z);
     }
 
     /** Fabric scales the existing exhaustion call instead of adding a second drain. */
