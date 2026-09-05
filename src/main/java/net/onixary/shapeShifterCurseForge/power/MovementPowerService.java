@@ -98,6 +98,9 @@ public final class MovementPowerService {
         if (player.isInWater()
                 && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
             player.setSprinting(true);
+            // Fabric applies this before the player's travel logic.  Updating both
+            // flags here keeps the pose and movement state in sync during this tick.
+            player.setSwimming(true);
         }
     }
 

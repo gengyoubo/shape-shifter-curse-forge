@@ -34,6 +34,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -56,6 +57,10 @@ public final class FormPowerEvents {
     private static final Map<UUID, Integer> LAST_ATTRIBUTE_REFRESH_TICK = new HashMap<>();
     /** Per-power transition state matching SSC Fabric's DelayAttributePower. */
     private static final Map<UUID, Map<UUID, DelayAttributeState>> DELAY_ATTRIBUTE_STATES = new HashMap<>();
+    /** Cached condition results for apoli:conditioned_attribute tick_rate semantics. */
+    private static final Map<UUID, Map<UUID, ConditionedAttributeState>> CONDITIONED_ATTRIBUTE_STATES = new HashMap<>();
+    /** Whether an owned modifier must preserve the player's health percentage on changes. */
+    private static final Map<UUID, Map<UUID, Boolean>> UPDATE_HEALTH_MODIFIERS = new HashMap<>();
     private static final Map<UUID, Map<UUID, Integer>> DAMAGE_OVER_TIME_STARTED_TICKS = new HashMap<>();
     private static final ThreadLocal<Boolean> SWEEP_DAMAGE = ThreadLocal.withInitial(() -> false);
     private static final ResourceLocation LEGACY_WATER_SPEED = ResourceLocation.fromNamespaceAndPath(
@@ -84,6 +89,7 @@ public final class FormPowerEvents {
     public static void playerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Player player = event.player;
+        FormActivePowerService.postTravelTick(player);
         final float[] multiplier = {1.0F};
         final boolean[] modified = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
@@ -314,7 +320,7 @@ public final class FormPowerEvents {
             JsonObject condition = power.has("entity_condition")
                     ? power.getAsJsonObject("entity_condition") : power.getAsJsonObject("condition");
             if ("shape-shifter-curse:action_on_jump".equals(type)
-                    && FormPowerRuntime.test(player, player, condition)) {
+                    && testJumpCondition(player, condition)) {
                 pendingActions.add(power.getAsJsonObject("entity_action"));
             }
             if ("apoli:modify_jump".equals(type)
@@ -327,6 +333,38 @@ public final class FormPowerEvents {
         for (JsonObject action : pendingActions) {
             FormPowerRuntime.execute(player, player, action);
         }
+        if (player instanceof LivingEntityJumpState jumpState) {
+            jumpState.ssc$clearJumpStartedOnBlock();
+        }
+    }
+
+    private static boolean testJumpCondition(Player player, JsonObject condition) {
+        if (condition == null) return true;
+        String type = FormPowerRegistry.typeOf(condition);
+        boolean result;
+        if ("apoli:and".equals(type)) {
+            result = true;
+            for (var child : condition.getAsJsonArray("conditions")) {
+                if (child.isJsonObject() && !testJumpCondition(player, child.getAsJsonObject())) {
+                    result = false;
+                    break;
+                }
+            }
+        } else if ("apoli:or".equals(type)) {
+            result = false;
+            for (var child : condition.getAsJsonArray("conditions")) {
+                if (child.isJsonObject() && testJumpCondition(player, child.getAsJsonObject())) {
+                    result = true;
+                    break;
+                }
+            }
+        } else if ("apoli:on_block".equals(type) && !condition.has("block_condition")
+                && player instanceof LivingEntityJumpState jumpState) {
+            result = jumpState.ssc$wasJumpStartedOnBlock();
+        } else {
+            result = FormPowerRuntime.test(player, player, condition);
+        }
+        return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
     }
 
     @SubscribeEvent
@@ -539,12 +577,30 @@ public final class FormPowerEvents {
             if (wanted.contains(entry.getKey())) {
                 return false;
             }
+            Map<UUID, Boolean> healthStates = UPDATE_HEALTH_MODIFIERS.get(player.getUUID());
+            boolean updateHealth = healthStates != null && healthStates.getOrDefault(entry.getKey(), false);
+            float oldMaxHealth = player.getMaxHealth();
+            float healthRatio = oldMaxHealth <= 0.0F ? 1.0F : player.getHealth() / oldMaxHealth;
             entry.getValue().removeModifier(entry.getKey());
+            if (updateHealth && oldMaxHealth != player.getMaxHealth()) {
+                player.setHealth(player.getMaxHealth() * healthRatio);
+            }
+            if (healthStates != null) {
+                healthStates.remove(entry.getKey());
+            }
             return true;
         });
         Map<UUID, DelayAttributeState> delayStates = DELAY_ATTRIBUTE_STATES.get(player.getUUID());
         if (delayStates != null) {
             delayStates.keySet().retainAll(seen);
+        }
+        Map<UUID, ConditionedAttributeState> conditionedStates = CONDITIONED_ATTRIBUTE_STATES.get(player.getUUID());
+        if (conditionedStates != null) {
+            conditionedStates.keySet().retainAll(seen);
+        }
+        Map<UUID, Boolean> updateHealthStates = UPDATE_HEALTH_MODIFIERS.get(player.getUUID());
+        if (updateHealthStates != null) {
+            updateHealthStates.keySet().retainAll(seen);
         }
         LAST_ATTRIBUTE_REFRESH_TICK.put(player.getUUID(), player.tickCount);
     }
@@ -680,19 +736,28 @@ public final class FormPowerEvents {
     private static void maintainBreathingAndImmunity(Player player) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
-            if ("shape-shifter-curse:breathing_under_water".equals(type)
-                    || ("shape-shifter-curse:hold_breath".equals(type) && player.isInWater())) {
+            if ("shape-shifter-curse:hold_breath".equals(type) && player.isInWater()
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 player.setAirSupply(player.getMaxAirSupply());
             }
-            if ("shape-shifter-curse:custom_water_breathing".equals(type) && !player.isInWater()) {
+            if ("shape-shifter-curse:custom_water_breathing".equals(type)
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    && !player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)) {
                 int level = Math.max(1, FormPowerRuntime.intValue(power, "land_water_breathing_level", 24));
-                if (player.getRandom().nextInt(level) == 0) {
+                if (!player.isCreative() && !player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)
+                        && !player.hasEffect(MobEffects.WATER_BREATHING)
+                        && !player.hasEffect(MobEffects.CONDUIT_POWER)
+                        && player.tickCount % level == 0) {
                     player.setAirSupply(player.getAirSupply() - 1);
                     if (player.getAirSupply() <= -20 && power.has("damage_when_no_air")
                             && power.get("damage_when_no_air").getAsBoolean()) {
                         player.hurt(player.damageSources().drown(), 2.0F);
                     }
                 }
+            } else if ("shape-shifter-curse:custom_water_breathing".equals(type)
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    && !player.isCreative() && player.getAirSupply() < player.getMaxAirSupply()) {
+                player.setAirSupply(Math.min(player.getMaxAirSupply(), player.getAirSupply() + 1));
             }
             if ("shape-shifter-curse:optional_effect_immunity".equals(type)
                     && power.has("effects") && power.get("effects").isJsonArray()) {
@@ -736,6 +801,8 @@ public final class FormPowerEvents {
 
         UUID uuid = attributeModifierId(powerId, attributeId, power);
         seen.add(uuid);
+        boolean updateHealth = power.has("updateHealth") && power.get("updateHealth").getAsBoolean();
+        UPDATE_HEALTH_MODIFIERS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(uuid, updateHealth);
         if (!attributeConditionMet(player, power, type, uuid)) {
             return;
         }
@@ -754,11 +821,13 @@ public final class FormPowerEvents {
                 };
         double amount = waterSpeedModifier ? FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D
                 : FormPowerRuntime.doubleValue(modifier, "value", 0.0D);
+        float oldMaxHealth = player.getMaxHealth();
+        float healthRatio = oldMaxHealth <= 0.0F ? 1.0F : player.getHealth() / oldMaxHealth;
         instance.addTransientModifier(new AttributeModifier(uuid,
                 waterSpeedModifier ? powerId.toString() : FormPowerRuntime.stringValue(modifier, "name", powerId.toString()),
                 amount, operation));
-        if (power.has("updateHealth") && power.get("updateHealth").getAsBoolean()) {
-            player.setHealth(Math.min(player.getHealth(), player.getMaxHealth()));
+        if (updateHealth && oldMaxHealth != player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth() * healthRatio);
         }
     }
 
@@ -768,6 +837,17 @@ public final class FormPowerEvents {
         }
         if ("shape-shifter-curse:in_water_speed_modifier".equals(type)) {
             return player.isInWater() && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
+        }
+        if ("apoli:conditioned_attribute".equals(type)) {
+            ConditionedAttributeState state = CONDITIONED_ATTRIBUTE_STATES
+                    .computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+                    .computeIfAbsent(modifierId, ignored -> new ConditionedAttributeState());
+            int tickRate = Math.max(1, FormPowerRuntime.intValue(power, "tick_rate", 20));
+            if (!state.initialized || player.tickCount % tickRate == 0) {
+                state.applied = FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
+                state.initialized = true;
+            }
+            return state.applied;
         }
         boolean conditionMet = FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
         if (!"shape-shifter-curse:delay_attribute".equals(type)) {
@@ -845,5 +925,10 @@ public final class FormPowerEvents {
             this.delay = delay;
             this.transitionTicks = delay;
         }
+    }
+
+    private static final class ConditionedAttributeState {
+        private boolean initialized;
+        private boolean applied;
     }
 }

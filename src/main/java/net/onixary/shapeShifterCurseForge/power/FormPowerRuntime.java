@@ -156,7 +156,8 @@ public final class FormPowerRuntime {
 
     /**
      * Apoli fluid_height uses the depth intersecting the entity, rather than a boolean
-     * in-water check. SSC's surface jump powers rely on the shallow 0..0.2 range.
+     * in-water check. The Forge port uses the slightly wider 0..0.4 surface window
+     * so the launch remains reachable at the vanilla water-surface boundary.
      */
     private static double fluidHeight(Player actor, JsonObject condition) {
         ResourceLocation fluid = ResourceLocation.tryParse(stringValue(condition, "fluid", "minecraft:water"));

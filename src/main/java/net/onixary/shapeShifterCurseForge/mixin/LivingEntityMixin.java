@@ -3,8 +3,10 @@ package net.onixary.shapeShifterCurseForge.mixin;
 import com.google.gson.JsonObject;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
+import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,7 +29,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * instead of MixinExtras {@code @ModifyReturnValue}.
  */
 @Mixin(LivingEntity.class)
-public abstract class LivingEntityMixin {
+public abstract class LivingEntityMixin implements LivingEntityJumpState {
     private static final float SSC_MAX_WATER_FLEXIBILITY = 0.98F;
     @Unique
     public int ssc$noJumpTick = 0;
@@ -37,6 +39,8 @@ public abstract class LivingEntityMixin {
     private int ssc$tripleTicksOnGround = 0;
     @Unique
     private float ssc$tripleActiveMultiplier = 1.0F;
+    @Unique
+    private boolean ssc$jumpStartedOnBlock;
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void ssc$tickNoJump(CallbackInfo ci) {
@@ -77,6 +81,7 @@ public abstract class LivingEntityMixin {
         if (!(self instanceof Player player)) {
             return;
         }
+        ssc$jumpStartedOnBlock = player.onGround();
         final boolean[] hasTriple = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("shape-shifter-curse:triple_jump".equals(FormPowerRegistry.typeOf(power))
@@ -163,6 +168,25 @@ public abstract class LivingEntityMixin {
         cir.setReturnValue(modified[0]);
     }
 
+    /** Fabric's BreathingUnderWaterPower changes the vanilla water-air drain to a 1% chance. */
+    @Inject(method = "decreaseAirSupply", at = @At("HEAD"), cancellable = true)
+    private void ssc$modifyWaterAirDrain(int air, CallbackInfoReturnable<Integer> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player)) {
+            return;
+        }
+        final boolean[] active = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:breathing_under_water".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                active[0] = true;
+            }
+        });
+        if (active[0]) {
+            cir.setReturnValue(player.getRandom().nextInt(101) == 0 ? air - 1 : air);
+        }
+    }
+
     /**
      * Mirrors SSC Fabric's water-flexibility hook at the point where vanilla applies
      * X/Z water damping. Replacing the damping value here makes it the final value
@@ -185,12 +209,39 @@ public abstract class LivingEntityMixin {
         return ssc$waterFlexibilityDamping(original);
     }
 
+    /**
+     * A surface launch is issued after the current travel call. If the player
+     * is still barely touching water on the next tick, vanilla would otherwise
+     * apply its normal vertical water damping to the freshly-added launch.
+     */
+    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/phys/Vec3;multiply(DDD)Lnet/minecraft/world/phys/Vec3;",
+                    ordinal = 0), index = 1)
+    private double ssc$preserveSurfaceLaunchY(double original) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self instanceof Player player && FormActivePowerService.consumeWaterLaunchGrace(player)) {
+            return 1.0D;
+        }
+        return original;
+    }
+
     public void ssc$setNoJumpTick(int tick) {
         ssc$noJumpTick = tick;
     }
 
     public int ssc$getNoJumpTick() {
         return ssc$noJumpTick;
+    }
+
+    @Override
+    public boolean ssc$wasJumpStartedOnBlock() {
+        return ssc$jumpStartedOnBlock;
+    }
+
+    @Override
+    public void ssc$clearJumpStartedOnBlock() {
+        ssc$jumpStartedOnBlock = false;
     }
 
     @Unique

@@ -1,9 +1,14 @@
 package net.onixary.shapeShifterCurseForge.power;
 
 import com.google.gson.JsonObject;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
+import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +28,10 @@ public final class FormActivePowerService {
     private static final Map<UUID, Integer> GROUND_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> LEVITATE_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> JUMP_INPUT_GRACE = new HashMap<>();
+    /** One travel tick of protection for a launch issued while still touching water. */
+    private static final Map<UUID, Boolean> WATER_LAUNCH_GRACE = new HashMap<>();
+    private static final ResourceLocation JUMP_OUT_WATER = ResourceLocation.fromNamespaceAndPath(
+            "shape-shifter-curse", "jump_out_water");
 
     private FormActivePowerService() {
     }
@@ -34,6 +43,13 @@ public final class FormActivePowerService {
         Map<String, Boolean> keys = PRESSED_KEYS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
         boolean wasPressed = keys.getOrDefault(key, false);
         keys.put(key, pressed);
+        if ("key.jump".equals(key)) {
+            ShapeShifterCurseForge.LOGGER.info(
+                    "[SSC-JUMP-DEBUG] input player={} pressed={} wasPressed={} form={} fluidHeight={} eyeInWater={} velocity={}",
+                    player.getGameProfile().getName(), pressed, wasPressed,
+                    FormManager.current(player).id(), player.getFluidHeight(FluidTags.WATER),
+                    player.isEyeInFluid(FluidTags.WATER), player.getDeltaMovement());
+        }
         if (pressed && !wasPressed) {
             // A surface-water active_self power (jump_out_water) must win over the
             // generic air-jump branch. Water-surface players are not onGround(), so
@@ -88,6 +104,7 @@ public final class FormActivePowerService {
         }
         keys.forEach((key, pressed) -> {
             if (pressed) {
+                triggerContinuousActive(serverPlayer, key);
                 charge(serverPlayer, key);
             }
         });
@@ -104,6 +121,55 @@ public final class FormActivePowerService {
         if (player instanceof ServerPlayer serverPlayer) {
             triggerActive(serverPlayer, key);
         }
+    }
+
+    /**
+     * Runs the surface jump after vanilla has completed LivingEntity.travel().
+     * The normal LivingTickEvent is before travel, so a launch applied there is
+     * still treated as water motion and its Y component is damped by vanilla.
+     */
+    public static void postTravelTick(Player player) {
+        if (player.level().isClientSide || !(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        UUID id = player.getUUID();
+        boolean touchingWater = player.getFluidHeight(FluidTags.WATER) > 0.0D;
+        if (!touchingWater) {
+            WATER_LAUNCH_GRACE.remove(id);
+        }
+
+        Map<String, Boolean> keys = PRESSED_KEYS.get(id);
+        if (keys == null || !keys.getOrDefault("key.jump", false)) {
+            return;
+        }
+
+        triggerContinuousJumpOutWater(serverPlayer);
+        logJumpState(serverPlayer, "post-travel-state");
+    }
+
+    private static void logJumpState(ServerPlayer player, String stage) {
+        ShapeShifterCurseForge.LOGGER.info(
+                "[SSC-JUMP-DEBUG] state stage={} player={} y={} yOld={} deltaY={} velocity={} onGround={} verticalCollision={} horizontalCollision={} fluidHeight={} eyeInWater={}",
+                stage, player.getGameProfile().getName(), player.getY(), player.yOld,
+                player.getY() - player.yOld, player.getDeltaMovement(), player.onGround(),
+                player.verticalCollision, player.horizontalCollision,
+                player.getFluidHeight(FluidTags.WATER), player.isEyeInFluid(FluidTags.WATER));
+    }
+
+    /** Called by LivingEntity.travel() to preserve a just-issued surface launch. */
+    public static void armWaterLaunchGrace(Player player) {
+        if (player.getFluidHeight(FluidTags.WATER) > 0.0D) {
+            WATER_LAUNCH_GRACE.put(player.getUUID(), Boolean.TRUE);
+        }
+    }
+
+    /** Consumes the one-tick vertical water-damping bypass. */
+    public static boolean consumeWaterLaunchGrace(Player player) {
+        if (player.level().isClientSide) {
+            return false;
+        }
+        return WATER_LAUNCH_GRACE.remove(player.getUUID()) != null;
     }
 
     public static void registerGroundJump(Player player) {
@@ -195,14 +261,106 @@ public final class FormActivePowerService {
                 return;
             }
             JsonObject condition = power.has("condition") ? power.getAsJsonObject("condition") : power.getAsJsonObject("entity_condition");
-            if (!FormPowerRuntime.test(player, player, condition)) {
+            boolean jumpOutWater = JUMP_OUT_WATER.equals(id);
+            boolean conditionMet = FormPowerRuntime.test(player, player, condition);
+            if (jumpOutWater) {
+                ShapeShifterCurseForge.LOGGER.info(
+                        "[SSC-JUMP-DEBUG] press-candidate player={} condition={} fluidHeight={} eyeInWater={} velocityBefore={}",
+                        player.getGameProfile().getName(), conditionMet,
+                        player.getFluidHeight(FluidTags.WATER), player.isEyeInFluid(FluidTags.WATER),
+                        player.getDeltaMovement());
+            }
+            if (!conditionMet) {
+                return;
+            }
+            // Surface launch is deliberately deferred until PlayerTickEvent.END,
+            // after vanilla travel has finished applying water damping.
+            if (jumpOutWater) {
+                return;
+            }
+            Vec3 before = jumpOutWater ? player.getDeltaMovement() : null;
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+            startCooldown(player, id, FormPowerRuntime.intValue(power, "cooldown", 0));
+            if (jumpOutWater) {
+                ShapeShifterCurseForge.LOGGER.info(
+                        "[SSC-JUMP-DEBUG] press-fired player={} velocityAfter={} deltaY={}",
+                        player.getGameProfile().getName(), player.getDeltaMovement(),
+                        player.getDeltaMovement().y - before.y);
+            }
+            triggered[0] = true;
+        });
+        return triggered[0];
+    }
+
+    /** Runs only active_self powers whose key explicitly has continuous=true. */
+    private static void triggerContinuousActive(ServerPlayer player, String key) {
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"apoli:active_self".equals(FormPowerRegistry.typeOf(power))
+                    || !usesKey(power, key)
+                    || !power.getAsJsonObject("key").has("continuous")
+                    || !power.getAsJsonObject("key").get("continuous").getAsBoolean()
+                    || isOnCooldown(player, id)) {
+                return;
+            }
+            JsonObject condition = power.has("condition")
+                    ? power.getAsJsonObject("condition") : power.getAsJsonObject("entity_condition");
+            boolean jumpOutWater = JUMP_OUT_WATER.equals(id);
+            if (jumpOutWater) {
+                return;
+            }
+            boolean conditionMet = FormPowerRuntime.test(player, player, condition);
+            if (!conditionMet) {
                 return;
             }
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
             startCooldown(player, id, FormPowerRuntime.intValue(power, "cooldown", 0));
-            triggered[0] = true;
         });
-        return triggered[0];
+    }
+
+    /** Executes only jump_out_water after the entity has finished vanilla travel. */
+    private static void triggerContinuousJumpOutWater(ServerPlayer player) {
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!JUMP_OUT_WATER.equals(id)
+                    || !"apoli:active_self".equals(FormPowerRegistry.typeOf(power))
+                    || !usesKey(power, "key.jump")
+                    || !power.getAsJsonObject("key").has("continuous")
+                    || !power.getAsJsonObject("key").get("continuous").getAsBoolean()
+                    || isOnCooldown(player, id)) {
+                return;
+            }
+            JsonObject condition = power.has("condition")
+                    ? power.getAsJsonObject("condition") : power.getAsJsonObject("entity_condition");
+            boolean conditionMet = FormPowerRuntime.test(player, player, condition);
+            if (!conditionMet) {
+                return;
+            }
+            Vec3 before = player.getDeltaMovement();
+            ShapeShifterCurseForge.LOGGER.info(
+                    "[SSC-JUMP-DEBUG] post-travel-candidate player={} fluidHeight={} velocityBefore={}",
+                    player.getGameProfile().getName(), player.getFluidHeight(FluidTags.WATER), before);
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+            double maxY = FormPowerRuntime.doubleValue(power, "max_y_velocity", 0.8D);
+            if (maxY >= 0.0D && player.getDeltaMovement().y > maxY) {
+                Vec3 capped = player.getDeltaMovement();
+                player.setDeltaMovement(capped.x, maxY, capped.z);
+            }
+            armWaterLaunchGrace(player);
+            syncLaunchVelocity(player);
+            startCooldown(player, id, FormPowerRuntime.intValue(power, "cooldown", 0));
+            ShapeShifterCurseForge.LOGGER.info(
+                    "[SSC-JUMP-DEBUG] post-travel-fired player={} velocityAfter={} deltaY={}",
+                    player.getGameProfile().getName(), player.getDeltaMovement(),
+                    player.getDeltaMovement().y - before.y);
+        });
+    }
+
+    /**
+     * The server changes a player velocity, but the local client also predicts
+     * player movement. Send the launch explicitly so its next movement tick
+     * cannot continue with the ordinary swim trajectory.
+     */
+    private static void syncLaunchVelocity(ServerPlayer player) {
+        player.connection.send(new ClientboundSetEntityMotionPacket(player));
     }
 
     private static void charge(ServerPlayer player, String key) {
@@ -238,7 +396,8 @@ public final class FormActivePowerService {
             }
             int tier = jsonTier(player);
             String prefix = "tier" + tier + "_";
-            int charge = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).remove(id);
+            Integer chargeValue = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).remove(id);
+            int charge = chargeValue == null ? 0 : chargeValue;
             int required = Math.max(0, FormPowerRuntime.intValue(power, prefix + "charge_time", 0));
             if (charge >= required && !isOnCooldown(player, id)) {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "use_action"));

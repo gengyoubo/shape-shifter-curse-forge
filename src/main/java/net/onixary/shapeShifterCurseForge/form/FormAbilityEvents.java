@@ -34,12 +34,6 @@ public final class FormAbilityEvents {
         event.setNewSize(CrawlingScaleService.expectedDimensions(player, event.getPose()));
 
         event.setNewEyeHeight(CrawlingScaleService.expectedEyeHeight(player, event.getPose()));
-        System.out.println(
-                "[SSC SIZE] pose=" + player.getPose()
-                        + " new=" + event.getNewSize().width + "x" + event.getNewSize().height
-                        + " form=" + form.widthScale() + "," + form.heightScale()
-                        + " crawl=" + CrawlingScaleService.heightScale(player)
-        );
     }
 
     @SubscribeEvent
@@ -77,10 +71,21 @@ public final class FormAbilityEvents {
             if (form.hasFlag("slow_fall")) {
                 event.setDistance(0.0F);
                 event.setDamageMultiplier(0.0F);
-            } else if (form.fallProtectionDistance() > 0.0F) {
+            } else if (form.fallProtectionDistance() > 0.0F && !hasDataDrivenFallProtection(player)) {
                 event.setDistance(Math.max(0.0F, event.getDistance() - form.fallProtectionDistance()));
             }
         }
+    }
+
+    private static boolean hasDataDrivenFallProtection(Player player) {
+        final boolean[] found = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:falling_protection".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                found[0] = true;
+            }
+        });
+        return found[0];
     }
 
     private static void applyEffect(Player player, FormDefinition form, String flag, MobEffect effect) {

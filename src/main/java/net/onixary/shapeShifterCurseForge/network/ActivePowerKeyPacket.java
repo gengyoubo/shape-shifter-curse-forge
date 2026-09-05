@@ -18,7 +18,7 @@ public record ActivePowerKeyPacket(String key, boolean pressed) {
     }
 
     public static void handle(ActivePowerKeyPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
+           NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> {
             if (context.getSender() != null) {
                 FormActivePowerService.setKeyPressed(context.getSender(), packet.key, packet.pressed);
