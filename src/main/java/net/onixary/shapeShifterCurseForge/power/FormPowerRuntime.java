@@ -201,59 +201,43 @@ public final class FormPowerRuntime {
 
     private static boolean checkAccessory(Player actor, JsonObject condition) {
         if (condition == null) return false;
+        String mod = stringValue(condition, "accessory_mod", "auto");
+        String group = stringValue(condition, "group", "");
         String slot = stringValue(condition, "slot", "");
         int slotIndex = condition.has("slot_index") ? condition.get("slot_index").getAsInt() : 0;
         JsonObject ingredientCond = condition.has("condition") ? condition.getAsJsonObject("condition") : null;
-        // Try Curios slot lookup
-        try {
-            var curiosOpt = top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(actor).resolve();
-            if (curiosOpt.isPresent()) {
-                var handler = curiosOpt.get();
-                // Try exact slot (e.g., "extra_hand", "belt" etc.)
-                var stacksOpt = handler.getStacksHandler(slot);
-                if (stacksOpt.isPresent()) {
-                    var stacks = stacksOpt.get().getStacks();
-                    if (slotIndex >= 0 && slotIndex < stacksOpt.get().getSlots()) {
-                        net.minecraft.world.item.ItemStack stack = stacks.getStackInSlot(slotIndex);
-                        if (!stack.isEmpty() && ingredientCond != null) {
-                            return matchesItem(stack, ingredientCond);
-                        } else if (!stack.isEmpty() && ingredientCond == null) {
-                            return true;
-                        }
-                    }
-                }
-                // Fallback: scan all curios slots for matching ingredient
-                if (ingredientCond != null) {
-                    for (var entry : handler.getCurios().entrySet()) {
-                        var h = entry.getValue();
-                        for (int i = 0; i < h.getSlots(); i++) {
-                            var s = h.getStacks().getStackInSlot(i);
-                            if (!s.isEmpty() && matchesItem(s, ingredientCond)) return true;
-                        }
-                    }
+        // The backend is optional. AccessoryUtils safely returns null when Curios
+        // (or another accessory provider) is not installed.
+        ItemStack stack = AccessoryUtils.getEntitySlot(actor, mod, group, slot, slotIndex);
+        if (stack != null && !stack.isEmpty()) {
+            return ingredientCond == null || matchesItem(stack, ingredientCond);
+        }
+        if (ingredientCond == null) return false;
+
+        var allSlots = AccessoryUtils.getEntitySlots(actor, mod);
+        if (allSlots != null) {
+            for (var stacks : allSlots.values()) {
+                for (ItemStack candidate : stacks) {
+                    if (!candidate.isEmpty() && matchesItem(candidate, ingredientCond)) return true;
                 }
             }
-        } catch (Exception ignored) {}
+        }
         return false;
     }
 
     private static boolean hasAccessory(Player actor, JsonObject condition) {
         // has_accessory without slot filter: true if any accessory equipped matching ingredient
         if (condition == null) return false;
+        String mod = stringValue(condition, "accessory_mod", "auto");
         JsonObject ingredientCond = condition.has("condition") ? condition.getAsJsonObject("condition") : condition;
-        try {
-            var curiosOpt = top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(actor).resolve();
-            if (curiosOpt.isPresent()) {
-                var handler = curiosOpt.get();
-                for (var entry : handler.getCurios().entrySet()) {
-                    var h = entry.getValue();
-                    for (int i = 0; i < h.getSlots(); i++) {
-                        var s = h.getStacks().getStackInSlot(i);
-                        if (!s.isEmpty() && matchesItem(s, ingredientCond)) return true;
-                    }
+        var allSlots = AccessoryUtils.getEntitySlots(actor, mod);
+        if (allSlots != null) {
+            for (var stacks : allSlots.values()) {
+                for (ItemStack stack : stacks) {
+                    if (!stack.isEmpty() && matchesItem(stack, ingredientCond)) return true;
                 }
             }
-        } catch (Exception ignored) {}
+        }
         return false;
     }
 

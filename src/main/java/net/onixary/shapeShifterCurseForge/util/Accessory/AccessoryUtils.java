@@ -106,26 +106,26 @@ public class AccessoryUtils {
     public static Map<Tuple<String, String>, List<ItemStack>> getEntitySlots(LivingEntity entity, @Nullable String modID) {
         if (nowAccessoryMod == null) return null;
         if (modID == null || modID.equals("auto")) return nowAccessoryMod.getEntitySlots(entity);
-        var io = accessoryModInterfaces.get(modID);
+        var io = activeAccessoryModInterfaces.get(modID);
         return io == null ? null : io.getEntitySlots(entity);
     }
     @Nullable
     public static List<ItemStack> getEntitySlot(LivingEntity entity, @Nullable String modID, String group, String name) {
         if (nowAccessoryMod == null) return null;
         if (modID == null || modID.equals("auto")) return nowAccessoryMod.getEntitySlot(entity, group, name);
-        var io = accessoryModInterfaces.get(modID);
+        var io = activeAccessoryModInterfaces.get(modID);
         return io == null ? null : io.getEntitySlot(entity, group, name);
     }
     @Nullable
     public static ItemStack getEntitySlot(LivingEntity entity, @Nullable String modID, String group, String name, int idx) {
         if (nowAccessoryMod == null) return null;
         if (modID == null || modID.equals("auto")) return nowAccessoryMod.getEntitySlot(entity, group, name, idx);
-        var io = accessoryModInterfaces.get(modID);
+        var io = activeAccessoryModInterfaces.get(modID);
         return io == null ? null : io.getEntitySlot(entity, group, name, idx);
     }
     public static void setEntitySlot(LivingEntity entity, @Nullable String modID, String group, String name, int idx, ItemStack stack) {
         if (nowAccessoryMod == null) return;
         if (modID == null || modID.equals("auto")) nowAccessoryMod.setEntitySlot(entity, group, name, idx, stack);
-        else { var io = accessoryModInterfaces.get(modID); if (io != null) io.setEntitySlot(entity, group, name, idx, stack); }
+        else { var io = activeAccessoryModInterfaces.get(modID); if (io != null) io.setEntitySlot(entity, group, name, idx, stack); }
     }
 }
