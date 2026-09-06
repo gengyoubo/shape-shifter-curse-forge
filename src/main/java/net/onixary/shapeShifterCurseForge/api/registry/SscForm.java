@@ -233,7 +233,7 @@ public class SscForm {
         public Builder fallProtectionDistance(float distance) { fallProtectionDistance = distance; return this; }
         public Builder jumpVelocityAddition(float addition) { jumpVelocityAddition = addition; return this; }
         public Builder fullyCustomModel(boolean fullyCustomModel) { this.fullyCustomModel = fullyCustomModel; return this; }
-        /** @deprecated Prefer semantic methods such as {@link #finalForm()} and {@link #nightVision()}. */
+        /** @deprecated Prefer semantic form rules such as {@link #finalForm()}, or add gameplay through {@link SscPowers}. */
         @Deprecated(forRemoval = false)
         public Builder addFlags(String... flags) { addAll(addedFlags, flags); return this; }
 
@@ -241,17 +241,21 @@ public class SscForm {
         @Deprecated(forRemoval = false)
         public Builder removeFlags(String... flags) { addAll(removedFlags, flags); return this; }
 
-        public Builder starterForm() { return addSemanticFlag(SscFormFlags.STARTER); }
-        public Builder specialForm() { return addSemanticFlag(SscFormFlags.SPECIAL); }
+        public Builder starterForm() { SscFormRules.applyStarterForm(addedFlags); return this; }
+        public Builder specialForm() { SscFormRules.applySpecialForm(addedFlags); return this; }
         public Builder finalForm() {
-            return addSemanticFlags(SscFormFlags.FINAL, SscFormFlags.INHIBITOR_IMMUNE,
-                    SscFormFlags.INSTINCT_DISABLED, SscFormFlags.CURSED_MOON_IMMUNE);
+            SscFormRules.applyFinalForm(addedFlags);
+            return this;
         }
-        public Builder nightVision() { return addSemanticFlag(SscFormFlags.NIGHT_VISION); }
-        public Builder waterBreathing() { return addSemanticFlag(SscFormFlags.WATER_BREATHING); }
-        public Builder slowFalling() { return addSemanticFlag(SscFormFlags.SLOW_FALLING); }
-        public Builder wallClimbing() { return addSemanticFlag(SscFormFlags.WALL_CLIMBING); }
-        public Builder poisonImmune() { return addSemanticFlag(SscFormFlags.POISON_IMMUNITY); }
+        public Builder inhibitorImmune() { SscFormRules.applyInhibitorImmunity(addedFlags); return this; }
+        public Builder resistsInhibitor() { SscFormRules.applyInhibitorResistance(addedFlags); return this; }
+        public Builder catalystImmune() { SscFormRules.applyCatalystImmunity(addedFlags); return this; }
+        public Builder resistsCatalyst() { SscFormRules.applyCatalystResistance(addedFlags); return this; }
+        public Builder canTransformToFinalForm() { SscFormRules.applyCanTransformToFinalForm(addedFlags); return this; }
+        public Builder disablesInstinct() { SscFormRules.applyInstinctDisabled(addedFlags); return this; }
+        public Builder locksInstinct() { SscFormRules.applyInstinctLocked(addedFlags); return this; }
+        public Builder immuneToCursedMoon() { SscFormRules.applyCursedMoonImmunity(addedFlags); return this; }
+        public Builder cursedMoonFinalForm() { SscFormRules.applyCursedMoonFinalForm(addedFlags); return this; }
 
         public SscForm build() {
             if (id.equals(inheritanceParentId) || id.equals(variantParentId)) {
@@ -268,14 +272,5 @@ public class SscForm {
             }
         }
 
-        private Builder addSemanticFlag(String flag) {
-            addedFlags.add(flag);
-            return this;
-        }
-
-        private Builder addSemanticFlags(String... flags) {
-            java.util.Collections.addAll(addedFlags, flags);
-            return this;
-        }
     }
 }

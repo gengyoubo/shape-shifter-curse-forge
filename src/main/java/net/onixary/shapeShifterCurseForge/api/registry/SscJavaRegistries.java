@@ -24,9 +24,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * Fabric implementation.</p>
  *
  * <p>Registration is deliberately explicit: SSC does not scan static fields, subclasses, or
- * annotations. Register every form with {@link #registerForm(SscForm)}, then explicitly register
- * its owning family's {@link Evolution} with {@link #registerEvolution(Evolution)}. This keeps
- * load order deterministic and lets invalid cross-mod references fail with a useful error.</p>
+ * annotations. Prefer {@link #registrar(String)} and declare handles there, then call its
+ * {@link SscRegistrar#init()} once from the owning mod entry point. This is intentionally similar
+ * to Forge's DeferredRegister: it gives a form one stable registry object and avoids ad-hoc
+ * construction during class loading.</p>
  *
  * <pre>{@code
  * SscJavaRegistries.registerCondition(id("is_raining"),
@@ -44,6 +45,11 @@ public final class SscJavaRegistries {
     private static final Map<ResourceLocation, Set<ResourceLocation>> FORM_POWERS = new ConcurrentHashMap<>();
 
     private SscJavaRegistries() {
+    }
+
+    /** Creates a DeferredRegister-style staging area for one mod namespace. */
+    public static SscRegistrar registrar(String namespace) {
+        return new SscRegistrar(namespace);
     }
 
     public static void registerCondition(ResourceLocation id, SscCondition condition) {

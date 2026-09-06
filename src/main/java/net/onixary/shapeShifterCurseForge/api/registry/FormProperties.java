@@ -98,7 +98,7 @@ public final class FormProperties {
         return this;
     }
 
-    /** @deprecated Prefer a semantic method such as {@link #nightVision()} or {@link #finalForm()}. */
+    /** @deprecated Prefer a semantic method such as {@link #finalForm()}. */
     @Deprecated(forRemoval = false)
     public FormProperties addFlag(String flag) {
         if (flag == null || flag.isBlank()) throw new IllegalArgumentException("SSC form flags must not be blank");
@@ -115,36 +115,21 @@ public final class FormProperties {
 
     /** Marks this as the final form in its branch. */
     public FormProperties finalForm() {
-        return flags(SscFormFlags.FINAL, SscFormFlags.INHIBITOR_IMMUNE,
-                SscFormFlags.INSTINCT_DISABLED, SscFormFlags.CURSED_MOON_IMMUNE);
-    }
-
-    public FormProperties starterForm() { return flag(SscFormFlags.STARTER); }
-    public FormProperties specialForm() { return flag(SscFormFlags.SPECIAL); }
-    public FormProperties inhibitorImmune() { return flag(SscFormFlags.INHIBITOR_IMMUNE); }
-    public FormProperties resistsInhibitor() { return flag(SscFormFlags.INHIBITOR_RESISTANT); }
-    public FormProperties catalystImmune() { return flag(SscFormFlags.CATALYST_IMMUNE); }
-    public FormProperties resistsCatalyst() { return flag(SscFormFlags.CATALYST_RESISTANT); }
-    public FormProperties canTransformToFinalForm() { return flag(SscFormFlags.CAN_REACH_FINAL); }
-    public FormProperties disablesInstinct() { return flag(SscFormFlags.INSTINCT_DISABLED); }
-    public FormProperties locksInstinct() { return flag(SscFormFlags.INSTINCT_LOCKED); }
-    public FormProperties immuneToCursedMoon() { return flag(SscFormFlags.CURSED_MOON_IMMUNE); }
-    public FormProperties cursedMoonFinalForm() { return flag(SscFormFlags.CURSED_MOON_FINAL); }
-    public FormProperties nightVision() { return flag(SscFormFlags.NIGHT_VISION); }
-    public FormProperties waterBreathing() { return flag(SscFormFlags.WATER_BREATHING); }
-    public FormProperties slowFalling() { return flag(SscFormFlags.SLOW_FALLING); }
-    public FormProperties wallClimbing() { return flag(SscFormFlags.WALL_CLIMBING); }
-    public FormProperties poisonImmune() { return flag(SscFormFlags.POISON_IMMUNITY); }
-
-    private FormProperties flags(String... values) {
-        for (String value : values) flags.add(value);
+        SscFormRules.applyFinalForm(flags);
         return this;
     }
 
-    private FormProperties flag(String value) {
-        flags.add(value);
-        return this;
-    }
+    public FormProperties starterForm() { SscFormRules.applyStarterForm(flags); return this; }
+    public FormProperties specialForm() { SscFormRules.applySpecialForm(flags); return this; }
+    public FormProperties inhibitorImmune() { SscFormRules.applyInhibitorImmunity(flags); return this; }
+    public FormProperties resistsInhibitor() { SscFormRules.applyInhibitorResistance(flags); return this; }
+    public FormProperties catalystImmune() { SscFormRules.applyCatalystImmunity(flags); return this; }
+    public FormProperties resistsCatalyst() { SscFormRules.applyCatalystResistance(flags); return this; }
+    public FormProperties canTransformToFinalForm() { SscFormRules.applyCanTransformToFinalForm(flags); return this; }
+    public FormProperties disablesInstinct() { SscFormRules.applyInstinctDisabled(flags); return this; }
+    public FormProperties locksInstinct() { SscFormRules.applyInstinctLocked(flags); return this; }
+    public FormProperties immuneToCursedMoon() { SscFormRules.applyCursedMoonImmunity(flags); return this; }
+    public FormProperties cursedMoonFinalForm() { SscFormRules.applyCursedMoonFinalForm(flags); return this; }
 
     FormDefinition toDefinition(ResourceLocation id) {
         return new FormDefinition(id, groupId, stage, weight, bodyType, widthScale, heightScale, eyeScale,

@@ -14,12 +14,6 @@ final class SscFormFlags {
     static final String INSTINCT_LOCKED = "lock_instinct";
     static final String CURSED_MOON_IMMUNE = "no_cursed_moon_effect";
     static final String CURSED_MOON_FINAL = "cursed_moon_final_form";
-    static final String NIGHT_VISION = "night_vision";
-    static final String WATER_BREATHING = "water_breathing";
-    static final String SLOW_FALLING = "slow_fall";
-    static final String WALL_CLIMBING = "climb";
-    static final String POISON_IMMUNITY = "poison_immune";
-
     private SscFormFlags() {
     }
 }
