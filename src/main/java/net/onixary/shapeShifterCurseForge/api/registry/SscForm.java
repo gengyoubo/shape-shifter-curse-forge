@@ -16,7 +16,7 @@ import java.util.Set;
  * {@link Builder#removeFlags(String...)} are applied. A root form defaults to the NORMAL body,
  * tier/weight 1, scale 1, and a {@code <path>_form} group when those values are omitted.</p>
  */
-public final class SscForm {
+public class SscForm {
     private final ResourceLocation id;
     private final ResourceLocation parentId;
     private final ResourceLocation groupId;
@@ -31,7 +31,13 @@ public final class SscForm {
     private final Set<String> addedFlags;
     private final Set<String> removedFlags;
 
-    private SscForm(Builder builder) {
+    /**
+     * Creates a Java form from its properties.
+     *
+     * <p>Protected so extensions can expose a concrete form class, in the same style as a
+     * custom {@code Item}: {@code final class MyForm extends SscForm}.</p>
+     */
+    protected SscForm(Builder builder) {
         this.id = builder.id;
         this.parentId = builder.parentId;
         this.groupId = builder.groupId;
