@@ -192,10 +192,12 @@ public final class FormRegistry {
                     number(data, "fall_protection_distance", 0.0F));
             float jumpAddition = number(data, "jumpVelocityAddition",
                     number(data, "jump_velocity_addition", 0.0F));
+            boolean fullyCustomModel = booleanValue(data, "fullyCustomModel",
+                    booleanValue(data, "fully_custom_model", false));
             Set<String> flags = flags(data);
 
             FormDefinition definition = new FormDefinition(formId, groupId, tier, weight, bodyType,
-                    width, height, eye, flags, fallProtection, jumpAddition);
+                    width, height, eye, flags, fallProtection, jumpAddition, fullyCustomModel);
             FormGroup group = GROUPS.get(groupId);
             if (group == null) {
                 group = new FormGroup(groupId);
@@ -364,6 +366,14 @@ public final class FormRegistry {
     private static float number(JsonObject data, String key, float fallback) {
         try {
             return data.has(key) ? data.get(key).getAsFloat() : fallback;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
+    }
+
+    private static boolean booleanValue(JsonObject data, String key, boolean fallback) {
+        try {
+            return data.has(key) ? data.get(key).getAsBoolean() : fallback;
         } catch (RuntimeException ignored) {
             return fallback;
         }

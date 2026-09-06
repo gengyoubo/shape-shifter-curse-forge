@@ -27,6 +27,8 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private PlayerModel<?> vanillaPlayerModel;
     private BedrockAnimationPlayer.BodyTransform bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
     private boolean inventoryPreview;
+    private ResourceLocation animationResource;
+    private boolean fullyCustomModel;
     private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
     private FormAnimationSystem.Selection extraPrimary;
     private float extraPrimaryTime;
@@ -159,6 +161,11 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         this.inventoryPreview = inventoryPreview;
     }
 
+    public void setAnimationResource(ResourceLocation animationResource, boolean fullyCustomModel) {
+        this.animationResource = animationResource;
+        this.fullyCustomModel = fullyCustomModel;
+    }
+
     public boolean isInventoryPreview() {
         return inventoryPreview;
     }
@@ -287,8 +294,14 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "idle", state -> {
-            state.setAnimation(RawAnimation.begin().then("idle", Animation.LoopType.LOOP));
-            return PlayState.CONTINUE;
+            // Normal forms are driven by the copied vanilla PlayerModel pose plus SSC's
+            // Bedrock animation system. Fully custom forms explicitly opt into a GeckoLib
+            // animation resource and must provide the conventional "idle" clip.
+            if (fullyCustomModel && animationResource != null) {
+                state.setAnimation(RawAnimation.begin().then("idle", Animation.LoopType.LOOP));
+                return PlayState.CONTINUE;
+            }
+            return PlayState.STOP;
         }));
     }
 

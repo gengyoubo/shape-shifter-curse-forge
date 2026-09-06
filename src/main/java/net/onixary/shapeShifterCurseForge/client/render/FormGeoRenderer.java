@@ -9,8 +9,14 @@ public final class FormGeoRenderer extends GeoObjectRenderer<FormGeoAnimatable> 
     private final FormGeoAnimatable formAnimatable;
 
     public FormGeoRenderer(ResourceLocation model, ResourceLocation texture, ResourceLocation animationConfig) {
-        super(new FormGeoModel(model, texture, animationConfig));
+        this(model, texture, animationConfig, FormGeoModel.emptyAnimationResource(), false);
+    }
+
+    public FormGeoRenderer(ResourceLocation model, ResourceLocation texture, ResourceLocation animationConfig,
+                           ResourceLocation animation, boolean fullyCustomModel) {
+        super(new FormGeoModel(model, texture, animationConfig, animation));
         this.formAnimatable = new FormGeoAnimatable();
+        this.formAnimatable.setAnimationResource(animation, fullyCustomModel);
         this.animatable = formAnimatable;
     }
 

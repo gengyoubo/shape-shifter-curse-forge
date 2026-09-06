@@ -203,8 +203,18 @@ public final class FormClientRenderEvents {
             return null;
         }
         ResourceLocation animationConfig = metadata.config();
+        ResourceLocation animation = metadata.animation() == null
+                ? customAnimationResource(form) : metadata.animation();
+        if (form.fullyCustomModel()
+                && minecraft.getResourceManager().getResource(animation).isEmpty()) {
+            throw new IllegalStateException("Form '" + form.id()
+                    + "' is marked fullyCustomModel but its animation resource is missing: " + animation);
+        }
+        ResourceLocation effectiveAnimation = form.fullyCustomModel()
+                ? animation : FormGeoModel.emptyAnimationResource();
         return RENDERERS.computeIfAbsent(form.id(),
-                ignored -> new FormGeoRenderer(model, texture, animationConfig));
+                ignored -> new FormGeoRenderer(model, texture, animationConfig, effectiveAnimation,
+                        form.fullyCustomModel()));
     }
 
     private static ResourceLocation modelResource(FormDefinition form) {
@@ -218,6 +228,11 @@ public final class FormClientRenderEvents {
                         + "/form_" + form.id().getPath() + ".png");
     }
 
+    private static ResourceLocation customAnimationResource(FormDefinition form) {
+        return ResourceLocation.fromNamespaceAndPath(form.id().getNamespace(),
+                "animations/form_" + form.id().getPath() + ".animation.json");
+    }
+
     /** Reads the Fabric-compatible ssc_form_model metadata, including external namespaces. */
     private static ModelMetadata modelMetadata(FormDefinition form, Minecraft minecraft) {
         ResourceLocation config = ResourceLocation.fromNamespaceAndPath(form.id().getNamespace(),
@@ -227,7 +242,7 @@ public final class FormClientRenderEvents {
             Optional<net.minecraft.server.packs.resources.Resource> resource =
                     minecraft.getResourceManager().getResource(config);
             if (resource.isEmpty()) {
-                return new ModelMetadata(null, null, config);
+                return new ModelMetadata(null, null, null, config);
             }
             try (InputStreamReader reader = new InputStreamReader(resource.get().open(), StandardCharsets.UTF_8)) {
                 var root = JsonParser.parseReader(reader).getAsJsonObject();
@@ -235,15 +250,18 @@ public final class FormClientRenderEvents {
                         ? ResourceLocation.tryParse(root.get("model").getAsString()) : null;
                 ResourceLocation texture = root.has("texture") && root.get("texture").isJsonPrimitive()
                         ? ResourceLocation.tryParse(root.get("texture").getAsString()) : null;
-                return new ModelMetadata(model, texture, config);
+                ResourceLocation animation = root.has("animation") && root.get("animation").isJsonPrimitive()
+                        ? ResourceLocation.tryParse(root.get("animation").getAsString()) : null;
+                return new ModelMetadata(model, texture, animation, config);
             }
         } catch (Exception exception) {
             LOGGER.warn("Failed to read form model metadata for {}: {}", form.id(), exception.toString());
-            return new ModelMetadata(null, null, config);
+            return new ModelMetadata(null, null, null, config);
         }
     }
 
-    private record ModelMetadata(ResourceLocation model, ResourceLocation texture, ResourceLocation config) {
+    private record ModelMetadata(ResourceLocation model, ResourceLocation texture,
+                                 ResourceLocation animation, ResourceLocation config) {
     }
 
     private static String missingAssetSuffix(FormDefinition form) {

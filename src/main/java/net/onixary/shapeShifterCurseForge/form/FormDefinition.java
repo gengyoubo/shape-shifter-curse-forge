@@ -15,12 +15,21 @@ public record FormDefinition(
         float eyeScale,
         Set<String> flags,
         float fallProtectionDistance,
-        float jumpVelocityAddition
+        float jumpVelocityAddition,
+        boolean fullyCustomModel
 ) {
     public FormDefinition(ResourceLocation id, ResourceLocation groupId, int tier, int weight,
                            FormBodyType bodyType, float widthScale, float heightScale, float eyeScale,
                            Set<String> flags) {
-        this(id, groupId, tier, weight, bodyType, widthScale, heightScale, eyeScale, flags, 0.0F, 0.0F);
+        this(id, groupId, tier, weight, bodyType, widthScale, heightScale, eyeScale, flags,
+                0.0F, 0.0F, false);
+    }
+
+    public FormDefinition(ResourceLocation id, ResourceLocation groupId, int tier, int weight,
+                           FormBodyType bodyType, float widthScale, float heightScale, float eyeScale,
+                           Set<String> flags, float fallProtectionDistance, float jumpVelocityAddition) {
+        this(id, groupId, tier, weight, bodyType, widthScale, heightScale, eyeScale, flags,
+                fallProtectionDistance, jumpVelocityAddition, false);
     }
 
     public boolean hasFlag(String flag) {

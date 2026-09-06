@@ -12,6 +12,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoRenderer;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -29,6 +30,8 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
+    private static final ResourceLocation EMPTY_ANIMATION = ResourceLocation.fromNamespaceAndPath(
+            ShapeShifterCurseForge.RESOURCE_NAMESPACE, "animations/empty.animation.json");
     private static final float DEG_TO_RAD = (float) Math.PI / 180.0F;
     private final ResourceLocation model;
     private final ResourceLocation texture;
@@ -47,10 +50,19 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     private final Map<FormTextureUtils.ColorSetting, ResourceLocation> bakedSkins = new HashMap<>();
 
     public FormGeoModel(ResourceLocation model, ResourceLocation texture, ResourceLocation animationConfigResource) {
+        this(model, texture, animationConfigResource, EMPTY_ANIMATION);
+    }
+
+    public FormGeoModel(ResourceLocation model, ResourceLocation texture, ResourceLocation animationConfigResource,
+                        ResourceLocation animation) {
         this.model = model;
         this.texture = texture;
-        this.animation = ResourceLocation.fromNamespaceAndPath(model.getNamespace(), "animations/missing.animation.json");
+        this.animation = animation == null ? EMPTY_ANIMATION : animation;
         this.animationConfigResource = animationConfigResource;
+    }
+
+    public static ResourceLocation emptyAnimationResource() {
+        return EMPTY_ANIMATION;
     }
 
     @Override

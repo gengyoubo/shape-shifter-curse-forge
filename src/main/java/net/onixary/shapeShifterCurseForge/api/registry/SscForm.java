@@ -28,6 +28,7 @@ public class SscForm {
     private final Float eyeScale;
     private final Float fallProtectionDistance;
     private final Float jumpVelocityAddition;
+    private final Boolean fullyCustomModel;
     private final Set<String> addedFlags;
     private final Set<String> removedFlags;
 
@@ -49,6 +50,7 @@ public class SscForm {
         this.eyeScale = builder.eyeScale;
         this.fallProtectionDistance = builder.fallProtectionDistance;
         this.jumpVelocityAddition = builder.jumpVelocityAddition;
+        this.fullyCustomModel = builder.fullyCustomModel;
         this.addedFlags = Set.copyOf(builder.addedFlags);
         this.removedFlags = Set.copyOf(builder.removedFlags);
     }
@@ -83,6 +85,8 @@ public class SscForm {
                 : parent != null ? parent.fallProtectionDistance() : 0.0F;
         float resolvedJumpAddition = jumpVelocityAddition != null ? jumpVelocityAddition
                 : parent != null ? parent.jumpVelocityAddition() : 0.0F;
+        boolean resolvedFullyCustomModel = fullyCustomModel != null ? fullyCustomModel
+                : parent != null && parent.fullyCustomModel();
         Set<String> resolvedFlags = new LinkedHashSet<>();
         if (parent != null) {
             resolvedFlags.addAll(parent.flags());
@@ -91,7 +95,7 @@ public class SscForm {
         resolvedFlags.removeAll(removedFlags);
         return new FormDefinition(id, resolvedGroup, resolvedTier, resolvedWeight, resolvedBody,
                 resolvedWidth, resolvedHeight, resolvedEye, Set.copyOf(resolvedFlags),
-                resolvedFallProtection, resolvedJumpAddition);
+                resolvedFallProtection, resolvedJumpAddition, resolvedFullyCustomModel);
     }
 
     public static final class Builder {
@@ -106,6 +110,7 @@ public class SscForm {
         private Float eyeScale;
         private Float fallProtectionDistance;
         private Float jumpVelocityAddition;
+        private Boolean fullyCustomModel;
         private final Set<String> addedFlags = new LinkedHashSet<>();
         private final Set<String> removedFlags = new LinkedHashSet<>();
 
@@ -160,6 +165,12 @@ public class SscForm {
 
         public Builder jumpVelocityAddition(float addition) {
             this.jumpVelocityAddition = addition;
+            return this;
+        }
+
+        /** Whether this form must provide and play a GeckoLib custom animation resource. */
+        public Builder fullyCustomModel(boolean fullyCustomModel) {
+            this.fullyCustomModel = fullyCustomModel;
             return this;
         }
 
