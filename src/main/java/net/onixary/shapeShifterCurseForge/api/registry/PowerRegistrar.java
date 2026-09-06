@@ -6,7 +6,13 @@ import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 
-/** Receives power references declared by a class-based form. */
+/**
+ * Receives immutable power references declared by a class-based form.
+ *
+ * <p>This registrar only describes what a form has. It does not create a per-player Power
+ * instance or hold cooldown/state; Java powers must store such state in an appropriate
+ * per-player capability/attachment.</p>
+ */
 public final class PowerRegistrar {
     private final Set<ResourceLocation> powerIds = new LinkedHashSet<>();
 

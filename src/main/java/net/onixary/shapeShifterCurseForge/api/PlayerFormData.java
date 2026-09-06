@@ -3,10 +3,13 @@ package net.onixary.shapeShifterCurseForge.api;
 import net.minecraft.nbt.CompoundTag;
 
 /**
- * Stable public access contract for a player's form data.
+ * Stable public access contract for one player's mutable form runtime state.
  *
  * <p>The current implementation is backed by a Forge Capability, but callers
- * must not depend on that storage mechanism.</p>
+ * must not depend on that storage mechanism. This is deliberately separate from
+ * {@code SscForm}, {@code FormDefinition}, and {@code Evolution}: those classes are immutable
+ * shared definitions and must never contain a player's instinct, transformation progress,
+ * cooldown, or other mutable state.</p>
  */
 public interface PlayerFormData {
     String getFormId();

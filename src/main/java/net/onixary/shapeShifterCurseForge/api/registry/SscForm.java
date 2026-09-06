@@ -17,6 +17,10 @@ import java.util.Set;
  * {@link #stage()}, {@link #configure(FormProperties)}, and {@link #powers(PowerRegistrar)} are
  * evaluated by SSC while the registry resolves. Progression between those forms belongs in the
  * owning family's {@link Evolution}, not in the Stage class.</p>
+ *
+ * <p>SscForm is a shared definition, never a player's live form instance. Do not keep mutable
+ * player state in a form subclass; use SSC's player data capability or a per-player power state
+ * attachment instead.</p>
  */
 public class SscForm {
     /** A class-based form with no stage override is a stage-four form. */
@@ -229,8 +233,25 @@ public class SscForm {
         public Builder fallProtectionDistance(float distance) { fallProtectionDistance = distance; return this; }
         public Builder jumpVelocityAddition(float addition) { jumpVelocityAddition = addition; return this; }
         public Builder fullyCustomModel(boolean fullyCustomModel) { this.fullyCustomModel = fullyCustomModel; return this; }
+        /** @deprecated Prefer semantic methods such as {@link #finalForm()} and {@link #nightVision()}. */
+        @Deprecated(forRemoval = false)
         public Builder addFlags(String... flags) { addAll(addedFlags, flags); return this; }
+
+        /** @deprecated Reserved for advanced compatibility use. */
+        @Deprecated(forRemoval = false)
         public Builder removeFlags(String... flags) { addAll(removedFlags, flags); return this; }
+
+        public Builder starterForm() { return addSemanticFlag(SscFormFlags.STARTER); }
+        public Builder specialForm() { return addSemanticFlag(SscFormFlags.SPECIAL); }
+        public Builder finalForm() {
+            return addSemanticFlags(SscFormFlags.FINAL, SscFormFlags.INHIBITOR_IMMUNE,
+                    SscFormFlags.INSTINCT_DISABLED, SscFormFlags.CURSED_MOON_IMMUNE);
+        }
+        public Builder nightVision() { return addSemanticFlag(SscFormFlags.NIGHT_VISION); }
+        public Builder waterBreathing() { return addSemanticFlag(SscFormFlags.WATER_BREATHING); }
+        public Builder slowFalling() { return addSemanticFlag(SscFormFlags.SLOW_FALLING); }
+        public Builder wallClimbing() { return addSemanticFlag(SscFormFlags.WALL_CLIMBING); }
+        public Builder poisonImmune() { return addSemanticFlag(SscFormFlags.POISON_IMMUNITY); }
 
         public SscForm build() {
             if (id.equals(inheritanceParentId) || id.equals(variantParentId)) {
@@ -245,6 +266,16 @@ public class SscForm {
                 if (flag == null || flag.isBlank()) throw new IllegalArgumentException("SSC form flags must not be blank");
                 target.add(flag);
             }
+        }
+
+        private Builder addSemanticFlag(String flag) {
+            addedFlags.add(flag);
+            return this;
+        }
+
+        private Builder addSemanticFlags(String... flags) {
+            java.util.Collections.addAll(addedFlags, flags);
+            return this;
         }
     }
 }

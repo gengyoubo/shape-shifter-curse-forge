@@ -4,7 +4,10 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.Set;
 
-/** Immutable resolved form. {@link #stage()} is the public progression term. */
+/**
+ * Immutable resolved form definition. {@link #stage()} is the public progression term.
+ * Player-specific state belongs to {@code PlayerFormData}, never to this shared object.
+ */
 public record FormDefinition(
         ResourceLocation id,
         ResourceLocation groupId,
