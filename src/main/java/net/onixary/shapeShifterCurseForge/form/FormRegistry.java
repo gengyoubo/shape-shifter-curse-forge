@@ -5,10 +5,13 @@ import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.api.registry.SscForm;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,6 +24,10 @@ public final class FormRegistry {
     private static final Set<ResourceLocation> DYNAMIC_FORMS = new LinkedHashSet<>();
     private static final Set<ResourceLocation> DYNAMIC_GROUPS = new LinkedHashSet<>();
     private static final Map<ResourceLocation, ResourceLocation> DYNAMIC_ORIGIN_IDS = new LinkedHashMap<>();
+    private static final Map<ResourceLocation, SscForm> JAVA_FORMS = new LinkedHashMap<>();
+    private static final Set<ResourceLocation> RESOLVED_JAVA_FORMS = new LinkedHashSet<>();
+    private static final Set<ResourceLocation> JAVA_GROUPS = new LinkedHashSet<>();
+    private static boolean javaFormsDirty;
     private static boolean bootstrapped;
 
     private FormRegistry() {
@@ -138,6 +145,7 @@ public final class FormRegistry {
     /** Same as {@link #reloadDynamicForms(Map)}, also validates that every mapped Origin exists. */
     public static void reloadDynamicForms(Map<ResourceLocation, JsonElement> json, ResourceManager resourceManager) {
         bootstrap();
+        javaFormsDirty = true;
         for (ResourceLocation formId : DYNAMIC_FORMS) {
             FormDefinition old = FORMS.remove(formId);
             if (old != null) {
@@ -204,6 +212,98 @@ public final class FormRegistry {
             DYNAMIC_ORIGIN_IDS.put(formId, ids.originId());
             LOGGER.info("Loaded dynamic form {} from {}", formId, resourceId);
         });
+        resolveJavaForms();
+    }
+
+    /**
+     * Registers a Java form descriptor. Resolution is deferred until form data is first queried,
+     * allowing an add-on to declare child forms before another add-on has registered its parent.
+     */
+    public static synchronized void registerJavaForm(SscForm form) {
+        bootstrap();
+        ResourceLocation id = form.id();
+        if (JAVA_FORMS.containsKey(id) || (FORMS.containsKey(id) && !RESOLVED_JAVA_FORMS.contains(id))) {
+            throw new IllegalStateException("Duplicate SSC Java form registration: '" + id + "'");
+        }
+        JAVA_FORMS.put(id, form);
+        javaFormsDirty = true;
+    }
+
+    private static synchronized void resolveJavaForms() {
+        if (!javaFormsDirty) {
+            return;
+        }
+        for (ResourceLocation id : RESOLVED_JAVA_FORMS) {
+            FormDefinition old = FORMS.remove(id);
+            if (old != null) {
+                removeFromGroup(old);
+            }
+        }
+        RESOLVED_JAVA_FORMS.clear();
+        JAVA_GROUPS.removeIf(groupId -> {
+            FormGroup group = GROUPS.get(groupId);
+            if (group != null && group.isEmpty()) {
+                GROUPS.remove(groupId);
+                return true;
+            }
+            return group == null;
+        });
+
+        Set<ResourceLocation> resolving = new LinkedHashSet<>();
+        for (ResourceLocation id : JAVA_FORMS.keySet()) {
+            resolveJavaForm(id, resolving);
+        }
+        javaFormsDirty = false;
+    }
+
+    private static FormDefinition resolveJavaForm(ResourceLocation id, Set<ResourceLocation> resolving) {
+        FormDefinition resolved = FORMS.get(id);
+        if (resolved != null) {
+            return resolved;
+        }
+        SscForm form = JAVA_FORMS.get(id);
+        if (form == null) {
+            return null;
+        }
+        if (!resolving.add(id)) {
+            throw new IllegalStateException("Circular SSC Java form inheritance involving '" + id + "'");
+        }
+        FormDefinition parent = null;
+        if (form.parentId() != null) {
+            parent = JAVA_FORMS.containsKey(form.parentId())
+                    ? resolveJavaForm(form.parentId(), resolving)
+                    : FORMS.get(form.parentId());
+            if (parent == null) {
+                throw new IllegalStateException("SSC Java form '" + id + "' inherits missing form '"
+                        + form.parentId() + "'");
+            }
+        }
+        FormDefinition definition = form.resolve(parent);
+        FormDefinition existing = FORMS.putIfAbsent(id, definition);
+        if (existing != null) {
+            throw new IllegalStateException("Duplicate SSC Java form registration: '" + id + "'");
+        }
+        FormGroup group = GROUPS.get(definition.groupId());
+        if (group == null) {
+            group = new FormGroup(definition.groupId());
+            GROUPS.put(definition.groupId(), group);
+            JAVA_GROUPS.add(definition.groupId());
+        }
+        group.add(definition);
+        RESOLVED_JAVA_FORMS.add(id);
+        resolving.remove(id);
+        return definition;
+    }
+
+    private static void removeFromGroup(FormDefinition definition) {
+        FormGroup group = GROUPS.get(definition.groupId());
+        if (group == null) {
+            return;
+        }
+        group.remove(definition.id());
+        if (group.isEmpty() && JAVA_GROUPS.contains(definition.groupId())) {
+            GROUPS.remove(definition.groupId());
+        }
     }
 
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(FormRegistry.class);
@@ -295,6 +395,7 @@ public final class FormRegistry {
 
     public static FormDefinition get(ResourceLocation id) {
         bootstrap();
+        resolveJavaForms();
         return FORMS.get(id);
     }
 
@@ -304,12 +405,35 @@ public final class FormRegistry {
 
     public static FormGroup getGroup(ResourceLocation id) {
         bootstrap();
+        resolveJavaForms();
         return GROUPS.get(id);
     }
 
     public static ResourceLocation originIdFor(ResourceLocation formId) {
         bootstrap();
         return DYNAMIC_ORIGIN_IDS.get(formId);
+    }
+
+    /**
+     * Current form followed by its Java-form ancestors. Built-in and data-defined forms have a
+     * one-entry lineage. The order deliberately lets child-defined powers run before inherited
+     * powers when both are active.
+     */
+    public static List<ResourceLocation> lineage(ResourceLocation formId) {
+        bootstrap();
+        resolveJavaForms();
+        List<ResourceLocation> result = new ArrayList<>();
+        Set<ResourceLocation> seen = new LinkedHashSet<>();
+        ResourceLocation current = formId;
+        while (current != null) {
+            if (!seen.add(current)) {
+                throw new IllegalStateException("Circular SSC Java form inheritance involving '" + current + "'");
+            }
+            result.add(current);
+            SscForm form = JAVA_FORMS.get(current);
+            current = form == null ? null : form.parentId();
+        }
+        return List.copyOf(result);
     }
 
     /** Whether an id was successfully loaded from an external {@code ssc_form} data directory. */
@@ -320,11 +444,13 @@ public final class FormRegistry {
 
     public static Map<ResourceLocation, FormDefinition> forms() {
         bootstrap();
+        resolveJavaForms();
         return Collections.unmodifiableMap(FORMS);
     }
 
     public static Map<ResourceLocation, FormGroup> groups() {
         bootstrap();
+        resolveJavaForms();
         return Collections.unmodifiableMap(GROUPS);
     }
 }

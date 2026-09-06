@@ -39,6 +39,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerPlayer;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
 import java.util.HashMap;
@@ -56,7 +57,10 @@ public final class FormPowerRuntime {
         }
 
         String type = FormPowerRegistry.typeOf(condition);
-        boolean result = switch (type) {
+        ResourceLocation typeId = ResourceLocation.tryParse(type);
+        Boolean javaResult = typeId == null ? null
+                : SscJavaRegistries.testCondition(typeId, actor, target, condition);
+        boolean result = javaResult != null ? javaResult : switch (type) {
             case "apoli:and" -> testAll(actor, target, condition.getAsJsonArray("conditions"));
             case "apoli:or" -> testAny(actor, target, condition.getAsJsonArray("conditions"));
             case "apoli:sneaking" -> actor.isCrouching();
@@ -276,6 +280,10 @@ public final class FormPowerRuntime {
         }
 
         LivingEntity recipient = target == null ? actor : target;
+        ResourceLocation typeId = ResourceLocation.tryParse(type);
+        if (typeId != null && SscJavaRegistries.executeAction(typeId, actor, recipient, action)) {
+            return;
+        }
         switch (type) {
             case "apoli:and" -> { }
             case "apoli:apply_effect" -> applyEffect(recipient, action.getAsJsonObject("effect"));

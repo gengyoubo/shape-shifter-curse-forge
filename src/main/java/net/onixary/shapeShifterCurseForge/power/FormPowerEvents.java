@@ -36,6 +36,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
@@ -85,6 +86,7 @@ public final class FormPowerEvents {
         MovementPowerService.tick(player);
         enforceSprinting(player);
         adjustFoodHealTimer(player);
+        SscJavaRegistries.tickActivePowers(player);
         FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, id, power));
         applyClimbing(player);
         maintainBreathingAndImmunity(player);

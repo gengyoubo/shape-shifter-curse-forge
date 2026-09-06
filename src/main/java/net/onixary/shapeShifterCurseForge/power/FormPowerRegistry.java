@@ -16,6 +16,7 @@ import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.util.TrinketUtils;
@@ -84,21 +85,21 @@ public final class FormPowerRegistry {
     /** Compact server-side view used to diagnose the Forge-native power data pipeline. */
     public static DebugInfo debug(Player player) {
         List<ResourceLocation> assigned = idsFor(player);
-        int resolved = (int) assigned.stream().filter(id -> get(id) != null).count();
+        int resolved = (int) assigned.stream().filter(id -> get(id) != null || SscJavaRegistries.power(id).isPresent()).count();
         return new DebugInfo(all().size(), formPowers.size(), FormManager.current(player).id(), assigned, resolved);
     }
 
     public static List<ResourceLocation> idsFor(Player player) {
         ResourceLocation formId = FormManager.current(player).id();
-        ResourceLocation legacyOriginId = ResourceLocation.fromNamespaceAndPath(
-                formId.getNamespace(),
-                "form_" + formId.getPath()
-        );
-        ResourceLocation customOriginId = FormRegistry.originIdFor(formId);
         LinkedHashSet<ResourceLocation> originKeys = new LinkedHashSet<>();
-        originKeys.add(formId);
-        originKeys.add(legacyOriginId);
-        if (customOriginId != null) originKeys.add(customOriginId);
+        for (ResourceLocation inheritedForm : FormRegistry.lineage(formId)) {
+            ResourceLocation legacyOriginId = ResourceLocation.fromNamespaceAndPath(
+                    inheritedForm.getNamespace(), "form_" + inheritedForm.getPath());
+            ResourceLocation customOriginId = FormRegistry.originIdFor(inheritedForm);
+            originKeys.add(inheritedForm);
+            originKeys.add(legacyOriginId);
+            if (customOriginId != null) originKeys.add(customOriginId);
+        }
 
         LinkedHashSet<ResourceLocation> assigned = new LinkedHashSet<>();
         LinkedHashSet<ResourceLocation> removed = new LinkedHashSet<>();
@@ -108,6 +109,7 @@ public final class FormPowerRegistry {
             addAll(assigned, extraPowerAdds.get(originKey));
             addAll(removed, dynamicPowerRemoves.get(originKey));
         }
+        assigned.addAll(SscJavaRegistries.powersForForm(formId));
         assigned.removeAll(removed);
         return TrinketUtils.effectivePowerIds(player, List.copyOf(assigned));
     }
