@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'org.spongepowered.mixin' version '0.7.+'
 }
@@ -91,4 +92,27 @@ tasks.withType(JavaCompile).configureEach {
 mixin {
     add sourceSets.main, 'shape_shifter_curse.mixins.refmap.json'
     config "shape_shifter_curse.mixins.json"
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            groupId = project.group
+            artifactId = project.mod_id
+            version = project.version
+
+            // ForgeGradle's reobfuscated output is the jar that can run in-game.
+            artifact layout.buildDirectory.file('reobfJar/output.jar')
+        }
+    }
+    repositories {
+        maven {
+            name = 'localModRepository'
+            url = layout.projectDirectory.dir('maven-repo')
+        }
+    }
+}
+
+tasks.withType(org.gradle.api.publish.maven.tasks.PublishToMavenRepository).configureEach {
+    dependsOn 'reobfJar'
 }

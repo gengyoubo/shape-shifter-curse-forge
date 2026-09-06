@@ -6,11 +6,8 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.client.PowerAnimationClientHandler;
-import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animatable.instance.SingletonAnimatableInstanceCache;
@@ -25,18 +22,12 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class FormGeoAnimatable implements GeoAnimatable {
-    public static final ResourceLocation AXOLOTL_SURFACE_SPRINT_ANIMATION =
-            ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE,
-                    "player_animation/new/form_axolotl_3_new.animation.json");
-    public static final String AXOLOTL_SURFACE_SPRINT_ID = "The Surface Sprint Begins";
-
     private final AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
     private Player player;
     private PlayerModel<?> vanillaPlayerModel;
     private BedrockAnimationPlayer.BodyTransform bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
     private boolean inventoryPreview;
     private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
-    private final Map<UUID, OverlayTimeline> overlayTimelines = new HashMap<>();
     private FormAnimationSystem.Selection extraPrimary;
     private float extraPrimaryTime;
     private boolean extraPrimaryForceLoop;
@@ -293,54 +284,6 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         return BedrockAnimationPlayer.sampleBone(resource, selection.animationId(), boneName, time, forceLoop);
     }
 
-    /**
-     * Returns the time for the surface-sprint Geo clip, or a negative value when it is
-     * inactive. The non-looping Bedrock clip holds its final pose while active; the base
-     * layer (swim or crawl animation plus the procedural tail chain) stays underneath it.
-     * Besides sprinting in water, the crawling base clips layer the same tail motion.
-     */
-    public float axolotlSurfaceSprintOverlayTime(float partialTick) {
-        if (player == null || inventoryPreview || !SscClientConfig.PREFER_NEW_ANIMATIONS.get()) {
-            return -1.0F;
-        }
-
-        OverlayTimeline overlay = overlayTimelines.computeIfAbsent(
-                player.getUUID(),
-                ignored -> new OverlayTimeline()
-        );
-
-        // The crawl jump uses the axolotl_2_crawling_jump base clip, so checking
-        // the selected base animation would incorrectly reset this overlay during
-        // the jump. Keep the overlay alive from the logical crawl state instead.
-        boolean crawling =
-                "axolotl_3".equals(FormManager.current(player).id().getPath())
-                && (player.isShiftKeyDown() || CrawlingScaleService.isForcedCrawling(player))
-                && !player.isInWater()
-                && !player.isFallFlying();
-
-        boolean surfaceSprinting =
-                "axolotl_3".equals(FormManager.current(player).id().getPath())
-                && player.isSprinting()
-                && player.isInWater()
-                && !player.isFallFlying();
-
-        boolean active = crawling || surfaceSprinting;
-
-        if (!active) {
-            overlay.active = false;
-            return -1.0F;
-        }
-
-        double now = player.tickCount + partialTick;
-
-        if (!overlay.active) {
-            overlay.active = true;
-            overlay.startedAt = now;
-        }
-
-        return (float) ((now - overlay.startedAt) / 20.0D);
-    }
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "idle", state -> {
@@ -420,8 +363,4 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         }
     }
 
-    private static final class OverlayTimeline {
-        private boolean active;
-        private double startedAt;
-    }
 }

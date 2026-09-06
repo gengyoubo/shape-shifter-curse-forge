@@ -7,7 +7,6 @@ import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.entity.vehicle.Minecart;
 import net.minecraft.world.phys.AABB;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
@@ -23,7 +22,6 @@ import java.util.UUID;
 /** Forge-side equivalent of the Fabric player animation FSM. */
 public final class FormAnimationSystem {
     private static final String ANIMATION_PATH = "player_animation/";
-    private static final String NEW_ANIMATION_PATH = ANIMATION_PATH + "new/";
     private static final ResourceLocation RIDING_ANIMATIONS = resource(ANIMATION_PATH + "form_riding_animation.json");
     private static final AnimationProfile SHARED_ANIMATIONS = AnimationProfile.builder()
             .animation("bat_2_riding", "form_riding_animation", "bat_2_riding", 1.0F, 2)
@@ -73,7 +71,7 @@ public final class FormAnimationSystem {
         public static Selection of(String id, float speed, int fade) {
             ResourceLocation legacy = FormAnimationSystem.resource(ANIMATION_PATH + id + ".json");
             ResourceLocation source = FormAnimationSystem.preferredResource(id, legacy);
-            ResourceLocation fallback = source.equals(legacy) ? null : legacy;
+            ResourceLocation fallback = null;
             if (!hasResource(source) && id.endsWith("_riding") && hasResource(RIDING_ANIMATIONS)) {
                 source = RIDING_ANIMATIONS;
                 fallback = null;
@@ -85,7 +83,7 @@ public final class FormAnimationSystem {
             ResourceLocation legacy = FormAnimationSystem.resource(ANIMATION_PATH + clip.resourceFile() + ".json");
             ResourceLocation source = FormAnimationSystem.preferredResource(clip.resourceFile(), legacy);
             return new Selection(logicalId, clip.animationId(), source,
-                    source.equals(legacy) ? null : legacy, clip.speed(), clip.fade());
+                    null, clip.speed(), clip.fade());
         }
     }
 
@@ -491,8 +489,7 @@ public final class FormAnimationSystem {
     }
 
     private static ResourceLocation preferredResource(String animationFile, ResourceLocation legacy) {
-        ResourceLocation modern = resource(NEW_ANIMATION_PATH + animationFile + ".json");
-        return SscClientConfig.PREFER_NEW_ANIMATIONS.get() && hasResource(modern) ? modern : legacy;
+        return legacy;
     }
 
     private static float defaultSpeed(String id) {

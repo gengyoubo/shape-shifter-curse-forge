@@ -189,16 +189,6 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
                 inventoryPreview ? 0.0F : Math.min(player.walkAnimation.speed(partialTick), 1.0F),
                 inventoryPreview, headYaw, headPitch);
 
-        // Player Animator applies the selected SSC animation to PlayerModel during
-        // setupAnim. The final PlayerModel pose was copied above. Form-only clips are
-        // the exception: they are additive GeoBone layers and never replace that pose.
-        float surfaceSprintTime = animatable.axolotlSurfaceSprintOverlayTime(partialTick);
-        if (surfaceSprintTime >= 0.0F) {
-            BedrockAnimationPlayer.applyAdditiveGeoRotation(this,
-                    FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ANIMATION,
-                    FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ID, surfaceSprintTime);
-        }
-
     }
 
     /**
@@ -497,13 +487,6 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         for (String boneName : AXOLOTL_TAIL_BONES) {
             resetToInitial(boneName);
         }
-
-        BedrockAnimationPlayer.applyAdditiveGeoRotation(
-                this,
-                FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ANIMATION,
-                FormGeoAnimatable.AXOLOTL_SURFACE_SPRINT_ID,
-                0.75F
-        );
 
         // Velocity vector base: tail aligns with flight trajectory, then layered variations
         var velocity = player.getDeltaMovement();
