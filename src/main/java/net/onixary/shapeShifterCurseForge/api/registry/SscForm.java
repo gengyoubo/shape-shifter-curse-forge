@@ -22,7 +22,10 @@ public class SscForm {
     /** A class-based form with no stage override is a stage-four form. */
     public static final int DEFAULT_STAGE = 4;
 
+    /** Exact form id for builder forms. Class forms derive theirs from {@link #familyId}. */
     private final ResourceLocation id;
+    /** Namespace and internal family id supplied by a class form. */
+    private final ResourceLocation familyId;
     private final ResourceLocation inheritanceParentId;
     private final ResourceLocation variantParentId;
     private final ResourceLocation groupId;
@@ -37,16 +40,22 @@ public class SscForm {
 
     /** Creates a builder-defined form. Only {@link Builder#build()} can create this form kind. */
     private SscForm(Builder builder) {
-        this(builder, false);
+        this(builder, false, null);
     }
 
-    /** Creates a class-defined form whose hooks are evaluated when SSC resolves the registry. */
-    protected SscForm(ResourceLocation id) {
-        this(new Builder(id), true);
+    /**
+     * Creates a class-defined stage from its family internal id. A stage-one class using
+     * {@code super(id("catgirl"))} therefore registers {@code <namespace>:catgirl_0} and defaults
+     * to group {@code <namespace>:catgirl_form}; subsequent stages receive suffixes 1, 2, and so
+     * on. Named branches must use {@link #branch(ResourceLocation, String)} instead.
+     */
+    protected SscForm(ResourceLocation familyId) {
+        this(new Builder(Objects.requireNonNull(familyId, "familyId")), true, familyId);
     }
 
-    private SscForm(Builder builder, boolean classHooks) {
+    private SscForm(Builder builder, boolean classHooks, ResourceLocation familyId) {
         id = builder.id;
+        this.familyId = familyId;
         inheritanceParentId = builder.inheritanceParentId;
         variantParentId = builder.variantParentId;
         groupId = builder.groupId;
@@ -69,13 +78,36 @@ public class SscForm {
         return new Builder(id);
     }
 
+    /**
+     * Creates a named branch form in {@code familyId}'s normal group. Unlike regular stages, a
+     * branch must be named explicitly and receives id {@code <family>_<branchName>}.
+     */
+    public static Builder branch(ResourceLocation familyId, String branchName) {
+        Objects.requireNonNull(familyId, "familyId");
+        if (branchName == null || branchName.isBlank()) {
+            throw new IllegalArgumentException("SSC form branch name must not be blank");
+        }
+        ResourceLocation branchId = ResourceLocation.fromNamespaceAndPath(familyId.getNamespace(),
+                familyId.getPath() + "_" + branchName);
+        return new Builder(branchId).group(groupId(familyId));
+    }
+
+    /** Returns the generated id for a regular stage; useful when declaring an {@link Evolution}. */
+    public static ResourceLocation stageId(ResourceLocation familyId, int stage) {
+        Objects.requireNonNull(familyId, "familyId");
+        if (stage < 1) throw new IllegalArgumentException("SSC form stage must be at least 1");
+        return ResourceLocation.fromNamespaceAndPath(familyId.getNamespace(), familyId.getPath() + "_" + (stage - 1));
+    }
+
     /** @deprecated Put the route in {@link Evolution} and register it explicitly. */
     @Deprecated(forRemoval = false)
     public static Builder variantBuilder(ResourceLocation id, ResourceLocation branchTip) {
         return builder(id).variantOf(branchTip);
     }
 
-    public ResourceLocation id() { return id; }
+    public ResourceLocation id() {
+        return classHooks ? stageId(familyId, stage()) : id;
+    }
 
     /** Explicit inheritance parent, or the preceding branch form for a variant. */
     public ResourceLocation inheritanceParentId() { return inheritanceParentId; }
@@ -111,10 +143,12 @@ public class SscForm {
     public FormDefinition resolve(FormDefinition parent) {
         ResourceLocation inheritanceParent = inheritanceParentId();
         if (inheritanceParent != null && parent == null) {
-            throw new IllegalStateException("SSC Java form '" + id + "' inherits missing form '" + inheritanceParent + "'");
+            throw new IllegalStateException("SSC Java form '" + id() + "' inherits missing form '" + inheritanceParent + "'");
         }
+        ResourceLocation resolvedId = id();
         ResourceLocation resolvedGroup = groupId != null ? groupId : parent != null ? parent.groupId()
-                : ResourceLocation.fromNamespaceAndPath(id.getNamespace(), id.getPath() + "_form");
+                : classHooks ? groupId(familyId)
+                : ResourceLocation.fromNamespaceAndPath(resolvedId.getNamespace(), resolvedId.getPath() + "_form");
         int resolvedStage = configuredStage != null ? configuredStage
                 : classHooks ? stage() : parent != null ? parent.stage() : 1;
         int resolvedWeight = weight != null ? weight : parent != null ? parent.weight() : 1;
@@ -134,15 +168,19 @@ public class SscForm {
         FormProperties properties = new FormProperties(resolvedGroup, resolvedStage, resolvedWeight, resolvedBody,
                 resolvedWidth, resolvedHeight, resolvedEye, resolvedFall, resolvedJump, resolvedCustom, resolvedFlags);
         if (classHooks) configure(properties);
-        return properties.toDefinition(id);
+        return properties.toDefinition(resolvedId);
     }
 
     public void validateStage(FormDefinition definition) {
         int maximum = maximumStage();
         if (maximum < 1 || definition.stage() < 1 || definition.stage() > maximum) {
-            throw new IllegalStateException("SSC Java form '" + id + "' resolves to stage " + definition.stage()
+            throw new IllegalStateException("SSC Java form '" + id() + "' resolves to stage " + definition.stage()
                     + ", outside its allowed 1-" + maximum + " range");
         }
+    }
+
+    private static ResourceLocation groupId(ResourceLocation familyId) {
+        return ResourceLocation.fromNamespaceAndPath(familyId.getNamespace(), familyId.getPath() + "_form");
     }
 
     public static final class Builder {
