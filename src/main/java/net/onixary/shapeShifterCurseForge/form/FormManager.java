@@ -43,7 +43,7 @@ public final class FormManager {
                 data.setPreviousFormId(currentId);
                 data.setFormId(target.id().toString());
                 data.setFormGroupId(target.groupId().toString());
-                data.setFormTier(target.tier());
+                data.setFormTier(target.stage());
                 player.refreshDimensions();
             }
             data.setContentEnabled(!FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(target.id()));
@@ -65,10 +65,17 @@ public final class FormManager {
         return parsed != null && setForm(player, parsed);
     }
 
-    public static boolean moveToTier(Player player, int tier) {
+    /** Moves within the player's current progression branch to a requested stage. */
+    public static boolean moveToStage(Player player, int stage) {
         FormDefinition current = current(player);
-        FormDefinition target = FormRegistry.formAtStageInProgression(current, tier);
+        FormDefinition target = FormRegistry.formAtStageInProgression(current, stage);
         return target != null && setForm(player, target.id());
+    }
+
+    /** @deprecated Use {@link #moveToStage(Player, int)}. */
+    @Deprecated(forRemoval = false)
+    public static boolean moveToTier(Player player, int tier) {
+        return moveToStage(player, tier);
     }
 
     public static boolean next(Player player) {

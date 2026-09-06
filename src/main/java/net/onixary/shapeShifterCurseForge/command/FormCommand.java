@@ -1,6 +1,8 @@
 package net.onixary.shapeShifterCurseForge.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.network.chat.Component;
@@ -42,7 +44,7 @@ public final class FormCommand {
                 .then(Commands.literal("get").executes(context -> {
                     FormDefinition current = FormManager.current(context.getSource().getPlayerOrException());
                     context.getSource().sendSuccess(() -> Component.literal(
-                            current.id() + " tier=" + current.tier() + " group=" + current.groupId()), false);
+                            current.id() + " stage=" + current.stage() + " group=" + current.groupId()), false);
                     return SINGLE_SUCCESS;
                 }))
                 .then(Commands.literal("set").then(Commands.argument("form", ResourceLocationArgument.id())
@@ -63,15 +65,9 @@ public final class FormCommand {
                         })))
                 .then(Commands.literal("next").executes(context -> move(context.getSource().getPlayerOrException(), true)))
                 .then(Commands.literal("previous").executes(context -> move(context.getSource().getPlayerOrException(), false)))
-                .then(Commands.literal("tier").then(Commands.argument("tier", IntegerArgumentType.integer(-1, 4))
-                        .executes(context -> {
-                            ServerPlayer player = context.getSource().getPlayerOrException();
-                            int tier = IntegerArgumentType.getInteger(context, "tier");
-                            boolean changed = FormManager.moveToTier(player, tier);
-                            context.getSource().sendSuccess(() -> Component.literal(
-                                    changed ? "Moved to tier " + tier : "No form at tier " + tier), true);
-                            return changed ? SINGLE_SUCCESS : 0;
-                        })));
+                .then(stageCommand("stage", "stage"))
+                // Legacy command alias. New user-facing text and documentation use "stage".
+                .then(stageCommand("tier", "tier"));
         var power = Commands.literal("power")
                 .then(Commands.literal("status")
                         .executes(context -> showPowerStatus(context.getSource().getPlayerOrException(), context)))
@@ -92,6 +88,18 @@ public final class FormCommand {
                     return SINGLE_SUCCESS;
                 }));
         event.getDispatcher().register(Commands.literal("ssc").then(form).then(power).then(cursedMoon));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> stageCommand(String literal, String argument) {
+        return Commands.literal(literal).then(Commands.argument(argument, IntegerArgumentType.integer(-1, 4))
+                .executes(context -> {
+                    ServerPlayer player = context.getSource().getPlayerOrException();
+                    int stage = IntegerArgumentType.getInteger(context, argument);
+                    boolean changed = FormManager.moveToStage(player, stage);
+                    context.getSource().sendSuccess(() -> Component.literal(
+                            changed ? "Moved to stage " + stage : "No form at stage " + stage), true);
+                    return changed ? SINGLE_SUCCESS : 0;
+                }));
     }
 
     private static int move(ServerPlayer player, boolean next) {

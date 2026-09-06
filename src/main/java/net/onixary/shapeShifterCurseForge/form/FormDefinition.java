@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.Set;
 
+/** Immutable resolved form. {@link #stage()} is the public progression term. */
 public record FormDefinition(
         ResourceLocation id,
         ResourceLocation groupId,
@@ -18,6 +19,17 @@ public record FormDefinition(
         float jumpVelocityAddition,
         boolean fullyCustomModel
 ) {
+    /** Primary progression accessor. */
+    public int stage() {
+        return tier;
+    }
+
+    /** @deprecated Use {@link #stage()}; tier is the retained storage/compatibility term. */
+    @Deprecated(forRemoval = false)
+    public int tier() {
+        return tier;
+    }
+
     public FormDefinition(ResourceLocation id, ResourceLocation groupId, int tier, int weight,
                            FormBodyType bodyType, float widthScale, float heightScale, float eyeScale,
                            Set<String> flags) {

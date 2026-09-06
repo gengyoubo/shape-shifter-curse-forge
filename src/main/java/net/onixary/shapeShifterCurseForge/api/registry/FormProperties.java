@@ -11,13 +11,13 @@ import java.util.Set;
 /**
  * Mutable view of a form while a class-based {@link SscForm} is being resolved.
  *
- * <p>Use this from {@link SscForm#configure(FormProperties)} for the small number of properties
- * that are clearer as overrides. The normal {@link SscForm.Builder} remains available for the
- * rest of a form definition.</p>
+ * <p>Use this only from {@link SscForm#configure(FormProperties)} for class-defined forms. The
+ * object is transient and must not be stored: SSC discards it after resolving the immutable
+ * {@link FormDefinition}. Builder forms intentionally have no configure hook.</p>
  */
 public final class FormProperties {
     private ResourceLocation groupId;
-    private int tier;
+    private int stage;
     private int weight;
     private FormBodyType bodyType;
     private float widthScale;
@@ -28,11 +28,11 @@ public final class FormProperties {
     private boolean fullyCustomModel;
     private final Set<String> flags;
 
-    FormProperties(ResourceLocation groupId, int tier, int weight, FormBodyType bodyType,
+    FormProperties(ResourceLocation groupId, int stage, int weight, FormBodyType bodyType,
                    float widthScale, float heightScale, float eyeScale, float fallProtectionDistance,
                    float jumpVelocityAddition, boolean fullyCustomModel, Set<String> flags) {
         this.groupId = Objects.requireNonNull(groupId, "groupId");
-        this.tier = tier;
+        this.stage = stage;
         this.weight = weight;
         this.bodyType = Objects.requireNonNull(bodyType, "bodyType");
         this.widthScale = widthScale;
@@ -51,7 +51,7 @@ public final class FormProperties {
 
     public FormProperties stage(int stage) {
         if (stage < 1) throw new IllegalArgumentException("SSC form stage must be at least 1");
-        this.tier = stage;
+        this.stage = stage;
         return this;
     }
 
@@ -110,7 +110,7 @@ public final class FormProperties {
     }
 
     FormDefinition toDefinition(ResourceLocation id) {
-        return new FormDefinition(id, groupId, tier, weight, bodyType, widthScale, heightScale, eyeScale,
+        return new FormDefinition(id, groupId, stage, weight, bodyType, widthScale, heightScale, eyeScale,
                 Set.copyOf(flags), fallProtectionDistance, jumpVelocityAddition, fullyCustomModel);
     }
 }

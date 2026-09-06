@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.api.registry.Evolution;
 import net.onixary.shapeShifterCurseForge.api.registry.SscForm;
 
 import java.util.Collections;
@@ -25,8 +26,9 @@ public final class FormRegistry {
     private static final Set<ResourceLocation> DYNAMIC_GROUPS = new LinkedHashSet<>();
     private static final Map<ResourceLocation, ResourceLocation> DYNAMIC_ORIGIN_IDS = new LinkedHashMap<>();
     private static final Map<ResourceLocation, SscForm> JAVA_FORMS = new LinkedHashMap<>();
-    /** Direct branch parent for Java variants. Kept separately from ordinary property inheritance. */
+    /** Legacy builder-defined branch links, retained for source compatibility. */
     private static final Map<ResourceLocation, ResourceLocation> JAVA_VARIANT_PARENTS = new LinkedHashMap<>();
+    private static final List<Evolution> JAVA_EVOLUTIONS = new ArrayList<>();
     private static final Set<ResourceLocation> RESOLVED_JAVA_FORMS = new LinkedHashSet<>();
     private static final Set<ResourceLocation> JAVA_GROUPS = new LinkedHashSet<>();
     private static boolean javaFormsDirty;
@@ -184,7 +186,7 @@ public final class FormRegistry {
                 LOGGER.warn("Ignoring dynamic form {} with invalid group", formId);
                 return;
             }
-            int tier = integer(data, "tier", 1);
+            int tier = data.has("stage") ? integer(data, "stage", 1) : integer(data, "tier", 1);
             int weight = integer(data, "weight", data.has("group_weight") ? integer(data, "group_weight", 1) : 1);
             FormBodyType bodyType = bodyType(data);
             float width = number(data, "widthScale", number(data, "width_scale", 1.0F));
@@ -236,6 +238,17 @@ public final class FormRegistry {
         javaFormsDirty = true;
     }
 
+    /**
+     * Registers an explicit family evolution. Form declarations and this graph may be registered
+     * in either order; validation is intentionally deferred until the complete Java form registry
+     * is resolved.
+     */
+    public static synchronized void registerJavaEvolution(Evolution evolution) {
+        bootstrap();
+        JAVA_EVOLUTIONS.add(java.util.Objects.requireNonNull(evolution, "evolution"));
+        javaFormsDirty = true;
+    }
+
     private static synchronized void resolveJavaForms() {
         if (!javaFormsDirty) {
             return;
@@ -260,7 +273,59 @@ public final class FormRegistry {
         for (ResourceLocation id : JAVA_FORMS.keySet()) {
             resolveJavaForm(id, resolving);
         }
+        resolveJavaEvolutions();
         javaFormsDirty = false;
+    }
+
+    private static void resolveJavaEvolutions() {
+        for (Evolution evolution : JAVA_EVOLUTIONS) {
+            for (Evolution.Edge edge : evolution.edges()) {
+                FormDefinition parent = FORMS.get(edge.from());
+                FormDefinition child = FORMS.get(edge.to());
+                if (parent == null || child == null) {
+                    ResourceLocation missing = parent == null ? edge.from() : edge.to();
+                    throw new IllegalStateException("SSC evolution references an unregistered form '" + missing + "'");
+                }
+                if (!child.groupId().equals(parent.groupId())) {
+                    throw new IllegalStateException("SSC evolution edge '" + edge.from() + "' -> '" + edge.to()
+                            + "' crosses groups ('" + parent.groupId() + "' to '" + child.groupId() + "')");
+                }
+                if (child.stage() != parent.stage() + 1) {
+                    throw new IllegalStateException("SSC evolution edge '" + edge.from() + "' -> '" + edge.to()
+                            + "' must advance exactly one stage (expected " + (parent.stage() + 1)
+                            + ", got " + child.stage() + ")");
+                }
+            }
+        }
+        validateEvolutionCycles();
+    }
+
+    private static void validateEvolutionCycles() {
+        Map<ResourceLocation, Set<ResourceLocation>> nextByForm = new LinkedHashMap<>();
+        for (Evolution evolution : JAVA_EVOLUTIONS) {
+            for (Evolution.Edge edge : evolution.edges()) {
+                nextByForm.computeIfAbsent(edge.from(), ignored -> new LinkedHashSet<>()).add(edge.to());
+            }
+        }
+        Set<ResourceLocation> visited = new LinkedHashSet<>();
+        Set<ResourceLocation> visiting = new LinkedHashSet<>();
+        for (ResourceLocation formId : nextByForm.keySet()) {
+            validateEvolutionCycles(formId, nextByForm, visited, visiting);
+        }
+    }
+
+    private static void validateEvolutionCycles(ResourceLocation formId,
+                                                Map<ResourceLocation, Set<ResourceLocation>> nextByForm,
+                                                Set<ResourceLocation> visited, Set<ResourceLocation> visiting) {
+        if (visited.contains(formId)) return;
+        if (!visiting.add(formId)) {
+            throw new IllegalStateException("Circular SSC evolution involving '" + formId + "'");
+        }
+        for (ResourceLocation next : nextByForm.getOrDefault(formId, Set.of())) {
+            validateEvolutionCycles(next, nextByForm, visited, visiting);
+        }
+        visiting.remove(formId);
+        visited.add(formId);
     }
 
     private static FormDefinition resolveJavaForm(ResourceLocation id, Set<ResourceLocation> resolving) {
@@ -276,13 +341,13 @@ public final class FormRegistry {
             throw new IllegalStateException("Circular SSC Java form inheritance involving '" + id + "'");
         }
         FormDefinition parent = null;
-        if (form.parentId() != null) {
-            parent = JAVA_FORMS.containsKey(form.parentId())
-                    ? resolveJavaForm(form.parentId(), resolving)
-                    : FORMS.get(form.parentId());
+        if (form.inheritanceParentId() != null) {
+            parent = JAVA_FORMS.containsKey(form.inheritanceParentId())
+                    ? resolveJavaForm(form.inheritanceParentId(), resolving)
+                    : FORMS.get(form.inheritanceParentId());
             if (parent == null) {
                 throw new IllegalStateException("SSC Java form '" + id + "' inherits missing form '"
-                        + form.parentId() + "'");
+                        + form.inheritanceParentId() + "'");
             }
         }
         FormDefinition definition = form.resolve(parent);
@@ -315,13 +380,13 @@ public final class FormRegistry {
             throw new IllegalStateException("SSC Java variant '" + form.id() + "' must stay in group '"
                     + parent.groupId() + "', not '" + definition.groupId() + "'");
         }
-        if (definition.tier() != parent.tier() + 1) {
+        if (definition.stage() != parent.stage() + 1) {
             throw new IllegalStateException("SSC Java variant '" + form.id() + "' must be exactly one stage after '"
-                    + branchParentId + "' (expected " + (parent.tier() + 1) + ", got " + definition.tier() + ")");
+                    + branchParentId + "' (expected " + (parent.stage() + 1) + ", got " + definition.stage() + ")");
         }
         int branchMaximum = branchMaximumStage(branchParentId, parent);
-        if (definition.tier() > branchMaximum) {
-            throw new IllegalStateException("SSC Java variant '" + form.id() + "' is stage " + definition.tier()
+        if (definition.stage() > branchMaximum) {
+            throw new IllegalStateException("SSC Java variant '" + form.id() + "' is stage " + definition.stage()
                     + ", beyond branch maximum stage " + branchMaximum);
         }
     }
@@ -341,8 +406,8 @@ public final class FormRegistry {
             return Math.max(1, rootForm.maximumStageLimit());
         }
         FormGroup group = GROUPS.get(parent.groupId());
-        return group == null ? parent.tier() : group.formsByTier().keySet().stream()
-                .mapToInt(Integer::intValue).max().orElse(parent.tier());
+        return group == null ? parent.stage() : group.formsByStage().keySet().stream()
+                .mapToInt(Integer::intValue).max().orElse(parent.stage());
     }
 
     private static void removeFromGroup(FormDefinition definition) {
@@ -468,42 +533,74 @@ public final class FormRegistry {
     }
 
     /**
-     * Returns the next form on the active branch. A directly registered variant has priority over
-     * the group's ordinary next tier, making a branch deterministic once it has been entered.
+     * Returns the next form on the active branch. Evolution supplies candidates only; the registry
+     * chooses the group's normal form when it is one of those candidates, otherwise the lowest
+     * lexical form id. This selection policy intentionally lives outside {@link Evolution}.
      */
     public static FormDefinition nextInProgression(FormDefinition current) {
         if (current == null) return null;
         bootstrap();
         resolveJavaForms();
-        int nextStage = current.tier() + 1;
-        for (Map.Entry<ResourceLocation, ResourceLocation> entry : JAVA_VARIANT_PARENTS.entrySet()) {
-            if (!current.id().equals(entry.getValue())) continue;
-            FormDefinition variant = FORMS.get(entry.getKey());
-            if (variant != null && variant.tier() == nextStage && variant.groupId().equals(current.groupId())) {
-                return variant;
-            }
-        }
+        int nextStage = current.stage() + 1;
+        FormDefinition evolved = evolutionTarget(current, nextStage, true);
+        if (evolved != null) return evolved;
+        FormDefinition legacyVariant = childForParent(JAVA_VARIANT_PARENTS, current, nextStage);
+        if (legacyVariant != null) return legacyVariant;
         FormGroup group = GROUPS.get(current.groupId());
-        return group == null ? null : group.firstAtTier(nextStage);
+        return group == null ? null : group.firstAtStage(nextStage);
     }
 
-    /** Returns the preceding form in a variant branch, otherwise the group's ordinary prior tier. */
+    private static FormDefinition childForParent(Map<ResourceLocation, ResourceLocation> parents,
+                                                  FormDefinition current, int expectedStage) {
+        for (Map.Entry<ResourceLocation, ResourceLocation> entry : parents.entrySet()) {
+            if (!current.id().equals(entry.getValue())) continue;
+            FormDefinition child = FORMS.get(entry.getKey());
+            if (child != null && child.stage() == expectedStage && child.groupId().equals(current.groupId())) {
+                return child;
+            }
+        }
+        return null;
+    }
+
+    private static FormDefinition evolutionTarget(FormDefinition current, int expectedStage, boolean next) {
+        Set<ResourceLocation> candidateIds = new LinkedHashSet<>();
+        for (Evolution evolution : JAVA_EVOLUTIONS) {
+            candidateIds.addAll(next ? evolution.next(current.id()) : evolution.previous(current.id()));
+        }
+        if (candidateIds.isEmpty()) return null;
+
+        FormGroup group = GROUPS.get(current.groupId());
+        FormDefinition normal = group == null ? null : group.firstAtStage(expectedStage);
+        if (normal != null && candidateIds.contains(normal.id())) return normal;
+
+        return candidateIds.stream()
+                .sorted(java.util.Comparator.comparing(ResourceLocation::toString))
+                .map(FORMS::get)
+                .filter(candidate -> candidate != null && candidate.stage() == expectedStage
+                        && candidate.groupId().equals(current.groupId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /** Returns the preceding form in an evolution branch, otherwise the group's ordinary prior stage. */
     public static FormDefinition previousInProgression(FormDefinition current) {
         if (current == null) return null;
         bootstrap();
         resolveJavaForms();
+        FormDefinition evolved = evolutionTarget(current, current.stage() - 1, false);
+        if (evolved != null) return evolved;
         ResourceLocation branchParent = JAVA_VARIANT_PARENTS.get(current.id());
         if (branchParent != null) return FORMS.get(branchParent);
         FormGroup group = GROUPS.get(current.groupId());
-        return group == null ? null : group.firstAtTier(current.tier() - 1);
+        return group == null ? null : group.firstAtStage(current.stage() - 1);
     }
 
     /** Walks the current branch to a requested stage instead of jumping to an unrelated sibling. */
     public static FormDefinition formAtStageInProgression(FormDefinition current, int targetStage) {
         if (current == null || targetStage < 1) return null;
         FormDefinition cursor = current;
-        while (cursor != null && cursor.tier() != targetStage) {
-            cursor = cursor.tier() < targetStage ? nextInProgression(cursor) : previousInProgression(cursor);
+        while (cursor != null && cursor.stage() != targetStage) {
+            cursor = cursor.stage() < targetStage ? nextInProgression(cursor) : previousInProgression(cursor);
         }
         return cursor;
     }
@@ -530,7 +627,7 @@ public final class FormRegistry {
             }
             result.add(current);
             SscForm form = JAVA_FORMS.get(current);
-            current = form == null ? null : form.parentId();
+            current = form == null ? null : form.inheritanceParentId();
         }
         return List.copyOf(result);
     }

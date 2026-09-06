@@ -23,6 +23,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * has no Forge-only registration event, so the same API shape can be retained by the future
  * Fabric implementation.</p>
  *
+ * <p>Registration is deliberately explicit: SSC does not scan static fields, subclasses, or
+ * annotations. Register every form with {@link #registerForm(SscForm)}, then explicitly register
+ * its owning family's {@link Evolution} with {@link #registerEvolution(Evolution)}. This keeps
+ * load order deterministic and lets invalid cross-mod references fail with a useful error.</p>
+ *
  * <pre>{@code
  * SscJavaRegistries.registerCondition(id("is_raining"),
  *     (player, target, json) -> player.level().isRaining());
@@ -53,7 +58,15 @@ public final class SscJavaRegistries {
         register(POWERS, id, power, "power");
     }
 
-    /** Registers a Java form. Omitted fields inherit from its declared parent form. */
+    /**
+     * Registers one Java form. Omitted properties inherit only from
+     * {@link SscForm#inheritanceParentId()}; stage progression is intentionally not inferred
+     * from that inheritance relationship and belongs in {@link Evolution}.
+     *
+     * <p>{@link SscForm#powers(PowerRegistrar)} is evaluated once during this call. Register
+     * dynamic behaviour as an {@link SscPower}; do not expect this declaration hook to run per
+     * player or per tick.</p>
+     */
     public static void registerForm(SscForm form) {
         SscForm checked = Objects.requireNonNull(form, "form");
         Set<ResourceLocation> declaredPowers = checked.declaredPowers();
@@ -62,10 +75,18 @@ public final class SscJavaRegistries {
     }
 
     /**
-     * Registers a form made with {@link SscForm#variantBuilder(ResourceLocation, ResourceLocation)}.
-     * The branch parent must be the preceding form in the intended branch; SSC validates that the
-     * variant advances exactly one stage and never exceeds the branch family's cap.
+     * Registers the complete evolution graph owned by one form family. The referenced forms may
+     * be registered before or after this call, but all must exist before SSC first resolves forms.
      */
+    public static void registerEvolution(Evolution evolution) {
+        FormRegistry.registerJavaEvolution(Objects.requireNonNull(evolution, "evolution"));
+    }
+
+    /**
+     * @deprecated Declare all form progression, including variants, through one family-owned
+     * {@link Evolution}; Stage classes must not own progression edges themselves.
+     */
+    @Deprecated(forRemoval = false)
     public static void registerVariant(SscForm variant) {
         SscForm checked = Objects.requireNonNull(variant, "variant");
         if (checked.variantParentId() == null) {

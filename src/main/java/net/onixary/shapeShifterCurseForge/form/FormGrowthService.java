@@ -64,8 +64,8 @@ public final class FormGrowthService {
         if (current.hasFlag("inhibitor_immune") || (!powerful && current.hasFlag("inhibitor_resist"))) {
             return false;
         }
-        int targetTier = powerful && !current.hasFlag("inhibitor_resist") ? 0 : current.tier() - 1;
-        FormDefinition target = targetTier > 0 ? FormRegistry.previousInProgression(current) : null;
+        int targetStage = powerful && !current.hasFlag("inhibitor_resist") ? 0 : current.stage() - 1;
+        FormDefinition target = targetStage > 0 ? FormRegistry.previousInProgression(current) : null;
         return target == null ? FormManager.setForm(player, FormRegistry.ORIGINAL_SHIFTER) : FormManager.setForm(player, target.id());
     }
 }

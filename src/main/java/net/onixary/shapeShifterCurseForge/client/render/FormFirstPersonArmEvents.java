@@ -60,7 +60,7 @@ public final class FormFirstPersonArmEvents {
         }
 
         FormDefinition form = FormManager.current(player);
-        if (!form.hasFlag("special_form") && form.tier() <= 0) {
+        if (!form.hasFlag("special_form") && form.stage() <= 0) {
             return;
         }
 

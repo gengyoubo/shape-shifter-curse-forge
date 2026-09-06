@@ -86,9 +86,9 @@ public final class CodexData {
     }
 
     public static Component getDescText(ContentType type, Player player) {
-        int tier = FormManager.current(player).tier();
+        int stage = FormManager.current(player).stage();
         if (type == ContentType.INSTINCTS) {
-            return switch (tier) {
+            return switch (stage) {
                 case -1, 0 -> descInstincts_normal;
                 case 1 -> descInstincts_0;
                 case 2 -> descInstincts_1;

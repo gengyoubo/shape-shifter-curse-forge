@@ -150,7 +150,7 @@ public final class CursedMoonService {
                 SscAdvancementTriggers.ON_END_CURSED_MOON_CURED.trigger(player);
                 String afterFormId = data.getAfterCursedMoonAppliedForm();
                 FormDefinition afterForm = afterFormId == null ? null : FormRegistry.get(afterFormId);
-                if (afterForm != null && afterForm.tier() == 1) {
+                if (afterForm != null && afterForm.stage() == 1) {
                     SscAdvancementTriggers.ON_END_CURSED_MOON_CURED_FORM_2.trigger(player);
                 }
             } else if (FormRegistry.ORIGINAL_SHIFTER.equals(current.id())) {

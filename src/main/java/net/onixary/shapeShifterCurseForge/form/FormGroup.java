@@ -10,7 +10,7 @@ import java.util.Map;
 
 public final class FormGroup {
     private final ResourceLocation id;
-    private final Map<Integer, List<FormDefinition>> formsByTier = new LinkedHashMap<>();
+    private final Map<Integer, List<FormDefinition>> formsByStage = new LinkedHashMap<>();
 
     public FormGroup(ResourceLocation id) {
         this.id = id;
@@ -21,31 +21,52 @@ public final class FormGroup {
     }
 
     public void add(FormDefinition form) {
-        formsByTier.computeIfAbsent(form.tier(), ignored -> new ArrayList<>()).add(form);
+        formsByStage.computeIfAbsent(form.stage(), ignored -> new ArrayList<>()).add(form);
     }
 
     public boolean remove(ResourceLocation formId) {
         boolean removed = false;
-        for (List<FormDefinition> forms : formsByTier.values()) {
+        for (List<FormDefinition> forms : formsByStage.values()) {
             removed |= forms.removeIf(form -> form.id().equals(formId));
         }
-        formsByTier.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        formsByStage.entrySet().removeIf(entry -> entry.getValue().isEmpty());
         return removed;
     }
 
     public boolean isEmpty() {
-        return formsByTier.isEmpty();
+        return formsByStage.isEmpty();
     }
 
+    /** Returns the forms registered at one progression stage. */
+    public List<FormDefinition> formsAtStage(int stage) {
+        return Collections.unmodifiableList(formsByStage.getOrDefault(stage, List.of()));
+    }
+
+    /** Returns the default form at one progression stage. */
+    public FormDefinition firstAtStage(int stage) {
+        return formsByStage.getOrDefault(stage, List.of()).stream().findFirst().orElse(null);
+    }
+
+    /** @deprecated Use {@link #formsAtStage(int)}. */
+    @Deprecated(forRemoval = false)
     public List<FormDefinition> formsAtTier(int tier) {
-        return Collections.unmodifiableList(formsByTier.getOrDefault(tier, List.of()));
+        return formsAtStage(tier);
     }
 
+    /** @deprecated Use {@link #firstAtStage(int)}. */
+    @Deprecated(forRemoval = false)
     public FormDefinition firstAtTier(int tier) {
-        return formsByTier.getOrDefault(tier, List.of()).stream().findFirst().orElse(null);
+        return firstAtStage(tier);
     }
 
+    /** Immutable stage-to-forms view used by progression code. */
+    public Map<Integer, List<FormDefinition>> formsByStage() {
+        return Collections.unmodifiableMap(formsByStage);
+    }
+
+    /** @deprecated Use {@link #formsByStage()}. */
+    @Deprecated(forRemoval = false)
     public Map<Integer, List<FormDefinition>> formsByTier() {
-        return Collections.unmodifiableMap(formsByTier);
+        return formsByStage();
     }
 }

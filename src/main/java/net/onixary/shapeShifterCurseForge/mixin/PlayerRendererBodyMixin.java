@@ -35,7 +35,7 @@ public abstract class PlayerRendererBodyMixin {
                                         CallbackInfo ci) {
         Player player = entity;
         FormDefinition form = FormManager.current(player);
-        if (!form.hasFlag("special_form") && form.tier() <= 0) {
+        if (!form.hasFlag("special_form") && form.stage() <= 0) {
             return;
         }
         FormGeoRenderer renderer = FormClientRenderEvents.rendererFor(form);

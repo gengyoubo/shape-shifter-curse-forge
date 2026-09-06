@@ -103,7 +103,7 @@ public final class SscAdvancementTriggers {
 
         private boolean matchesForm(FormDefinition form) {
             if (!forms.isEmpty() && !forms.contains(form.id())) return false;
-            if (!tiers.isEmpty() && !tiers.contains(form.tier())) return false;
+            if (!tiers.isEmpty() && !tiers.contains(form.stage())) return false;
             if (!flags.isEmpty() && !form.flags().containsAll(flags)) return false;
             return notFlags.isEmpty() || !form.flags().containsAll(notFlags);
         }

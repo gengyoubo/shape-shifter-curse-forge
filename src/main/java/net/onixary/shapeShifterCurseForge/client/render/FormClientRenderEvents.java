@@ -57,7 +57,7 @@ public final class FormClientRenderEvents {
             return;
         }
 
-        if (!form.hasFlag("special_form") && form.tier() <= 0) {
+        if (!form.hasFlag("special_form") && form.stage() <= 0) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:vanilla-form");
             return;
