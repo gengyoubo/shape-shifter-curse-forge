@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.form;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.util.Collections;
@@ -122,8 +123,20 @@ public final class FormRegistry {
         GROUPS.computeIfAbsent(groupId, FormGroup::new).add(definition);
     }
 
-    /** Replaces the Fabric-compatible data/ssc_form forms during a server datapack reload. */
+    /**
+     * Replaces external {@code data/<namespace>/ssc_form/<form>.json} forms.
+     *
+     * <p>The external format deliberately follows the built-in convention: a form called
+     * {@code namespace:catgirl_0} must live in {@code ssc_form/catgirl_0.json} and point to
+     * {@code namespace:form_catgirl_0}. Keeping those ids deterministic makes the form,
+     * its Origin data and its client model metadata resolve as one unit.</p>
+     */
     public static void reloadDynamicForms(Map<ResourceLocation, JsonElement> json) {
+        reloadDynamicForms(json, null);
+    }
+
+    /** Same as {@link #reloadDynamicForms(Map)}, also validates that every mapped Origin exists. */
+    public static void reloadDynamicForms(Map<ResourceLocation, JsonElement> json, ResourceManager resourceManager) {
         bootstrap();
         for (ResourceLocation formId : DYNAMIC_FORMS) {
             FormDefinition old = FORMS.remove(formId);
@@ -147,11 +160,11 @@ public final class FormRegistry {
                 return;
             }
             JsonObject data = element.getAsJsonObject();
-            ResourceLocation formId = resourceLocation(data, "FormID", resourceId);
-            if (formId == null) {
-                LOGGER.warn("Ignoring dynamic form with invalid id {}", resourceId);
-                return;
-            }
+            // Deliberately fail the resource reload.  A partially registered form can leave
+            // the player data, Origin powers and client model on different ids, which is much
+            // harder to diagnose than a precise startup/reload error.
+            DynamicFormIds ids = validateDynamicForm(resourceId, data, resourceManager);
+            ResourceLocation formId = ids.formId();
             if (FORMS.containsKey(formId) && !DYNAMIC_FORMS.contains(formId)) {
                 LOGGER.warn("Ignoring dynamic form {} because it would replace a built-in form", formId);
                 return;
@@ -188,15 +201,52 @@ public final class FormRegistry {
             }
             group.add(definition);
             DYNAMIC_FORMS.add(formId);
-            ResourceLocation originId = resourceLocation(data, "originID", null);
-            if (originId != null) {
-                DYNAMIC_ORIGIN_IDS.put(formId, originId);
-            }
+            DYNAMIC_ORIGIN_IDS.put(formId, ids.originId());
             LOGGER.info("Loaded dynamic form {} from {}", formId, resourceId);
         });
     }
 
     private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(FormRegistry.class);
+
+    private static DynamicFormIds validateDynamicForm(ResourceLocation resourceId, JsonObject data,
+                                                       ResourceManager resourceManager) {
+        if (!data.has("FormID") || !data.get("FormID").isJsonPrimitive()) {
+            throw new IllegalArgumentException("missing string FormID; expected '" + resourceId + "'");
+        }
+        ResourceLocation formId = ResourceLocation.tryParse(data.get("FormID").getAsString());
+        if (formId == null) {
+            throw new IllegalArgumentException("FormID is not a valid resource location");
+        }
+        if (!formId.equals(resourceId)) {
+            throw new IllegalArgumentException("FormID must match its resource path; expected '"
+                    + resourceId + "' but got '" + formId + "'");
+        }
+        if (formId.getPath().startsWith("form_")) {
+            throw new IllegalArgumentException("FormID must name the form itself, without the 'form_' Origin prefix");
+        }
+        if (!data.has("originID") || !data.get("originID").isJsonPrimitive()) {
+            throw new IllegalArgumentException("missing string originID; expected '"
+                    + expectedOriginId(formId) + "'");
+        }
+        ResourceLocation originId = ResourceLocation.tryParse(data.get("originID").getAsString());
+        ResourceLocation expectedOriginId = expectedOriginId(formId);
+        if (!expectedOriginId.equals(originId)) {
+            throw new IllegalArgumentException("originID must be '" + expectedOriginId
+                    + "' for FormID '" + formId + "', but got '" + originId + "'");
+        }
+        if (resourceManager != null && resourceManager.getResource(originId).isEmpty()) {
+            throw new IllegalArgumentException("missing Origin data file 'data/" + originId.getNamespace()
+                    + "/origins/" + originId.getPath() + ".json'");
+        }
+        return new DynamicFormIds(formId, originId);
+    }
+
+    private static ResourceLocation expectedOriginId(ResourceLocation formId) {
+        return ResourceLocation.fromNamespaceAndPath(formId.getNamespace(), "form_" + formId.getPath());
+    }
+
+    private record DynamicFormIds(ResourceLocation formId, ResourceLocation originId) {
+    }
 
     private static ResourceLocation resourceLocation(JsonObject data, String key, ResourceLocation fallback) {
         if (!data.has(key) || !data.get(key).isJsonPrimitive()) return fallback;
@@ -260,6 +310,12 @@ public final class FormRegistry {
     public static ResourceLocation originIdFor(ResourceLocation formId) {
         bootstrap();
         return DYNAMIC_ORIGIN_IDS.get(formId);
+    }
+
+    /** Whether an id was successfully loaded from an external {@code ssc_form} data directory. */
+    public static boolean isDynamicForm(ResourceLocation formId) {
+        bootstrap();
+        return DYNAMIC_FORMS.contains(formId);
     }
 
     public static Map<ResourceLocation, FormDefinition> forms() {

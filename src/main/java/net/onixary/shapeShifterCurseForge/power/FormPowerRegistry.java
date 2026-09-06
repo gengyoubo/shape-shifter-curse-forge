@@ -235,7 +235,7 @@ public final class FormPowerRegistry {
         @Override
         protected void apply(Map<ResourceLocation, JsonElement> json, ResourceManager manager,
                              ProfilerFiller profiler) {
-            FormRegistry.reloadDynamicForms(json);
+            FormRegistry.reloadDynamicForms(json, manager);
             Map<ResourceLocation, FormPowerDefinition> loadedPowers = new LinkedHashMap<>();
             Map<ResourceLocation, List<ResourceLocation>> additions = new LinkedHashMap<>();
             Map<ResourceLocation, List<ResourceLocation>> removals = new LinkedHashMap<>();
@@ -244,7 +244,9 @@ public final class FormPowerRegistry {
                 if (!element.isJsonObject()) return;
                 JsonObject form = element.getAsJsonObject();
                 ResourceLocation formId = resourceLocation(form, "FormID", resourceId);
-                if (formId == null) return;
+                // FormRegistry has already emitted an ERROR and rejected malformed entries.
+                // Never attach their ExtraPower/RemovedPower data to an unrelated form.
+                if (formId == null || !FormRegistry.isDynamicForm(formId)) return;
                 List<ResourceLocation> add = new ArrayList<>();
                 List<ResourceLocation> remove = new ArrayList<>();
                 int index = 0;
