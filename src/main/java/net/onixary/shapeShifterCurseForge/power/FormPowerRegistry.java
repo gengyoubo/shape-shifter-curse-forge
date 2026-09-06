@@ -16,6 +16,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.util.TrinketUtils;
 
 import java.util.ArrayList;
@@ -38,6 +39,10 @@ public final class FormPowerRegistry {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static volatile Map<ResourceLocation, FormPowerDefinition> powers = Map.of();
     private static volatile Map<ResourceLocation, List<ResourceLocation>> formPowers = Map.of();
+    private static volatile Map<ResourceLocation, FormPowerDefinition> dynamicPowers = Map.of();
+    private static volatile Map<ResourceLocation, List<ResourceLocation>> dynamicPowerAdds = Map.of();
+    private static volatile Map<ResourceLocation, List<ResourceLocation>> dynamicPowerRemoves = Map.of();
+    private static volatile Map<ResourceLocation, List<ResourceLocation>> extraPowerAdds = Map.of();
 
     private FormPowerRegistry() {
     }
@@ -46,38 +51,55 @@ public final class FormPowerRegistry {
     public static void addReloadListeners(AddReloadListenerEvent event) {
         event.addListener(new PowerReloadListener());
         event.addListener(new OriginReloadListener());
+        event.addListener(new DynamicFormReloadListener());
+        event.addListener(new ExtraPowerReloadListener());
         event.addListener(new AccessoryPowerReloadListener());
     }
 
     public static FormPowerDefinition get(ResourceLocation id) {
-        return powers.get(id);
+        FormPowerDefinition dynamic = dynamicPowers.get(id);
+        return dynamic == null ? powers.get(id) : dynamic;
     }
 
     public static Map<ResourceLocation, FormPowerDefinition> all() {
-        return powers;
+        Map<ResourceLocation, FormPowerDefinition> all = new LinkedHashMap<>(powers);
+        all.putAll(dynamicPowers);
+        return Collections.unmodifiableMap(all);
     }
 
     /** Compact server-side view used to diagnose the Forge-native power data pipeline. */
     public static DebugInfo debug(Player player) {
         List<ResourceLocation> assigned = idsFor(player);
-        int resolved = (int) assigned.stream().filter(powers::containsKey).count();
-        return new DebugInfo(powers.size(), formPowers.size(), FormManager.current(player).id(), assigned, resolved);
+        int resolved = (int) assigned.stream().filter(id -> get(id) != null).count();
+        return new DebugInfo(all().size(), formPowers.size(), FormManager.current(player).id(), assigned, resolved);
     }
 
     public static List<ResourceLocation> idsFor(Player player) {
         ResourceLocation formId = FormManager.current(player).id();
-
-        List<ResourceLocation> direct = formPowers.get(formId);
-        if (direct != null) {
-            return TrinketUtils.effectivePowerIds(player, direct);
-        }
-
         ResourceLocation legacyOriginId = ResourceLocation.fromNamespaceAndPath(
                 formId.getNamespace(),
                 "form_" + formId.getPath()
         );
+        ResourceLocation customOriginId = FormRegistry.originIdFor(formId);
+        LinkedHashSet<ResourceLocation> originKeys = new LinkedHashSet<>();
+        originKeys.add(formId);
+        originKeys.add(legacyOriginId);
+        if (customOriginId != null) originKeys.add(customOriginId);
 
-        return TrinketUtils.effectivePowerIds(player, formPowers.getOrDefault(legacyOriginId, List.of()));
+        LinkedHashSet<ResourceLocation> assigned = new LinkedHashSet<>();
+        LinkedHashSet<ResourceLocation> removed = new LinkedHashSet<>();
+        for (ResourceLocation originKey : originKeys) {
+            addAll(assigned, formPowers.get(originKey));
+            addAll(assigned, dynamicPowerAdds.get(originKey));
+            addAll(assigned, extraPowerAdds.get(originKey));
+            addAll(removed, dynamicPowerRemoves.get(originKey));
+        }
+        assigned.removeAll(removed);
+        return TrinketUtils.effectivePowerIds(player, List.copyOf(assigned));
+    }
+
+    private static void addAll(Set<ResourceLocation> target, List<ResourceLocation> values) {
+        if (values != null) target.addAll(values);
     }
 
     public static boolean has(Player player, ResourceLocation id) {
@@ -92,7 +114,7 @@ public final class FormPowerRegistry {
         //System.out.println("power ids = " + ids);
 
         for (ResourceLocation id : ids) {
-            FormPowerDefinition definition = powers.get(id);
+            FormPowerDefinition definition = get(id);
             //System.out.println("power = " + id + ", definition = " + definition);
 
             if (definition != null) {
@@ -130,6 +152,13 @@ public final class FormPowerRegistry {
         formPowers = Collections.unmodifiableMap(immutable);
         int assignments = formPowers.values().stream().mapToInt(List::size).sum();
         LOGGER.info("Loaded {} form power assignments across {} forms", assignments, formPowers.size());
+    }
+
+    private static Map<ResourceLocation, List<ResourceLocation>> immutableLists(
+            Map<ResourceLocation, List<ResourceLocation>> loaded) {
+        Map<ResourceLocation, List<ResourceLocation>> result = new LinkedHashMap<>();
+        loaded.forEach((id, entries) -> result.put(id, List.copyOf(entries)));
+        return Collections.unmodifiableMap(result);
     }
 
     private static final class PowerReloadListener extends SimpleJsonResourceReloadListener {
@@ -181,6 +210,95 @@ public final class FormPowerRegistry {
             });
             replaceOrigins(loaded);
         }
+    }
+
+    /** Loads the Fabric mod's non-standard data/ssc_form/*.json files. */
+    private static final class DynamicFormReloadListener extends SimpleJsonResourceReloadListener {
+        private DynamicFormReloadListener() {
+            super(GSON, "ssc_form");
+        }
+
+        @Override
+        protected void apply(Map<ResourceLocation, JsonElement> json, ResourceManager manager,
+                             ProfilerFiller profiler) {
+            FormRegistry.reloadDynamicForms(json);
+            Map<ResourceLocation, FormPowerDefinition> loadedPowers = new LinkedHashMap<>();
+            Map<ResourceLocation, List<ResourceLocation>> additions = new LinkedHashMap<>();
+            Map<ResourceLocation, List<ResourceLocation>> removals = new LinkedHashMap<>();
+
+            json.forEach((resourceId, element) -> {
+                if (!element.isJsonObject()) return;
+                JsonObject form = element.getAsJsonObject();
+                ResourceLocation formId = resourceLocation(form, "FormID", resourceId);
+                if (formId == null) return;
+                List<ResourceLocation> add = new ArrayList<>();
+                List<ResourceLocation> remove = new ArrayList<>();
+                int index = 0;
+                JsonArray extra = form.has("ExtraPower") && form.get("ExtraPower").isJsonArray()
+                        ? form.getAsJsonArray("ExtraPower") : new JsonArray();
+                for (JsonElement power : extra) {
+                    if (power.isJsonPrimitive()) {
+                        ResourceLocation id = ResourceLocation.tryParse(power.getAsString());
+                        if (id != null) add.add(id);
+                    } else if (power.isJsonObject()) {
+                        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(
+                                formId.getNamespace(), formId.getPath() + "_tpower_" + index++);
+                        loadedPowers.put(id, FormPowerDefinition.fromJson(id, power.getAsJsonObject()));
+                        add.add(id);
+                    }
+                }
+                JsonArray removed = form.has("RemovedPower") && form.get("RemovedPower").isJsonArray()
+                        ? form.getAsJsonArray("RemovedPower") : new JsonArray();
+                for (JsonElement power : removed) {
+                    if (power.isJsonPrimitive()) {
+                        ResourceLocation id = ResourceLocation.tryParse(power.getAsString());
+                        if (id != null) remove.add(id);
+                    }
+                }
+                if (!add.isEmpty()) additions.put(formId, add);
+                if (!remove.isEmpty()) removals.put(formId, remove);
+            });
+            dynamicPowers = Collections.unmodifiableMap(loadedPowers);
+            dynamicPowerAdds = immutableLists(additions);
+            dynamicPowerRemoves = immutableLists(removals);
+            LOGGER.info("Loaded {} dynamic forms and {} inline dynamic powers", json.size(), loadedPowers.size());
+        }
+    }
+
+    /** Loads Fabric's origins_power_extra bridge and applies it to the matching form origin. */
+    private static final class ExtraPowerReloadListener extends SimpleJsonResourceReloadListener {
+        private ExtraPowerReloadListener() {
+            super(GSON, "origins_power_extra");
+        }
+
+        @Override
+        protected void apply(Map<ResourceLocation, JsonElement> json, ResourceManager manager,
+                             ProfilerFiller profiler) {
+            Map<ResourceLocation, List<ResourceLocation>> loaded = new LinkedHashMap<>();
+            json.forEach((id, element) -> {
+                if (!element.isJsonObject()) return;
+                JsonObject data = element.getAsJsonObject();
+                ResourceLocation target = resourceLocation(data, "TargetOriginsID", null);
+                JsonArray entries = data.has("ExtraPowers") && data.get("ExtraPowers").isJsonArray()
+                        ? data.getAsJsonArray("ExtraPowers") : null;
+                if (target == null || entries == null) return;
+                List<ResourceLocation> powers = new ArrayList<>();
+                for (JsonElement entry : entries) {
+                    if (entry.isJsonPrimitive()) {
+                        ResourceLocation power = ResourceLocation.tryParse(entry.getAsString());
+                        if (power != null) powers.add(power);
+                    }
+                }
+                if (!powers.isEmpty()) loaded.computeIfAbsent(target, ignored -> new ArrayList<>()).addAll(powers);
+            });
+            extraPowerAdds = immutableLists(loaded);
+            LOGGER.info("Loaded {} origins_power_extra assignments", extraPowerAdds.size());
+        }
+    }
+
+    private static ResourceLocation resourceLocation(JsonObject data, String key, ResourceLocation fallback) {
+        if (!data.has(key) || !data.get(key).isJsonPrimitive()) return fallback;
+        return ResourceLocation.tryParse(data.get(key).getAsString());
     }
 
     private static final class AccessoryPowerReloadListener extends SimpleJsonResourceReloadListener {

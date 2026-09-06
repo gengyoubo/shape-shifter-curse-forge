@@ -11,6 +11,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
 import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
@@ -108,6 +109,7 @@ public final class CursedMoonService {
                 sendMessage(player, player.level().dimension() == net.minecraft.world.level.Level.OVERWORLD
                         ? "info.shape-shifter-curse.on_cursed_moon"
                         : "info.shape-shifter-curse.on_cursed_moon_nether");
+                SscAdvancementTriggers.ON_TRIGGER_CURSED_MOON.trigger(player);
             }
 
             data.setLastTransformByCure(false);
@@ -121,6 +123,9 @@ public final class CursedMoonService {
                     data.setBeforeCursedMoonAppliedForm(current.id().toString());
                     data.setAfterCursedMoonAppliedForm(next.id().toString());
                     FormManager.setForm(player, next.id(), true);
+                    if (current.hasFlag("final_form")) {
+                        SscAdvancementTriggers.ON_TRIGGER_CURSED_MOON_FORM_2.trigger(player);
+                    }
                 }
             }
             data.setCursedMoonApplied(true);
@@ -142,12 +147,19 @@ public final class CursedMoonService {
                 }
             } else if (data.wasLastTransformByCure()) {
                 sendMessage(player, "info.shape-shifter-curse.end_cursed_moon_by_cure");
+                SscAdvancementTriggers.ON_END_CURSED_MOON_CURED.trigger(player);
+                String afterFormId = data.getAfterCursedMoonAppliedForm();
+                FormDefinition afterForm = afterFormId == null ? null : FormRegistry.get(afterFormId);
+                if (afterForm != null && afterForm.tier() == 1) {
+                    SscAdvancementTriggers.ON_END_CURSED_MOON_CURED_FORM_2.trigger(player);
+                }
             } else if (FormRegistry.ORIGINAL_SHIFTER.equals(current.id())) {
                 sendMessage(player, "info.shape-shifter-curse.end_cursed_moon_special");
             } else if (beforeFormId != null && FormRegistry.get(beforeFormId) != null
                     && data.getAfterCursedMoonAppliedForm() != null
                     && data.getAfterCursedMoonAppliedForm().equals(current.id().toString())) {
                 sendMessage(player, "info.shape-shifter-curse.end_cursed_moon");
+                SscAdvancementTriggers.ON_END_CURSED_MOON.trigger(player);
                 ResourceLocation beforeId = ResourceLocation.tryParse(beforeFormId);
                 if (beforeId != null && FormRegistry.get(beforeId) != null) {
                     FormManager.setForm(player, beforeId, true);

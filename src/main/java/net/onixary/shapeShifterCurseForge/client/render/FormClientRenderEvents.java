@@ -1,5 +1,6 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
+import com.google.gson.JsonParser;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -27,8 +28,11 @@ import com.mojang.logging.LogUtils;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class FormClientRenderEvents {
@@ -190,26 +194,56 @@ public final class FormClientRenderEvents {
 
     /** Shared form renderer lookup; null when the form has no Geo model or texture. */
     public static FormGeoRenderer rendererFor(FormDefinition form) {
-        ResourceLocation model = modelResource(form);
-        ResourceLocation texture = textureResource(form);
         Minecraft minecraft = Minecraft.getInstance();
+        ModelMetadata metadata = modelMetadata(form, minecraft);
+        ResourceLocation model = metadata.model() == null ? modelResource(form) : metadata.model();
+        ResourceLocation texture = metadata.texture() == null ? textureResource(form) : metadata.texture();
         if (minecraft.getResourceManager().getResource(model).isEmpty()
                 || minecraft.getResourceManager().getResource(texture).isEmpty()) {
             return null;
         }
-        ResourceLocation animationConfig = resource("ssc_form_model/origins.origin."
-                + form.id().getNamespace() + ".form_" + form.id().getPath() + ".json");
+        ResourceLocation animationConfig = metadata.config();
         return RENDERERS.computeIfAbsent(form.id(),
                 ignored -> new FormGeoRenderer(model, texture, animationConfig));
     }
 
     private static ResourceLocation modelResource(FormDefinition form) {
-        return resource("geo/form/form_" + form.id().getPath() + ".geo.json");
+        return ResourceLocation.fromNamespaceAndPath(form.id().getNamespace(),
+                "geo/form/form_" + form.id().getPath() + ".geo.json");
     }
 
     private static ResourceLocation textureResource(FormDefinition form) {
-        return resource("textures/form/form_" + form.id().getPath()
-                + "/form_" + form.id().getPath() + ".png");
+        return ResourceLocation.fromNamespaceAndPath(form.id().getNamespace(),
+                "textures/form/form_" + form.id().getPath()
+                        + "/form_" + form.id().getPath() + ".png");
+    }
+
+    /** Reads the Fabric-compatible ssc_form_model metadata, including external namespaces. */
+    private static ModelMetadata modelMetadata(FormDefinition form, Minecraft minecraft) {
+        ResourceLocation config = ResourceLocation.fromNamespaceAndPath(form.id().getNamespace(),
+                "ssc_form_model/origins.origin." + form.id().getNamespace()
+                        + ".form_" + form.id().getPath() + ".json");
+        try {
+            Optional<net.minecraft.server.packs.resources.Resource> resource =
+                    minecraft.getResourceManager().getResource(config);
+            if (resource.isEmpty()) {
+                return new ModelMetadata(null, null, config);
+            }
+            try (InputStreamReader reader = new InputStreamReader(resource.get().open(), StandardCharsets.UTF_8)) {
+                var root = JsonParser.parseReader(reader).getAsJsonObject();
+                ResourceLocation model = root.has("model") && root.get("model").isJsonPrimitive()
+                        ? ResourceLocation.tryParse(root.get("model").getAsString()) : null;
+                ResourceLocation texture = root.has("texture") && root.get("texture").isJsonPrimitive()
+                        ? ResourceLocation.tryParse(root.get("texture").getAsString()) : null;
+                return new ModelMetadata(model, texture, config);
+            }
+        } catch (Exception exception) {
+            LOGGER.warn("Failed to read form model metadata for {}: {}", form.id(), exception.toString());
+            return new ModelMetadata(null, null, config);
+        }
+    }
+
+    private record ModelMetadata(ResourceLocation model, ResourceLocation texture, ResourceLocation config) {
     }
 
     private static String missingAssetSuffix(FormDefinition form) {

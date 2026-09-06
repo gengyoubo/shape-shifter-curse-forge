@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.form;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 
 /** Growth and regression policy migrated from the Fabric catalyst/inhibitor transform reasons. */
 public final class FormGrowthService {
@@ -16,12 +17,21 @@ public final class FormGrowthService {
 
     public static boolean apply(ServerPlayer player, Mode mode) {
         FormDefinition current = FormManager.current(player);
-        return switch (mode) {
+        boolean changed = switch (mode) {
             case CATALYST -> advance(player, current, false);
             case POWERFUL_CATALYST -> advance(player, current, true);
             case INHIBITOR -> regress(player, current, false);
             case POWERFUL_INHIBITOR -> regress(player, current, true);
         };
+        if (changed) {
+            switch (mode) {
+                case CATALYST -> SscAdvancementTriggers.ON_TRANSFORM_BY_CATALYST.trigger(player);
+                case INHIBITOR -> SscAdvancementTriggers.ON_TRANSFORM_BY_CURE.trigger(player);
+                case POWERFUL_INHIBITOR -> SscAdvancementTriggers.ON_TRANSFORM_BY_CURE_FINAL.trigger(player);
+                case POWERFUL_CATALYST -> { }
+            }
+        }
+        return changed;
     }
 
     /** Instinct reaches its threshold independently of catalyst resistance. */

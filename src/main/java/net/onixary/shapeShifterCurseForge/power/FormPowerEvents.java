@@ -17,6 +17,7 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
@@ -35,6 +36,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 
 import java.nio.charset.StandardCharsets;
@@ -427,6 +430,12 @@ public final class FormPowerEvents {
     public static void finishUsingItem(LivingEntityUseItemEvent.Finish event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) return;
         ItemStack used = event.getItem();
+        if ((used.is(Items.GOLDEN_APPLE) || used.is(Items.ENCHANTED_GOLDEN_APPLE))
+                && !FormManager.current(player).hasFlag("no_instinct")
+                && !FormManager.current(player).hasFlag("lock_instinct")
+                && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            SscAdvancementTriggers.ON_USE_GOLDEN_APPLE.trigger(serverPlayer);
+        }
         FoodProperties food = used.getFoodProperties(player);
         if (food == null) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {

@@ -1,5 +1,7 @@
 package net.onixary.shapeShifterCurseForge.form;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
@@ -15,6 +17,9 @@ public final class FormRegistry {
 
     private static final Map<ResourceLocation, FormDefinition> FORMS = new LinkedHashMap<>();
     private static final Map<ResourceLocation, FormGroup> GROUPS = new LinkedHashMap<>();
+    private static final Set<ResourceLocation> DYNAMIC_FORMS = new LinkedHashSet<>();
+    private static final Set<ResourceLocation> DYNAMIC_GROUPS = new LinkedHashSet<>();
+    private static final Map<ResourceLocation, ResourceLocation> DYNAMIC_ORIGIN_IDS = new LinkedHashMap<>();
     private static boolean bootstrapped;
 
     private FormRegistry() {
@@ -117,6 +122,123 @@ public final class FormRegistry {
         GROUPS.computeIfAbsent(groupId, FormGroup::new).add(definition);
     }
 
+    /** Replaces the Fabric-compatible data/ssc_form forms during a server datapack reload. */
+    public static void reloadDynamicForms(Map<ResourceLocation, JsonElement> json) {
+        bootstrap();
+        for (ResourceLocation formId : DYNAMIC_FORMS) {
+            FormDefinition old = FORMS.remove(formId);
+            if (old != null) {
+                FormGroup group = GROUPS.get(old.groupId());
+                if (group != null) {
+                    group.remove(formId);
+                    if (group.isEmpty() && DYNAMIC_GROUPS.contains(old.groupId())) {
+                        GROUPS.remove(old.groupId());
+                    }
+                }
+            }
+        }
+        DYNAMIC_FORMS.clear();
+        DYNAMIC_GROUPS.clear();
+        DYNAMIC_ORIGIN_IDS.clear();
+
+        json.forEach((resourceId, element) -> {
+            if (!element.isJsonObject()) {
+                LOGGER.warn("Ignoring non-object dynamic form {}", resourceId);
+                return;
+            }
+            JsonObject data = element.getAsJsonObject();
+            ResourceLocation formId = resourceLocation(data, "FormID", resourceId);
+            if (formId == null) {
+                LOGGER.warn("Ignoring dynamic form with invalid id {}", resourceId);
+                return;
+            }
+            if (FORMS.containsKey(formId) && !DYNAMIC_FORMS.contains(formId)) {
+                LOGGER.warn("Ignoring dynamic form {} because it would replace a built-in form", formId);
+                return;
+            }
+            ResourceLocation groupId = resourceLocation(data, "group", formId);
+            if (groupId == null) {
+                LOGGER.warn("Ignoring dynamic form {} with invalid group", formId);
+                return;
+            }
+            int tier = integer(data, "tier", 1);
+            int weight = integer(data, "weight", data.has("group_weight") ? integer(data, "group_weight", 1) : 1);
+            FormBodyType bodyType = bodyType(data);
+            float width = number(data, "widthScale", number(data, "width_scale", 1.0F));
+            float height = number(data, "heightScale", number(data, "height_scale", 1.0F));
+            float eye = number(data, "eyeScale", number(data, "eye_scale", 1.0F));
+            float fallProtection = number(data, "fallProtectionDistance",
+                    number(data, "fall_protection_distance", 0.0F));
+            float jumpAddition = number(data, "jumpVelocityAddition",
+                    number(data, "jump_velocity_addition", 0.0F));
+            Set<String> flags = flags(data);
+
+            FormDefinition definition = new FormDefinition(formId, groupId, tier, weight, bodyType,
+                    width, height, eye, flags, fallProtection, jumpAddition);
+            FormGroup group = GROUPS.get(groupId);
+            if (group == null) {
+                group = new FormGroup(groupId);
+                GROUPS.put(groupId, group);
+                DYNAMIC_GROUPS.add(groupId);
+            }
+            FormDefinition previous = FORMS.put(formId, definition);
+            if (previous != null) {
+                FormGroup previousGroup = GROUPS.get(previous.groupId());
+                if (previousGroup != null) previousGroup.remove(formId);
+            }
+            group.add(definition);
+            DYNAMIC_FORMS.add(formId);
+            ResourceLocation originId = resourceLocation(data, "originID", null);
+            if (originId != null) {
+                DYNAMIC_ORIGIN_IDS.put(formId, originId);
+            }
+            LOGGER.info("Loaded dynamic form {} from {}", formId, resourceId);
+        });
+    }
+
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(FormRegistry.class);
+
+    private static ResourceLocation resourceLocation(JsonObject data, String key, ResourceLocation fallback) {
+        if (!data.has(key) || !data.get(key).isJsonPrimitive()) return fallback;
+        return ResourceLocation.tryParse(data.get(key).getAsString());
+    }
+
+    private static int integer(JsonObject data, String key, int fallback) {
+        try {
+            return data.has(key) ? data.get(key).getAsInt() : fallback;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
+    }
+
+    private static float number(JsonObject data, String key, float fallback) {
+        try {
+            return data.has(key) ? data.get(key).getAsFloat() : fallback;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
+    }
+
+    private static FormBodyType bodyType(JsonObject data) {
+        String value = data.has("bodyType") ? data.get("bodyType").getAsString()
+                : data.has("body_type") ? data.get("body_type").getAsString() : "NORMAL";
+        try {
+            return FormBodyType.valueOf(value.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return FormBodyType.NORMAL;
+        }
+    }
+
+    private static Set<String> flags(JsonObject data) {
+        JsonElement element = data.has("flag") ? data.get("flag") : data.get("flags");
+        if (element == null || !element.isJsonArray()) return Set.of();
+        Set<String> result = new LinkedHashSet<>();
+        for (JsonElement flag : element.getAsJsonArray()) {
+            if (flag.isJsonPrimitive()) result.add(flag.getAsString());
+        }
+        return Set.copyOf(result);
+    }
+
     private static ResourceLocation id(String path) {
         return ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, path);
     }
@@ -133,6 +255,11 @@ public final class FormRegistry {
     public static FormGroup getGroup(ResourceLocation id) {
         bootstrap();
         return GROUPS.get(id);
+    }
+
+    public static ResourceLocation originIdFor(ResourceLocation formId) {
+        bootstrap();
+        return DYNAMIC_ORIGIN_IDS.get(formId);
     }
 
     public static Map<ResourceLocation, FormDefinition> forms() {

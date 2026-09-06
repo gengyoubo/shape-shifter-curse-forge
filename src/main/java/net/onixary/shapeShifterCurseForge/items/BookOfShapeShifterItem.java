@@ -14,6 +14,7 @@ import net.onixary.shapeShifterCurseForge.client.codex.BookOfShapeShifterScreenV
 import net.onixary.shapeShifterCurseForge.client.codex.StartBookScreenV2;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 
 import java.util.List;
 
@@ -31,9 +32,9 @@ public final class BookOfShapeShifterItem extends Item {
                     net.minecraftforge.api.distmarker.Dist.CLIENT,
                     () -> () -> openBookScreen(player));
         }
-        // Server side intentionally does nothing here: enabling moved to the
-        // StartBook confirm button (ValidateStartBookPacket), mirroring Fabric.
-        // TODO: ON_OPEN_BOOK_OF_SHAPE_SHIFTER advancement trigger once triggers land.
+        if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            SscAdvancementTriggers.ON_OPEN_BOOK_OF_SHAPE_SHIFTER.trigger(serverPlayer);
+        }
 
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
     }

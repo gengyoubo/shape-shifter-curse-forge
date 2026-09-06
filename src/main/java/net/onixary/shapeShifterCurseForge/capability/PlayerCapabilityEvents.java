@@ -10,6 +10,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
+import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class PlayerCapabilityEvents {
@@ -56,6 +57,7 @@ public final class PlayerCapabilityEvents {
     @SubscribeEvent
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);

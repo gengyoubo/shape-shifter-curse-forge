@@ -24,6 +24,19 @@ public final class FormGroup {
         formsByTier.computeIfAbsent(form.tier(), ignored -> new ArrayList<>()).add(form);
     }
 
+    public boolean remove(ResourceLocation formId) {
+        boolean removed = false;
+        for (List<FormDefinition> forms : formsByTier.values()) {
+            removed |= forms.removeIf(form -> form.id().equals(formId));
+        }
+        formsByTier.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        return removed;
+    }
+
+    public boolean isEmpty() {
+        return formsByTier.isEmpty();
+    }
+
     public List<FormDefinition> formsAtTier(int tier) {
         return Collections.unmodifiableList(formsByTier.getOrDefault(tier, List.of()));
     }

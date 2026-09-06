@@ -6,6 +6,7 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.capability.IPlayerFormData;
 import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
 
 public final class FormManager {
@@ -52,6 +53,7 @@ public final class FormManager {
         if (player instanceof ServerPlayer serverPlayer) {
             ModNetwork.sendFormSync(serverPlayer, changed && playTransformAnimation);
             if (changed) {
+                SscAdvancementTriggers.ON_TRANSFORM_FORM.triggerForm(serverPlayer, target);
                 InstinctService.applyImmediatePowers(serverPlayer);
             }
         }

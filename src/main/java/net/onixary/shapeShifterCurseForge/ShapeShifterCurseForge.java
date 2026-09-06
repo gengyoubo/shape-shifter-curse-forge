@@ -6,6 +6,7 @@ import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
 import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
+import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
@@ -33,6 +34,7 @@ public final class ShapeShifterCurseForge {
         ModBlocks.BLOCKS.register(modBus);
         ModEntities.ENTITIES.register(modBus);
         ModCreativeModeTabs.TABS.register(modBus);
+        SscAdvancementTriggers.initialize();
         FormManager.initialize();
         ModNetwork.initialize();
     }
