@@ -10,13 +10,11 @@ import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Skeleton;
 import net.minecraft.world.entity.animal.Wolf;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.mixin.MobGoalSelectorAccessor;
 
 /** Prevents the native hostile AI from selecting forms it considers friendly. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
@@ -24,24 +22,9 @@ public final class MobRelationEvents {
     private MobRelationEvents() { }
 
     @SubscribeEvent
-    public static void entityJoin(EntityJoinLevelEvent event) {
-        if (event.getLevel().isClientSide() || !(event.getEntity() instanceof Mob mob)
-                || !FormAffinityGoal.supports(mob)) {
-            return;
-        }
-        ((MobGoalSelectorAccessor) mob)
-                .ssc$getGoalSelector().addGoal(6, new FormAffinityGoal(mob));
-    }
-
-    @SubscribeEvent
     public static void changeTarget(LivingChangeTargetEvent event) {
         if (!(event.getNewTarget() instanceof Player player) || !(event.getEntity() instanceof Mob mob)) return;
         final boolean[] friendly = {false};
-        // Matching vanilla mobs are friendly to every non-original form in
-        // their species group, including lower tiers without a JSON power.
-        if (FormAffinityGoal.matchesSpecies(player, mob)) {
-            friendly[0] = true;
-        }
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
             boolean applies = ("shape-shifter-curse:witch_friendly".equals(type) && mob instanceof Witch)

@@ -7,6 +7,7 @@ issueTrackerURL="https://github.com/gengyoubo/shape-shifter-curse-forge/issues"
 modId="${mod_id}"
 version="${version}"
 displayName="${mod_name}"
+logoFile="logo.png"
 authors="gengyoubo,onixary,XuHaoNan"
 description='''A native Forge 1.20.1 migration of Shape Shifter Curse.'''
 

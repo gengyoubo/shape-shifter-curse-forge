@@ -7,7 +7,6 @@
     "refmap": "shape_shifter_curse.refmap.json",
     "mixins": [
         "LivingEntityMixin",
-        "MobGoalSelectorAccessor",
         "EntityRotationMixin",
         "PlayerEntityPoseMixin",
         "PowderSnowBlockMixin",
