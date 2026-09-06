@@ -32,6 +32,7 @@ public final class CrawlingScaleService {
 
     /** Drift enforcer: refresh dimensions whenever live bounds leave form default. */
     public static void tick(Player player) {
+        FormPowerRuntime.tickIdleStay(player);
         JsonObject crawling = crawlingPower(player);
         JsonObject conditional = conditionScalePower(player);
         if (crawling == null && conditional == null) {

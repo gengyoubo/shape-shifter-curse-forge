@@ -9,6 +9,8 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.network.ActivePowerKeyPacket;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +18,8 @@ import java.util.Map;
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
 public final class FormKeyInputEvents {
     private static final Map<KeyMapping, Boolean> LAST_STATE = new HashMap<>();
+    private static final ResourceLocation TOGGLE_CLIP_POWER = ResourceLocation.fromNamespaceAndPath(
+            "shape-shifter-curse", "toggle_clip_at_ledge");
     private static boolean clipAtLedgeDisabled;
 
     private FormKeyInputEvents() {
@@ -29,6 +33,8 @@ public final class FormKeyInputEvents {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
             clipAtLedgeDisabled = false;
+        } else if (!FormPowerRegistry.has(minecraft.player, TOGGLE_CLIP_POWER)) {
+            clipAtLedgeDisabled = false;
         }
         for (KeyMapping key : FormKeyMappings.ACTIVE_SKILLS) {
             boolean pressed = key.isDown();
@@ -36,7 +42,9 @@ public final class FormKeyInputEvents {
             if (pressed != previous) {
                 ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket(key.getName(), pressed));
                 LAST_STATE.put(key, pressed);
-                if (key == FormKeyMappings.TOGGLE_CLIP_AT_LEDGE && pressed) {
+                if (key == FormKeyMappings.TOGGLE_CLIP_AT_LEDGE && pressed
+                        && minecraft.player != null
+                        && FormPowerRegistry.has(minecraft.player, TOGGLE_CLIP_POWER)) {
                     clipAtLedgeDisabled = !clipAtLedgeDisabled;
                 }
             }
@@ -51,6 +59,8 @@ public final class FormKeyInputEvents {
     }
 
     public static boolean isClipAtLedgeDisabled() {
-        return clipAtLedgeDisabled;
+        Minecraft minecraft = Minecraft.getInstance();
+        return clipAtLedgeDisabled && minecraft.player != null
+                && FormPowerRegistry.has(minecraft.player, TOGGLE_CLIP_POWER);
     }
 }

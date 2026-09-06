@@ -87,6 +87,10 @@ public final class FormActivePowerService {
         } else {
             GROUND_TICKS.put(player.getUUID(), 0);
         }
+        Map<ResourceLocation, Boolean> toggles = TOGGLES.get(player.getUUID());
+        if (toggles != null) {
+            toggles.keySet().removeIf(toggleId -> !FormPowerRegistry.has(player, toggleId));
+        }
         boolean wasSprinting = SPRINTING.getOrDefault(player.getUUID(), false);
         SPRINTING.put(player.getUUID(), player.isSprinting());
         boolean wasCrouching = CROUCHING.getOrDefault(player.getUUID(), false);

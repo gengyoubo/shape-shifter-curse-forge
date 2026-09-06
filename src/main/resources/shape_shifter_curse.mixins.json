@@ -19,7 +19,8 @@
     ],
     "client": [
         "client.InventoryScreenMixin",
-        "client.PlayerEdgeClipMixin"
+        "client.PlayerEdgeClipMixin",
+        "client.GameRendererBlockSelectionMixin"
     ],
     "injectors": {
         "defaultRequire": 1

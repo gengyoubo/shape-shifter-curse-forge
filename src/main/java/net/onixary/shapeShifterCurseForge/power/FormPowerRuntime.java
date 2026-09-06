@@ -12,7 +12,9 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Snowball;
@@ -25,10 +27,23 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerPlayer;
+import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /** Shared condition and action interpreter for the common Origins JSON building blocks. */
 public final class FormPowerRuntime {
@@ -66,7 +81,9 @@ public final class FormPowerRuntime {
             case "apoli:resource" -> matchesResource(actor, condition);
             case "apoli:air" -> compare(actor.getAirSupply(), condition);
             case "apoli:in_tag" -> target != null && matchesEntityTag(target, condition);
-            case "apoli:empty" -> true;
+            // `empty` is an item condition; when it reaches the generic interpreter,
+            // evaluate the player's main hand instead of silently succeeding.
+            case "apoli:empty" -> actor.getMainHandItem().isEmpty();
             case "apoli:fall_distance" -> compare(actor.fallDistance, condition);
             case "apoli:fall_flying" -> actor.isFallFlying();
             case "apoli:creative_flying" -> actor.getAbilities().flying;
@@ -78,6 +95,22 @@ public final class FormPowerRuntime {
             case "apoli:distance" -> target != null && compare(actor.distanceTo(target), condition);
             case "apoli:on_fire" -> actor.isOnFire();
             case "apoli:collided_horizontally" -> actor.horizontalCollision;
+            case "apoli:attacker" -> target != null
+                    && (!condition.has("entity_condition")
+                    || testEntity(actor, target, condition.getAsJsonObject("entity_condition")));
+            case "apoli:raycast" -> raycast(actor, condition);
+            case "shape-shifter-curse:barehand_digging" -> barehandDigging(actor);
+            case "shape-shifter-curse:chance" -> actor.getRandom().nextFloat()
+                    < Math.max(0.0F, Math.min(1.0F, floatValue(condition, "chance", 0.0F)));
+            case "shape-shifter-curse:can_render_gui" -> true;
+            case "shape-shifter-curse:enable_random_sound" -> actor.getCapability(ModCapabilities.PLAYER_SKIN)
+                    .map(data -> data.isEnableFormRandomSound()).orElse(true);
+            case "shape-shifter-curse:is_item_in_cooldown" -> itemInCooldown(actor, condition);
+            case "shape-shifter-curse:last_attack_witch_time" -> compare(
+                    lastAttackAge(actor, LastAttackKind.WITCH), condition);
+            case "shape-shifter-curse:last_attack_pillager_time" -> compare(
+                    lastAttackAge(actor, LastAttackKind.PILLAGER), condition);
+            case "shape-shifter-curse:idle_stay" -> idleStay(actor);
             case "apoli:constant" -> !condition.has("value") || condition.get("value").getAsBoolean();
             case "apoli:entity_group" -> matchesEntityGroup(target, stringValue(condition, "group", ""));
             case "apoli:in_block" -> matchesBlockAt(actor, actor.blockPosition(), condition.getAsJsonObject("block_condition"));
@@ -93,9 +126,77 @@ public final class FormPowerRuntime {
             case "apoli:target_condition" -> target != null && testEntity(actor, target, condition.getAsJsonObject("condition"));
             case "apoli:actor_condition" -> test(actor, target, condition.getAsJsonObject("condition"));
             case "apoli:entity_type" -> target != null && matchesEntityType(target, condition);
-            default -> true;
+            // An unknown condition must not silently grant a power.  This also makes
+            // missing Forge handlers visible through the behavior instead of turning
+            // them into an always-true condition.
+            default -> false;
         };
         return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
+    }
+
+    private static boolean barehandDigging(Player actor) {
+        ItemStack stack = actor.getMainHandItem();
+        if (stack.isEmpty()) return true;
+        return stack.getItem() instanceof net.minecraft.world.item.TieredItem tiered
+                && tiered.getTier().getLevel() <= 0;
+    }
+
+    private static boolean itemInCooldown(Player actor, JsonObject condition) {
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "item", ""));
+        if (id == null) return false;
+        net.minecraft.world.item.Item item = BuiltInRegistries.ITEM.get(id);
+        return item != null && actor.getCooldowns().isOnCooldown(item);
+    }
+
+    public enum LastAttackKind { WITCH, PILLAGER }
+
+    private static final Map<UUID, Long> LAST_WITCH_ATTACK = new HashMap<>();
+    private static final Map<UUID, Long> LAST_PILLAGER_ATTACK = new HashMap<>();
+    private static final Map<UUID, Integer> IDLE_STAY_TICKS = new HashMap<>();
+    private static final Map<UUID, Integer> IDLE_STAY_LAST_TICK = new HashMap<>();
+
+    public static void recordPlayerAttack(Player player, Entity target) {
+        if (target instanceof net.minecraft.world.entity.monster.Witch) {
+            LAST_WITCH_ATTACK.put(player.getUUID(), player.level().getGameTime());
+        }
+        if (target instanceof net.minecraft.world.entity.raid.Raider) {
+            LAST_PILLAGER_ATTACK.put(player.getUUID(), player.level().getGameTime());
+        }
+    }
+
+    private static long lastAttackAge(Player player, LastAttackKind kind) {
+        Map<UUID, Long> attacks = kind == LastAttackKind.WITCH ? LAST_WITCH_ATTACK : LAST_PILLAGER_ATTACK;
+        Long last = attacks.get(player.getUUID());
+        return last == null ? Long.MIN_VALUE / 16 : player.level().getGameTime() - last;
+    }
+
+    /** Keeps the custom idle_stay condition in sync with the animation state: five seconds. */
+    public static void tickIdleStay(Player player) {
+        UUID id = player.getUUID();
+        Integer previousTick = IDLE_STAY_LAST_TICK.put(id, player.tickCount);
+        if (previousTick != null && previousTick == player.tickCount) return;
+
+        final boolean[] configured = {false};
+        FormPowerRegistry.visitActive(player, (powerId, power) -> {
+            if (configured[0] || !"shape-shifter-curse:condition_scale".equals(FormPowerRegistry.typeOf(power))) return;
+            JsonObject condition = power.getAsJsonObject("condition");
+            configured[0] = condition != null
+                    && "shape-shifter-curse:idle_stay".equals(FormPowerRegistry.typeOf(condition));
+        });
+        if (!configured[0]) {
+            IDLE_STAY_TICKS.remove(id);
+            return;
+        }
+
+        boolean idle = player.onGround() && !player.isCrouching() && !player.isPassenger()
+                && !player.isSleeping() && !player.isInWaterOrBubble()
+                && !player.isUsingItem() && player.getDeltaMovement().lengthSqr() < 1.0E-6D;
+        if (idle) IDLE_STAY_TICKS.merge(id, 1, Integer::sum);
+        else IDLE_STAY_TICKS.remove(id);
+    }
+
+    private static boolean idleStay(Player player) {
+        return IDLE_STAY_TICKS.getOrDefault(player.getUUID(), 0) >= 100;
     }
 
     private static boolean checkAccessory(Player actor, JsonObject condition) {
@@ -204,13 +305,19 @@ public final class FormPowerRuntime {
             case "apoli:exhaust" -> actor.causeFoodExhaustion(floatValue(action, "amount", 0.0F));
             case "apoli:consume" -> consumeHeldItem(actor, intValue(action, "amount", 1));
             case "apoli:drop_inventory" -> dropInventory(actor, action);
+            case "apoli:equipped_item_action" -> equippedItemAction(actor, recipient, action);
+            case "apoli:extinguish" -> recipient.clearFire();
             case "apoli:target_action" -> execute(actor, target, action.getAsJsonObject("action"));
             case "apoli:actor_action" -> execute(actor, actor, action.getAsJsonObject("action"));
             case "apoli:trigger_cooldown" -> triggerCooldown(actor, action);
             case "apoli:modify_resource" -> modifyResource(actor, action);
             case "apoli:execute_command" -> executeCommand(actor, recipient, action);
             case "apoli:spawn_particles" -> spawnParticles(actor, recipient, action);
+            case "apoli:spawn_effect_cloud" -> spawnEffectCloud(actor, recipient, action);
             case "apoli:fire_projectile" -> fireProjectile(actor, action);
+            case "shape-shifter-curse:invoke_accessory" -> invokeAccessory(actor, action);
+            case "shape-shifter-curse:drop_accessory" -> dropAccessory(actor, action);
+            case "shape-shifter-curse:set_item_cooldown" -> setItemCooldown(actor, action);
             case "shape-shifter-curse:consume_mana" -> FormActivePowerService.consumeMana(actor,
                     floatValue(action, "mana", 0.0F));
             case "shape-shifter-curse:gain_mana" -> FormActivePowerService.gainMana(actor,
@@ -260,6 +367,39 @@ public final class FormPowerRuntime {
             default -> false;
         };
         return inverted(condition, result);
+    }
+
+    /** Damage conditions need the event amount and source, which ordinary entity conditions do not have. */
+    public static boolean testDamageCondition(Player actor, Entity victim,
+                                              net.minecraft.world.damagesource.DamageSource source,
+                                              float amount, JsonObject condition) {
+        if (condition == null) return true;
+        String type = FormPowerRegistry.typeOf(condition);
+        boolean result = switch (type) {
+            case "apoli:and" -> damageConditionList(actor, victim, source, amount,
+                    condition.getAsJsonArray("conditions"), true);
+            case "apoli:or" -> damageConditionList(actor, victim, source, amount,
+                    condition.getAsJsonArray("conditions"), false);
+            case "apoli:amount" -> compare(amount, condition);
+            case "apoli:attacker" -> source != null && source.getEntity() != null
+                    && (!condition.has("entity_condition")
+                    || testEntity(actor, source.getEntity(), condition.getAsJsonObject("entity_condition")));
+            case "apoli:projectile" -> source != null && source.getDirectEntity() instanceof Projectile;
+            default -> test(actor, victim, condition);
+        };
+        return inverted(condition, result);
+    }
+
+    private static boolean damageConditionList(Player actor, Entity victim,
+                                               net.minecraft.world.damagesource.DamageSource source,
+                                               float amount, JsonArray conditions, boolean all) {
+        if (conditions == null) return all;
+        for (JsonElement child : conditions) {
+            if (!child.isJsonObject()) continue;
+            boolean matches = testDamageCondition(actor, victim, source, amount, child.getAsJsonObject());
+            if (all != matches) return !all;
+        }
+        return all;
     }
 
     private static boolean damageConditions(net.minecraft.world.damagesource.DamageSource source,
@@ -448,6 +588,11 @@ public final class FormPowerRuntime {
                 matches |= tagId != null && stack.is(TagKey.create(Registries.ITEM, tagId));
                 yield matches;
             }
+            case "apoli:enchantment" -> matchesEnchantment(stack, condition);
+            case "apoli:meat" -> stack.getItem().isEdible()
+                    && stack.getFoodProperties(null) != null
+                    && stack.getFoodProperties(null).isMeat();
+            case "shape-shifter-curse:is_vegan_ex" -> isVegan(stack, condition);
             case "shape-shifter-curse:is_weapon" -> stack.getItem() instanceof SwordItem || stack.getItem() instanceof AxeItem;
             case "shape-shifter-curse:is_morph_scale_item", "shape-shifter-curse:is_morph_scale_food"
                     -> isMorphScaleItem(stack);
@@ -455,7 +600,7 @@ public final class FormPowerRuntime {
                     && compare(armor.getDefense(), condition);
             case "apoli:empty" -> stack.isEmpty();
             case "apoli:food" -> stack.isEdible();
-            default -> true;
+            default -> false;
         };
         return inverted(condition, result);
     }
@@ -477,6 +622,11 @@ public final class FormPowerRuntime {
                 || tag.getBoolean("shape_shifter_curse_morphscale");
     }
 
+    private static boolean isVegan(ItemStack stack, JsonObject condition) {
+        boolean fallback = booleanValue(condition, "default", false);
+        return stack.hasTag() && stack.getTag().getByte("vegandelight:is_vegan") == 1 || fallback;
+    }
+
     private static boolean inverted(JsonObject condition, boolean value) {
         return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !value : value;
     }
@@ -492,14 +642,85 @@ public final class FormPowerRuntime {
     private static boolean matchesBlockAt(Player actor, BlockPos pos, JsonObject condition) {
         if (condition == null) return !actor.level().getBlockState(pos).isAir();
         String type = FormPowerRegistry.typeOf(condition);
+        BlockState state = actor.level().getBlockState(pos);
+        boolean result;
         if ("apoli:in_tag".equals(type)) {
             ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
-            return id != null && actor.level().getBlockState(pos).is(TagKey.create(Registries.BLOCK, id));
+            result = id != null && state.is(TagKey.create(Registries.BLOCK, id));
+        } else if ("apoli:block".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "block", ""));
+            Block block = id == null ? null : BuiltInRegistries.BLOCK.get(id);
+            result = block != null && state.is(block);
+        } else if ("apoli:block_state".equals(type)) {
+            result = matchesBlockProperty(state, condition);
+        } else if ("apoli:hardness".equals(type)) {
+            result = compare(state.getDestroySpeed(actor.level(), pos), condition);
+        } else if ("apoli:replacable".equals(type)) {
+            result = state.canBeReplaced();
+        } else if ("apoli:and".equals(type)) {
+            result = testBlockList(actor, pos, condition.getAsJsonArray("conditions"), true);
+        } else if ("apoli:or".equals(type)) {
+            result = testBlockList(actor, pos, condition.getAsJsonArray("conditions"), false);
+        } else {
+            result = false;
         }
-        if (!"apoli:block".equals(type)) return true;
-        ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "block", ""));
-        Block block = id == null ? null : BuiltInRegistries.BLOCK.get(id);
-        return block != null && actor.level().getBlockState(pos).is(block);
+        return inverted(condition, result);
+    }
+
+    private static boolean testBlockList(Player actor, BlockPos pos, JsonArray conditions, boolean all) {
+        if (conditions == null) return all;
+        for (JsonElement child : conditions) {
+            if (!child.isJsonObject()) continue;
+            boolean matches = matchesBlockAt(actor, pos, child.getAsJsonObject());
+            if (all != matches) return !all;
+        }
+        return all;
+    }
+
+    private static boolean matchesBlockProperty(BlockState state, JsonObject condition) {
+        Property<?> property = state.getBlock().getStateDefinition().getProperty(stringValue(condition, "property", ""));
+        if (property == null) return false;
+        return property.getValue(stringValue(condition, "value", ""))
+                .map(value -> value.equals(state.getValue(property))).orElse(false);
+    }
+
+    private static boolean matchesEnchantment(ItemStack stack, JsonObject condition) {
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "enchantment", ""));
+        Enchantment enchantment = id == null ? null : BuiltInRegistries.ENCHANTMENT.get(id);
+        return enchantment != null && compare(EnchantmentHelper.getItemEnchantmentLevel(enchantment, stack), condition);
+    }
+
+    private static boolean raycast(Player actor, JsonObject condition) {
+        double distance = Math.max(0.0D, doubleValue(condition, "distance", 5.0D));
+        Vec3 start = actor.getEyePosition();
+        Vec3 end = start.add(actor.getLookAngle().scale(distance));
+        boolean checkBlock = booleanValue(condition, "block", true);
+        boolean checkEntity = booleanValue(condition, "entity", true);
+        BlockHitResult blockHit = actor.level().clip(new ClipContext(start, end,
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, actor));
+        double maxDistance = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                ? distance : start.distanceTo(blockHit.getLocation());
+        if (checkBlock && blockHit.getType() != net.minecraft.world.phys.HitResult.Type.MISS
+                && matchesBlockState(actor.level(), blockHit.getBlockPos(), condition.getAsJsonObject("block_condition"))) {
+            return true;
+        }
+        if (!checkEntity) return false;
+
+        AABB search = actor.getBoundingBox().expandTowards(actor.getLookAngle().scale(distance)).inflate(1.0D);
+        Entity closest = null;
+        double closestDistance = maxDistance * maxDistance;
+        for (Entity candidate : actor.level().getEntities(actor, search,
+                entity -> entity.isPickable() && entity instanceof LivingEntity)) {
+            var hit = candidate.getBoundingBox().inflate(0.3D).clip(start, end);
+            if (hit.isEmpty()) continue;
+            double candidateDistance = start.distanceToSqr(hit.get());
+            if (candidateDistance < closestDistance) {
+                closest = candidate;
+                closestDistance = candidateDistance;
+            }
+        }
+        return closest != null && (!condition.has("hit_bientity_condition")
+                || test(actor, closest, condition.getAsJsonObject("hit_bientity_condition")));
     }
 
     public static boolean matchesBlockState(net.minecraft.world.level.Level level, BlockPos pos, JsonObject condition) {
@@ -523,8 +744,14 @@ public final class FormPowerRuntime {
             ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "block", ""));
             Block block = id == null ? null : BuiltInRegistries.BLOCK.get(id);
             result = block != null && level.getBlockState(pos).is(block);
+        } else if ("apoli:block_state".equals(type)) {
+            result = matchesBlockProperty(level.getBlockState(pos), condition);
+        } else if ("apoli:hardness".equals(type)) {
+            result = compare(level.getBlockState(pos).getDestroySpeed(level, pos), condition);
+        } else if ("apoli:replacable".equals(type)) {
+            result = level.getBlockState(pos).canBeReplaced();
         } else {
-            result = true;
+            result = false;
         }
         return inverted(condition, result);
     }
@@ -666,6 +893,89 @@ public final class FormPowerRuntime {
             }
             default -> execute(actor, actor, action);
         }
+    }
+
+    private static void equippedItemAction(Player actor, LivingEntity recipient, JsonObject action) {
+        String slot = stringValue(action, "equipment_slot", "mainhand");
+        ItemStack equipped = switch (slot) {
+            case "offhand" -> actor.getOffhandItem();
+            case "head" -> actor.getItemBySlot(EquipmentSlot.HEAD);
+            case "chest" -> actor.getItemBySlot(EquipmentSlot.CHEST);
+            case "legs" -> actor.getItemBySlot(EquipmentSlot.LEGS);
+            case "feet" -> actor.getItemBySlot(EquipmentSlot.FEET);
+            default -> actor.getMainHandItem();
+        };
+        if (equipped.isEmpty()) return;
+        JsonObject nested = action.getAsJsonObject("action");
+        if (nested == null) return;
+        if ("apoli:damage".equals(FormPowerRegistry.typeOf(nested))) {
+            int amount = Math.max(1, intValue(nested, "amount", 1));
+            if (!actor.getAbilities().instabuild) equipped.hurtAndBreak(amount, actor, ignored -> { });
+            return;
+        }
+        execute(actor, recipient, nested);
+    }
+
+    private static void invokeAccessory(Player actor, JsonObject action) {
+        String mod = stringValue(action, "accessory_mod", "auto");
+        String group = stringValue(action, "group", "");
+        String slot = stringValue(action, "slot", "");
+        int index = intValue(action, "slot_index", 0);
+        ItemStack accessory = AccessoryUtils.getEntitySlot(actor, mod, group, slot, index);
+        JsonObject nested = action.getAsJsonObject("action");
+        if (accessory == null || accessory.isEmpty() || nested == null) return;
+        switch (FormPowerRegistry.typeOf(nested)) {
+            case "apoli:consume" -> {
+                if (!actor.getAbilities().instabuild) accessory.shrink(Math.max(0, intValue(nested, "amount", 1)));
+            }
+            case "apoli:damage" -> {
+                if (!actor.getAbilities().instabuild) accessory.hurtAndBreak(
+                        Math.max(1, intValue(nested, "amount", 1)), actor, ignored -> { });
+            }
+            default -> { }
+        }
+    }
+
+    private static void dropAccessory(Player actor, JsonObject action) {
+        String mod = stringValue(action, "accessory_mod", "auto");
+        String group = stringValue(action, "group", "");
+        String slot = stringValue(action, "slot", "");
+        int index = intValue(action, "slot_index", -1);
+        if (index < 0) return;
+        ItemStack accessory = AccessoryUtils.getEntitySlot(actor, mod, group, slot, index);
+        if (accessory == null || accessory.isEmpty()) return;
+        if (!booleanValue(action, "remove", false)) {
+            actor.level().addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(
+                    actor.level(), actor.getX(), actor.getY(), actor.getZ(), accessory.copy()));
+        }
+        AccessoryUtils.setEntitySlot(actor, mod, group, slot, index, ItemStack.EMPTY);
+    }
+
+    private static void setItemCooldown(Player actor, JsonObject action) {
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "item", ""));
+        if (id == null) return;
+        net.minecraft.world.item.Item item = BuiltInRegistries.ITEM.get(id);
+        if (item != null) actor.getCooldowns().addCooldown(item, Math.max(0, intValue(action, "cooldown", 0)));
+    }
+
+    private static void spawnEffectCloud(Player actor, LivingEntity recipient, JsonObject action) {
+        if (actor.level().isClientSide) return;
+        AreaEffectCloud cloud = new AreaEffectCloud(actor.level(), recipient.getX(), recipient.getY(), recipient.getZ());
+        cloud.setOwner(actor);
+        cloud.setRadius((float) Math.max(0.0D, doubleValue(action, "radius", 3.0D)));
+        cloud.setRadiusOnUse((float) doubleValue(action, "radius_on_use", 0.0D));
+        cloud.setWaitTime(Math.max(0, intValue(action, "wait_time", 0)));
+        cloud.setDuration(Math.max(1, intValue(action, "duration", 600)));
+        JsonObject effect = action.getAsJsonObject("effect");
+        if (effect != null) {
+            ResourceLocation effectId = ResourceLocation.tryParse(stringValue(effect, "effect", ""));
+            MobEffect mobEffect = effectId == null ? null : BuiltInRegistries.MOB_EFFECT.get(effectId);
+            if (mobEffect != null) {
+                cloud.addEffect(new MobEffectInstance(mobEffect,
+                        intValue(effect, "duration", 60), intValue(effect, "amplifier", 0)));
+            }
+        }
+        actor.level().addFreshEntity(cloud);
     }
 
     private static void triggerCooldown(Player actor, JsonObject action) {

@@ -176,11 +176,13 @@ public final class FormPowerEvents {
                     event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
                 }
                 if ("apoli:self_action_when_hit".equals(type)
-                        && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("damage_condition"))) {
+                        && FormPowerRuntime.testDamageCondition(defender, attacker, event.getSource(), event.getAmount(),
+                        power.getAsJsonObject("damage_condition"))) {
                     FormPowerRuntime.execute(defender, defender, power.getAsJsonObject("entity_action"));
                 }
                 if ("apoli:action_when_hit".equals(type)
-                        && attacker != null && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("damage_condition"))) {
+                        && attacker != null && FormPowerRuntime.testDamageCondition(defender, attacker, event.getSource(),
+                        event.getAmount(), power.getAsJsonObject("damage_condition"))) {
                     FormPowerRuntime.execute(defender, attacker, power.getAsJsonObject("entity_action"));
                 }
                 if ("shape-shifter-curse:burn_damage_modifier".equals(type)
@@ -206,11 +208,13 @@ public final class FormPowerEvents {
                     event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
                 }
                 if ("apoli:self_action_on_hit".equals(type)
-                        && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("damage_condition"))) {
+                        && FormPowerRuntime.testDamageCondition(player, event.getEntity(), event.getSource(), event.getAmount(),
+                        power.getAsJsonObject("damage_condition"))) {
                     FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
                 }
                 if ("apoli:action_on_hit".equals(type)
-                        && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("damage_condition"))) {
+                        && FormPowerRuntime.testDamageCondition(player, event.getEntity(), event.getSource(), event.getAmount(),
+                        power.getAsJsonObject("damage_condition"))) {
                     FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("entity_action"));
                 }
                 if ("shape-shifter-curse:enhanced_falling_attack".equals(type) && player.fallDistance > 0.0F) {
@@ -230,6 +234,13 @@ public final class FormPowerEvents {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action"));
             });
         }
+    }
+
+    @SubscribeEvent
+    public static void trackMobAttacks(LivingAttackEvent event) {
+        if (event.getEntity().level().isClientSide
+                || !(event.getSource().getEntity() instanceof Player player)) return;
+        FormPowerRuntime.recordPlayerAttack(player, event.getEntity());
     }
 
     @SubscribeEvent
@@ -375,6 +386,11 @@ public final class FormPowerEvents {
         final float[] multiplier = {event.getDamageMultiplier()};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
+            if ("shape-shifter-curse:bypass_landing_effect".equals(type)
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                distance[0] = 0.0F;
+                multiplier[0] = 0.0F;
+            }
             if ("shape-shifter-curse:falling_protection".equals(type)
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 distance[0] = Math.max(0.0F, distance[0] - FormPowerRuntime.floatValue(power, "fall_distance", 0.0F));
