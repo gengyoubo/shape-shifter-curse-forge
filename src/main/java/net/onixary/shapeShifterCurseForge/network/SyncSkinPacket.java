@@ -8,7 +8,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
-import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 
 import java.util.function.Supplier;
@@ -58,7 +58,7 @@ public record SyncSkinPacket(int entityId, boolean keepOriginalSkin, boolean ena
             }
             Entity entity = Minecraft.getInstance().level.getEntity(packet.entityId);
             if (entity instanceof Player player) {
-                SscDataBridge.getSkinData(player).ifPresent(data -> {
+                SscApi.currentSkin(player).ifPresent(data -> {
                     data.setKeepOriginalSkin(packet.keepOriginalSkin);
                     data.setEnableFormColor(packet.enableFormColor);
                     data.setFormColor(new FormTextureUtils.ColorSetting(packet.primaryColor, packet.accentColor1,

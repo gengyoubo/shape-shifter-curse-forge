@@ -3,7 +3,7 @@ package net.onixary.shapeShifterCurseForge.network;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
-import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 
 import java.util.function.Supplier;
@@ -53,7 +53,7 @@ public record UpdateSkinPacket(boolean sendExtraData, boolean keepOriginalSkin, 
             if (player == null) {
                 return;
             }
-            SscDataBridge.getSkinData(player).ifPresent(data -> {
+            SscApi.currentSkin(player).ifPresent(data -> {
                 if (packet.sendExtraData) {
                     data.setKeepOriginalSkin(packet.keepOriginalSkin);
                     data.setEnableFormColor(packet.enableFormColor);

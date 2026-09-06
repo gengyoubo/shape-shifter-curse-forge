@@ -13,19 +13,19 @@ import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
  * backend can later be replaced by a dual-loader adapter.</p>
  */
 @SuppressWarnings("deprecation")
-public final class SscDataBridge {
+final class SscDataBridge {
     private SscDataBridge() {
     }
 
-    public static Optional<PlayerFormData> getFormData(Player player) {
+    static Optional<PlayerFormData> getFormData(Player player) {
         return player.getCapability(ModCapabilities.PLAYER_FORM).map(data -> data);
     }
 
-    public static Optional<PlayerSkinData> getSkinData(Player player) {
+    static Optional<PlayerSkinData> getSkinData(Player player) {
         return player.getCapability(ModCapabilities.PLAYER_SKIN).map(data -> data);
     }
 
-    public static void copyPlayerData(Player original, Player replacement) {
+    static void copyPlayerData(Player original, Player replacement) {
         getFormData(original).ifPresent(oldData ->
                 getFormData(replacement).ifPresent(newData -> newData.copyFrom(oldData)));
         getSkinData(original).ifPresent(oldData ->

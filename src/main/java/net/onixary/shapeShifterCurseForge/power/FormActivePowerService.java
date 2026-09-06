@@ -8,7 +8,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 
 import java.util.HashMap;
@@ -482,7 +482,7 @@ public final class FormActivePowerService {
     }
 
     private static int jsonTier(Player player) {
-        String path = SscDataBridge.getFormData(player)
+        String path = SscApi.currentForm(player)
                 .map(data -> data.getFormId()).orElse("");
         int underscore = path.lastIndexOf('_');
         if (underscore >= 0) {

@@ -9,7 +9,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
-import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
@@ -32,7 +32,7 @@ public final class TransformativeEffectService {
         if (target == null || !canHaveEffect(player)) {
             return false;
         }
-        SscDataBridge.getFormData(player).ifPresent(data -> {
+        SscApi.currentForm(player).ifPresent(data -> {
             data.setTransformativeEffectFormId(target.id().toString());
             data.setTransformativeEffectTicks(DEFAULT_DURATION);
         });
@@ -41,13 +41,13 @@ public final class TransformativeEffectService {
     }
 
     public static boolean has(Player player) {
-        return SscDataBridge.getFormData(player).map(data ->
+        return SscApi.currentForm(player).map(data ->
                 data.getTransformativeEffectFormId() != null && data.getTransformativeEffectTicks() > 0
         ).orElse(false);
     }
 
     public static boolean clear(Player player) {
-        return SscDataBridge.getFormData(player).map(data -> {
+        return SscApi.currentForm(player).map(data -> {
             boolean hadEffect = hasData(data);
             data.setTransformativeEffectFormId(null);
             data.setTransformativeEffectTicks(0);
@@ -56,7 +56,7 @@ public final class TransformativeEffectService {
     }
 
     public static boolean activate(ServerPlayer player) {
-        ResourceLocation targetId = SscDataBridge.getFormData(player)
+        ResourceLocation targetId = SscApi.currentForm(player)
                 .map(PlayerFormData::getTransformativeEffectFormId)
                 .map(ResourceLocation::tryParse)
                 .orElse(null);
@@ -84,7 +84,7 @@ public final class TransformativeEffectService {
         }
         WAS_SLEEPING.put(player.getUUID(), sleeping);
 
-        SscDataBridge.getFormData(player).ifPresent(data -> {
+        SscApi.currentForm(player).ifPresent(data -> {
             if (!hasData(data)) {
                 return;
             }

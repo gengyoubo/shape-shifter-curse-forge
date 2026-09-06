@@ -12,7 +12,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
-import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormGroup;
@@ -94,7 +94,7 @@ public final class CursedMoonService {
     }
 
     public static void applyStartCursedMoonEffect(ServerPlayer player) {
-        SscDataBridge.getFormData(player).ifPresent(data -> {
+        SscApi.currentForm(player).ifPresent(data -> {
             if (data.isCursedMoonApplied()) {
                 return;
             }
@@ -134,7 +134,7 @@ public final class CursedMoonService {
     }
 
     public static void applyEndCursedMoonEffect(ServerPlayer player) {
-        SscDataBridge.getFormData(player).ifPresent(data -> {
+        SscApi.currentForm(player).ifPresent(data -> {
             if (!data.isCursedMoonApplied()) {
                 return;
             }

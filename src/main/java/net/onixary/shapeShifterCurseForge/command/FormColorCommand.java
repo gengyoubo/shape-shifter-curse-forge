@@ -16,7 +16,7 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
@@ -125,7 +125,7 @@ public final class FormColorCommand {
         String target = StringArgumentType.getString(context, "target");
         String mode = StringArgumentType.getString(context, "mode");
         String format = StringArgumentType.getString(context, "format");
-        FormTextureUtils.ColorSetting color = SscDataBridge.getSkinData(player)
+        FormTextureUtils.ColorSetting color = SscApi.currentSkin(player)
                 .map(data -> net.onixary.shapeShifterCurseForge.client.color.FormColorData.abgr2Argb(data.getFormColor()))
                 .orElse(null);
         if (color == null) {
@@ -162,7 +162,7 @@ public final class FormColorCommand {
         }
         FormTextureUtils.ColorSetting abgr =
                 net.onixary.shapeShifterCurseForge.client.color.FormColorData.argb2Abgr(parsed);
-        SscDataBridge.getSkinData(player).ifPresent(skin -> {
+        SscApi.currentSkin(player).ifPresent(skin -> {
             skin.setFormColor(abgr);
             ModNetwork.sendSkinSync(player);
         });

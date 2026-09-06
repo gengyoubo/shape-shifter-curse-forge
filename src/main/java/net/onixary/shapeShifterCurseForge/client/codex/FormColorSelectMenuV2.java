@@ -19,7 +19,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
-import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
@@ -690,7 +690,7 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
 
     public void loadData() {
         if (minecraftClient.player != null) {
-            var skin = SscDataBridge.getSkinData(minecraftClient.player).orElse(null);
+            var skin = SscApi.currentSkin(minecraftClient.player).orElse(null);
             if (skin != null) {
                 FormTextureUtils.ColorSetting colorSetting = skin.getFormColor();
                 this.keepCustomSkin = skin.isKeepOriginalSkin();
