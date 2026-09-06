@@ -25,6 +25,8 @@ public final class FormRegistry {
     private static final Set<ResourceLocation> DYNAMIC_GROUPS = new LinkedHashSet<>();
     private static final Map<ResourceLocation, ResourceLocation> DYNAMIC_ORIGIN_IDS = new LinkedHashMap<>();
     private static final Map<ResourceLocation, SscForm> JAVA_FORMS = new LinkedHashMap<>();
+    /** Direct branch parent for Java variants. Kept separately from ordinary property inheritance. */
+    private static final Map<ResourceLocation, ResourceLocation> JAVA_VARIANT_PARENTS = new LinkedHashMap<>();
     private static final Set<ResourceLocation> RESOLVED_JAVA_FORMS = new LinkedHashSet<>();
     private static final Set<ResourceLocation> JAVA_GROUPS = new LinkedHashSet<>();
     private static boolean javaFormsDirty;
@@ -228,6 +230,9 @@ public final class FormRegistry {
             throw new IllegalStateException("Duplicate SSC Java form registration: '" + id + "'");
         }
         JAVA_FORMS.put(id, form);
+        if (form.variantParentId() != null) {
+            JAVA_VARIANT_PARENTS.put(id, form.variantParentId());
+        }
         javaFormsDirty = true;
     }
 
@@ -281,6 +286,8 @@ public final class FormRegistry {
             }
         }
         FormDefinition definition = form.resolve(parent);
+        form.validateStage(definition);
+        validateVariant(form, definition, parent);
         FormDefinition existing = FORMS.putIfAbsent(id, definition);
         if (existing != null) {
             throw new IllegalStateException("Duplicate SSC Java form registration: '" + id + "'");
@@ -295,6 +302,47 @@ public final class FormRegistry {
         RESOLVED_JAVA_FORMS.add(id);
         resolving.remove(id);
         return definition;
+    }
+
+    private static void validateVariant(SscForm form, FormDefinition definition, FormDefinition parent) {
+        ResourceLocation branchParentId = form.variantParentId();
+        if (branchParentId == null) return;
+        if (parent == null) {
+            throw new IllegalStateException("SSC Java variant '" + form.id() + "' is missing branch parent '"
+                    + branchParentId + "'");
+        }
+        if (!definition.groupId().equals(parent.groupId())) {
+            throw new IllegalStateException("SSC Java variant '" + form.id() + "' must stay in group '"
+                    + parent.groupId() + "', not '" + definition.groupId() + "'");
+        }
+        if (definition.tier() != parent.tier() + 1) {
+            throw new IllegalStateException("SSC Java variant '" + form.id() + "' must be exactly one stage after '"
+                    + branchParentId + "' (expected " + (parent.tier() + 1) + ", got " + definition.tier() + ")");
+        }
+        int branchMaximum = branchMaximumStage(branchParentId, parent);
+        if (definition.tier() > branchMaximum) {
+            throw new IllegalStateException("SSC Java variant '" + form.id() + "' is stage " + definition.tier()
+                    + ", beyond branch maximum stage " + branchMaximum);
+        }
+    }
+
+    private static int branchMaximumStage(ResourceLocation branchParentId, FormDefinition parent) {
+        ResourceLocation root = branchParentId;
+        Set<ResourceLocation> seen = new LinkedHashSet<>();
+        while (JAVA_VARIANT_PARENTS.containsKey(root)) {
+            if (!seen.add(root)) {
+                throw new IllegalStateException("Circular SSC Java variant branch involving '" + root + "'");
+            }
+            root = JAVA_VARIANT_PARENTS.get(root);
+        }
+        SscForm rootForm = JAVA_FORMS.get(root);
+        if (rootForm != null) {
+            // validateStage already reports a malformed declaration; this value governs descendants.
+            return Math.max(1, rootForm.maximumStageLimit());
+        }
+        FormGroup group = GROUPS.get(parent.groupId());
+        return group == null ? parent.tier() : group.formsByTier().keySet().stream()
+                .mapToInt(Integer::intValue).max().orElse(parent.tier());
     }
 
     private static void removeFromGroup(FormDefinition definition) {
@@ -417,6 +465,47 @@ public final class FormRegistry {
         bootstrap();
         resolveJavaForms();
         return GROUPS.get(id);
+    }
+
+    /**
+     * Returns the next form on the active branch. A directly registered variant has priority over
+     * the group's ordinary next tier, making a branch deterministic once it has been entered.
+     */
+    public static FormDefinition nextInProgression(FormDefinition current) {
+        if (current == null) return null;
+        bootstrap();
+        resolveJavaForms();
+        int nextStage = current.tier() + 1;
+        for (Map.Entry<ResourceLocation, ResourceLocation> entry : JAVA_VARIANT_PARENTS.entrySet()) {
+            if (!current.id().equals(entry.getValue())) continue;
+            FormDefinition variant = FORMS.get(entry.getKey());
+            if (variant != null && variant.tier() == nextStage && variant.groupId().equals(current.groupId())) {
+                return variant;
+            }
+        }
+        FormGroup group = GROUPS.get(current.groupId());
+        return group == null ? null : group.firstAtTier(nextStage);
+    }
+
+    /** Returns the preceding form in a variant branch, otherwise the group's ordinary prior tier. */
+    public static FormDefinition previousInProgression(FormDefinition current) {
+        if (current == null) return null;
+        bootstrap();
+        resolveJavaForms();
+        ResourceLocation branchParent = JAVA_VARIANT_PARENTS.get(current.id());
+        if (branchParent != null) return FORMS.get(branchParent);
+        FormGroup group = GROUPS.get(current.groupId());
+        return group == null ? null : group.firstAtTier(current.tier() - 1);
+    }
+
+    /** Walks the current branch to a requested stage instead of jumping to an unrelated sibling. */
+    public static FormDefinition formAtStageInProgression(FormDefinition current, int targetStage) {
+        if (current == null || targetStage < 1) return null;
+        FormDefinition cursor = current;
+        while (cursor != null && cursor.tier() != targetStage) {
+            cursor = cursor.tier() < targetStage ? nextInProgression(cursor) : previousInProgression(cursor);
+        }
+        return cursor;
     }
 
     public static ResourceLocation originIdFor(ResourceLocation formId) {

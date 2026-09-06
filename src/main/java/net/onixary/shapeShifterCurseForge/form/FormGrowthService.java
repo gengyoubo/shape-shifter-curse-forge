@@ -40,8 +40,7 @@ public final class FormGrowthService {
         if (current.hasFlag("no_instinct") || current.hasFlag("lock_instinct") || current.hasFlag("special_form")) {
             return false;
         }
-        FormGroup group = FormRegistry.getGroup(current.groupId());
-        FormDefinition target = group == null ? null : group.firstAtTier(current.tier() + 1);
+        FormDefinition target = FormRegistry.nextInProgression(current);
         return target != null && FormManager.setForm(player, target.id());
     }
 
@@ -51,11 +50,7 @@ public final class FormGrowthService {
             return false;
         }
 
-        FormGroup group = FormRegistry.getGroup(current.groupId());
-        if (group == null) {
-            return false;
-        }
-        FormDefinition target = group.firstAtTier(current.tier() + 1);
+        FormDefinition target = FormRegistry.nextInProgression(current);
         if (target == null) {
             return false;
         }
@@ -70,11 +65,7 @@ public final class FormGrowthService {
             return false;
         }
         int targetTier = powerful && !current.hasFlag("inhibitor_resist") ? 0 : current.tier() - 1;
-        FormDefinition target = null;
-        FormGroup group = FormRegistry.getGroup(current.groupId());
-        if (group != null && targetTier > 0) {
-            target = group.firstAtTier(targetTier);
-        }
+        FormDefinition target = targetTier > 0 ? FormRegistry.previousInProgression(current) : null;
         return target == null ? FormManager.setForm(player, FormRegistry.ORIGINAL_SHIFTER) : FormManager.setForm(player, target.id());
     }
 }

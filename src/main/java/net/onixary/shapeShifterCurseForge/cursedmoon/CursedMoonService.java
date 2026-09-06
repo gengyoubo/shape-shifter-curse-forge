@@ -202,11 +202,7 @@ public final class CursedMoonService {
     }
 
     private static FormDefinition nextCursedMoonForm(FormDefinition current) {
-        FormGroup group = FormRegistry.getGroup(current.groupId());
-        if (group == null) {
-            return null;
-        }
-        return group.firstAtTier(current.tier() + 1);
+        return FormRegistry.nextInProgression(current);
     }
 
     private static void sendMessage(ServerPlayer player, String key) {

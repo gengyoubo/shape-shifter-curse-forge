@@ -55,7 +55,23 @@ public final class SscJavaRegistries {
 
     /** Registers a Java form. Omitted fields inherit from its declared parent form. */
     public static void registerForm(SscForm form) {
-        FormRegistry.registerJavaForm(Objects.requireNonNull(form, "form"));
+        SscForm checked = Objects.requireNonNull(form, "form");
+        Set<ResourceLocation> declaredPowers = checked.declaredPowers();
+        FormRegistry.registerJavaForm(checked);
+        declaredPowers.forEach(powerId -> attachPowerReference(checked.id(), powerId));
+    }
+
+    /**
+     * Registers a form made with {@link SscForm#variantBuilder(ResourceLocation, ResourceLocation)}.
+     * The branch parent must be the preceding form in the intended branch; SSC validates that the
+     * variant advances exactly one stage and never exceeds the branch family's cap.
+     */
+    public static void registerVariant(SscForm variant) {
+        SscForm checked = Objects.requireNonNull(variant, "variant");
+        if (checked.variantParentId() == null) {
+            throw new IllegalArgumentException("SSC variant '" + checked.id() + "' must declare variantOf(...)");
+        }
+        registerForm(checked);
     }
 
     /** Attaches an already registered Java power to a form id. The form may load later from data. */
@@ -65,6 +81,16 @@ public final class SscJavaRegistries {
         if (!POWERS.containsKey(powerId)) {
             throw new IllegalArgumentException("Cannot attach unknown SSC Java power '" + powerId + "'");
         }
+        attachPowerReference(formId, powerId);
+    }
+
+    /**
+     * Attaches a data-defined or Java power id to a Java form. Unlike {@link #attachPower}, this
+     * method intentionally permits data-defined power ids which are loaded later by /reload.
+     */
+    public static void attachPowerReference(ResourceLocation formId, ResourceLocation powerId) {
+        Objects.requireNonNull(formId, "formId");
+        Objects.requireNonNull(powerId, "powerId");
         FORM_POWERS.computeIfAbsent(formId, ignored -> ConcurrentHashMap.newKeySet()).add(powerId);
     }
 

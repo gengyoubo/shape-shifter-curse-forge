@@ -67,31 +67,19 @@ public final class FormManager {
 
     public static boolean moveToTier(Player player, int tier) {
         FormDefinition current = current(player);
-        FormGroup group = FormRegistry.getGroup(current.groupId());
-        if (group == null) {
-            return false;
-        }
-        FormDefinition target = group.firstAtTier(tier);
+        FormDefinition target = FormRegistry.formAtStageInProgression(current, tier);
         return target != null && setForm(player, target.id());
     }
 
     public static boolean next(Player player) {
         FormDefinition current = current(player);
-        FormGroup group = FormRegistry.getGroup(current.groupId());
-        if (group == null) {
-            return false;
-        }
-        FormDefinition target = group.firstAtTier(current.tier() + 1);
+        FormDefinition target = FormRegistry.nextInProgression(current);
         return target != null && setForm(player, target.id());
     }
 
     public static boolean previous(Player player) {
         FormDefinition current = current(player);
-        FormGroup group = FormRegistry.getGroup(current.groupId());
-        if (group == null) {
-            return false;
-        }
-        FormDefinition target = group.firstAtTier(current.tier() - 1);
+        FormDefinition target = FormRegistry.previousInProgression(current);
         return target != null && setForm(player, target.id());
     }
 
