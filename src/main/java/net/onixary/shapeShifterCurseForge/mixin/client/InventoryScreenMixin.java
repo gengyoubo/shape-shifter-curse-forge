@@ -23,7 +23,8 @@ public abstract class InventoryScreenMixin {
     @Unique
     private static float ssc$prevBodyYaw;
 
-    // 6 参主入口，所有重载最终都走这里
+    // 6 参主入口。renderEntityInInventoryFollowsMouse 最终也会调用这个重载，
+    // 因此只在这里包住状态，避免两个注入互相覆盖保存值。
     @Inject(method = "renderEntityInInventory(Lnet/minecraft/client/gui/GuiGraphics;IIILorg/joml/Quaternionf;Lorg/joml/Quaternionf;Lnet/minecraft/world/entity/LivingEntity;)V",
             at = @At("HEAD"))
     private static void ssc$storePrevBodyYaw(GuiGraphics graphics, int x, int y, int scale,
@@ -49,29 +50,4 @@ public abstract class InventoryScreenMixin {
         }
     }
 
-    // FollowsMouse 重载也单独兜底（内部转调主入口，但 HEAD/RETURN 仍需各自恢复以防直接调用）
-    @Inject(method = "renderEntityInInventoryFollowsMouse", at = @At("HEAD"))
-    private static void ssc$storePrevBodyYawFollowsMouse(GuiGraphics graphics, int x, int y, int scale,
-                                                          float angleXComponent, float angleYComponent,
-                                                          LivingEntity entity, CallbackInfo ci) {
-        if (entity == null) {
-            return;
-        }
-        // 若主入口未先触发则在此兜底
-        if (ssc$entity != entity) {
-            ssc$entity = entity;
-            ssc$prevBodyYaw = entity.yBodyRotO;
-            entity.yBodyRotO = entity.yBodyRot;
-        }
-    }
-
-    @Inject(method = "renderEntityInInventoryFollowsMouse", at = @At("RETURN"))
-    private static void ssc$restorePrevBodyYawFollowsMouse(GuiGraphics graphics, int x, int y, int scale,
-                                                            float angleXComponent, float angleYComponent,
-                                                            LivingEntity entity, CallbackInfo ci) {
-        if (ssc$entity == entity) {
-            entity.yBodyRotO = ssc$prevBodyYaw;
-            ssc$entity = null;
-        }
-    }
 }

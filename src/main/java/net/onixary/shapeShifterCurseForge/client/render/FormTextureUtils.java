@@ -124,7 +124,7 @@ public final class FormTextureUtils {
         }
         try {
             ResourceLocation configId = ResourceLocation.fromNamespaceAndPath(
-                    ShapeShifterCurseForge.RESOURCE_NAMESPACE, "ssc_form_model/origins.origin."
+                    formId.getNamespace(), "ssc_form_model/origins.origin."
                             + formId.getNamespace() + ".form_" + formId.getPath() + ".json");
             var resource = Minecraft.getInstance().getResourceManager().getResource(configId);
             if (resource.isEmpty()) {
