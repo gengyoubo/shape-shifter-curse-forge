@@ -11,6 +11,7 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -54,6 +55,19 @@ public final class FormPowerRegistry {
         event.addListener(new DynamicFormReloadListener());
         event.addListener(new ExtraPowerReloadListener());
         event.addListener(new AccessoryPowerReloadListener());
+    }
+
+    /**
+     * Registers the same data pipeline on the client resource manager.  AddReloadListenerEvent
+     * is server-only, so without this mirror a synced dynamic form is unknown on dedicated
+     * clients and FormManager falls back to the pre-enable form.
+     */
+    public static void addClientReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(new PowerReloadListener());
+        event.registerReloadListener(new OriginReloadListener());
+        event.registerReloadListener(new DynamicFormReloadListener());
+        event.registerReloadListener(new ExtraPowerReloadListener());
+        event.registerReloadListener(new AccessoryPowerReloadListener());
     }
 
     public static FormPowerDefinition get(ResourceLocation id) {
