@@ -325,6 +325,15 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:add_instinct" -> InstinctService.add(actor,
                     stringValue(action, "instinct_effect_id", "shape-shifter-curse:unknown"),
                     floatValue(action, "value", 0.0F), intValue(action, "duration", 0), false);
+            case "shape-shifter-curse:apply_transformative_effect" -> {
+                if (actor instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                    ResourceLocation formId = ResourceLocation.tryParse(
+                            stringValue(action, "form", stringValue(action, "form_id", "")));
+                    if (formId != null) {
+                        TransformativeEffectService.apply(serverPlayer, formId);
+                    }
+                }
+            }
             case "shape-shifter-curse:fire_web_bullet" -> WebPowerActions.fireBullet(actor, action);
             case "shape-shifter-curse:web_bridge" -> WebPowerActions.buildBridge(actor, action);
             case "shape-shifter-curse:fire_arrow" -> fireArrow(actor, action);

@@ -37,6 +37,7 @@ import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 
@@ -430,11 +431,14 @@ public final class FormPowerEvents {
     public static void finishUsingItem(LivingEntityUseItemEvent.Finish event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) return;
         ItemStack used = event.getItem();
-        if ((used.is(Items.GOLDEN_APPLE) || used.is(Items.ENCHANTED_GOLDEN_APPLE))
-                && !FormManager.current(player).hasFlag("no_instinct")
-                && !FormManager.current(player).hasFlag("lock_instinct")
-                && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-            SscAdvancementTriggers.ON_USE_GOLDEN_APPLE.trigger(serverPlayer);
+        if (used.is(Items.GOLDEN_APPLE) || used.is(Items.ENCHANTED_GOLDEN_APPLE)) {
+            if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                FormDefinition current = FormManager.current(player);
+                if (!current.hasFlag("no_instinct") && !current.hasFlag("lock_instinct")) {
+                    SscAdvancementTriggers.ON_USE_GOLDEN_APPLE.trigger(serverPlayer);
+                }
+                TransformativeEffectService.clear(serverPlayer);
+            }
         }
         FoodProperties food = used.getFoodProperties(player);
         if (food == null) return;

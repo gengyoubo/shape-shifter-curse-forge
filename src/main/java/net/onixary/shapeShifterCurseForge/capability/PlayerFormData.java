@@ -17,6 +17,8 @@ public final class PlayerFormData implements IPlayerFormData {
     private static final String LAST_TRANSFORM_BY_CURE_KEY = "LastTransformByCure";
     private static final String BEFORE_CURSED_MOON_FORM_KEY = "BeforeCursedMoonAppliedForm";
     private static final String AFTER_CURSED_MOON_FORM_KEY = "AfterCursedMoonAppliedForm";
+    private static final String TRANSFORMATIVE_EFFECT_FORM_KEY = "TransformativeEffectForm";
+    private static final String TRANSFORMATIVE_EFFECT_TICKS_KEY = "TransformativeEffectTicks";
 
     private String formId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String previousFormId = ORIGINAL_BEFORE_ENABLE_FORM;
@@ -30,6 +32,8 @@ public final class PlayerFormData implements IPlayerFormData {
     private boolean lastTransformByCure;
     private String beforeCursedMoonAppliedForm;
     private String afterCursedMoonAppliedForm;
+    private String transformativeEffectFormId;
+    private int transformativeEffectTicks;
 
     @Override
     public String getFormId() {
@@ -107,6 +111,14 @@ public final class PlayerFormData implements IPlayerFormData {
 
     @Override public void setAfterCursedMoonAppliedForm(String formId) { afterCursedMoonAppliedForm = formId; }
 
+    @Override public String getTransformativeEffectFormId() { return transformativeEffectFormId; }
+
+    @Override public void setTransformativeEffectFormId(String formId) { transformativeEffectFormId = formId; }
+
+    @Override public int getTransformativeEffectTicks() { return transformativeEffectTicks; }
+
+    @Override public void setTransformativeEffectTicks(int ticks) { transformativeEffectTicks = Math.max(0, ticks); }
+
     @Override
     public void copyFrom(IPlayerFormData other) {
         setFormId(other.getFormId());
@@ -121,6 +133,8 @@ public final class PlayerFormData implements IPlayerFormData {
         setLastTransformByCure(other.wasLastTransformByCure());
         setBeforeCursedMoonAppliedForm(other.getBeforeCursedMoonAppliedForm());
         setAfterCursedMoonAppliedForm(other.getAfterCursedMoonAppliedForm());
+        setTransformativeEffectFormId(other.getTransformativeEffectFormId());
+        setTransformativeEffectTicks(other.getTransformativeEffectTicks());
     }
 
     @Override
@@ -141,6 +155,10 @@ public final class PlayerFormData implements IPlayerFormData {
         }
         if (afterCursedMoonAppliedForm != null) {
             tag.putString(AFTER_CURSED_MOON_FORM_KEY, afterCursedMoonAppliedForm);
+        }
+        if (transformativeEffectFormId != null) {
+            tag.putString(TRANSFORMATIVE_EFFECT_FORM_KEY, transformativeEffectFormId);
+            tag.putInt(TRANSFORMATIVE_EFFECT_TICKS_KEY, transformativeEffectTicks);
         }
         return tag;
     }
@@ -171,5 +189,9 @@ public final class PlayerFormData implements IPlayerFormData {
                 ? tag.getString(BEFORE_CURSED_MOON_FORM_KEY) : null;
         afterCursedMoonAppliedForm = tag.contains(AFTER_CURSED_MOON_FORM_KEY)
                 ? tag.getString(AFTER_CURSED_MOON_FORM_KEY) : null;
+        transformativeEffectFormId = tag.contains(TRANSFORMATIVE_EFFECT_FORM_KEY)
+                ? tag.getString(TRANSFORMATIVE_EFFECT_FORM_KEY) : null;
+        transformativeEffectTicks = tag.contains(TRANSFORMATIVE_EFFECT_TICKS_KEY)
+                ? Math.max(0, tag.getInt(TRANSFORMATIVE_EFFECT_TICKS_KEY)) : 0;
     }
 }

@@ -13,6 +13,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.onixary.shapeShifterCurseForge.power.WebPowerActions;
+import net.onixary.shapeShifterCurseForge.power.WebEntanglementService;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
 
@@ -54,6 +55,11 @@ public final class WebBulletEntity extends ThrowableItemProjectile {
             int duration = 40 + tier * 40;
             target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, tier - 1));
             target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, tier - 1));
+            WebEntanglementService.apply(getOwner(), target, switch (tier) {
+                case 2 -> 400;
+                case 3 -> 600;
+                default -> 200;
+            });
         }
         hitEffects();
         discard();

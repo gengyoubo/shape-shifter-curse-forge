@@ -51,6 +51,14 @@ public interface IPlayerFormData {
 
     void setAfterCursedMoonAppliedForm(String formId);
 
+    String getTransformativeEffectFormId();
+
+    void setTransformativeEffectFormId(String formId);
+
+    int getTransformativeEffectTicks();
+
+    void setTransformativeEffectTicks(int ticks);
+
     void copyFrom(IPlayerFormData other);
 
     CompoundTag serializeNBT();
