@@ -8,6 +8,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
@@ -41,16 +42,7 @@ public final class PlayerCapabilityEvents {
     @SubscribeEvent
     public static void clonePlayer(PlayerEvent.Clone event) {
         event.getOriginal().reviveCaps();
-        event.getOriginal().getCapability(ModCapabilities.PLAYER_FORM).ifPresent(oldData ->
-                event.getEntity().getCapability(ModCapabilities.PLAYER_FORM).ifPresent(newData ->
-                        newData.copyFrom(oldData)
-                )
-        );
-        event.getOriginal().getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(oldData ->
-                event.getEntity().getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(newData ->
-                        newData.copyFrom(oldData)
-                )
-        );
+        SscDataBridge.copyPlayerData(event.getOriginal(), event.getEntity());
         event.getOriginal().invalidateCaps();
     }
 

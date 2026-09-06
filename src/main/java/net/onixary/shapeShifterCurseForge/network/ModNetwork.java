@@ -6,7 +6,9 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraft.server.level.ServerPlayer;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
+import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.util.Optional;
@@ -121,14 +123,14 @@ public final class ModNetwork {
 
     /** A true marker is sent only by FormManager after a genuine server-side form change. */
     public static void sendFormSync(ServerPlayer player, boolean playTransformAnimation) {
-        player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> CHANNEL.send(
+        SscDataBridge.getFormData(player).ifPresent(data -> CHANNEL.send(
                 PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
                 packetFor(player, data, playTransformAnimation)
         ));
     }
 
     public static void sendFormSyncTo(ServerPlayer target, ServerPlayer receiver) {
-        target.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> CHANNEL.send(
+        SscDataBridge.getFormData(target).ifPresent(data -> CHANNEL.send(
                 PacketDistributor.PLAYER.with(() -> receiver),
                 packetFor(target, data, false)
         ));
@@ -143,14 +145,14 @@ public final class ModNetwork {
     }
 
     public static void sendSkinSync(ServerPlayer player) {
-        player.getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(data -> CHANNEL.send(
+        SscDataBridge.getSkinData(player).ifPresent(data -> CHANNEL.send(
                 PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
                 SyncSkinPacket.forPlayer(player, data)
         ));
     }
 
     public static void sendSkinSyncTo(ServerPlayer target, ServerPlayer receiver) {
-        target.getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(data -> CHANNEL.send(
+        SscDataBridge.getSkinData(target).ifPresent(data -> CHANNEL.send(
                 PacketDistributor.PLAYER.with(() -> receiver),
                 SyncSkinPacket.forPlayer(target, data)
         ));
@@ -167,7 +169,7 @@ public final class ModNetwork {
     }
 
     private static SyncFormPacket packetFor(ServerPlayer player,
-                                            net.onixary.shapeShifterCurseForge.capability.IPlayerFormData data,
+                                            PlayerFormData data,
                                             boolean playTransformAnimation) {
         return new SyncFormPacket(player.getId(), data.getFormId(), data.getPreviousFormId(), data.getFormGroupId(),
                 data.getFormTier(), data.isContentEnabled(), playTransformAnimation);

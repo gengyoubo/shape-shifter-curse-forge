@@ -7,7 +7,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 
 import java.util.function.Supplier;
@@ -19,7 +20,7 @@ public record SyncSkinPacket(int entityId, boolean keepOriginalSkin, boolean ena
                              boolean primaryGreyReverse, boolean accent1GreyReverse,
                              boolean accent2GreyReverse, boolean enableFormRandomSound) {
     public static SyncSkinPacket forPlayer(Player player,
-                                           net.onixary.shapeShifterCurseForge.capability.IPlayerSkinData data) {
+                                           PlayerSkinData data) {
         return new SyncSkinPacket(player.getId(), data.isKeepOriginalSkin(), data.isEnableFormColor(),
                 data.getFormColor().primaryColor(), data.getFormColor().accentColor1(),
                 data.getFormColor().accentColor2(), data.getFormColor().eyeColorA(),
@@ -57,7 +58,7 @@ public record SyncSkinPacket(int entityId, boolean keepOriginalSkin, boolean ena
             }
             Entity entity = Minecraft.getInstance().level.getEntity(packet.entityId);
             if (entity instanceof Player player) {
-                player.getCapability(ModCapabilities.PLAYER_SKIN).ifPresent(data -> {
+                SscDataBridge.getSkinData(player).ifPresent(data -> {
                     data.setKeepOriginalSkin(packet.keepOriginalSkin);
                     data.setEnableFormColor(packet.enableFormColor);
                     data.setFormColor(new FormTextureUtils.ColorSetting(packet.primaryColor, packet.accentColor1,

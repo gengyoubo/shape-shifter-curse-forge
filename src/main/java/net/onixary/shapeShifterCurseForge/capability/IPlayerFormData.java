@@ -2,7 +2,7 @@ package net.onixary.shapeShifterCurseForge.capability;
 
 import net.minecraft.nbt.CompoundTag;
 
-public interface IPlayerFormData {
+public interface IPlayerFormData extends net.onixary.shapeShifterCurseForge.api.PlayerFormData {
     @Deprecated(forRemoval = false)
     String getFormId();
 
@@ -89,6 +89,14 @@ public interface IPlayerFormData {
 
     @Deprecated(forRemoval = false)
     void copyFrom(IPlayerFormData other);
+
+    @Override
+    default void copyFrom(net.onixary.shapeShifterCurseForge.api.PlayerFormData other) {
+        if (!(other instanceof IPlayerFormData legacy)) {
+            throw new IllegalArgumentException("Cannot copy form data from an incompatible implementation");
+        }
+        copyFrom(legacy);
+    }
 
     @Deprecated(forRemoval = false)
     CompoundTag serializeNBT();

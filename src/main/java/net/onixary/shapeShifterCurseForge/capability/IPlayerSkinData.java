@@ -3,7 +3,7 @@ package net.onixary.shapeShifterCurseForge.capability;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 
 /** Server-authoritative per-player form skin (color) settings. Colors are ABGR. */
-public interface IPlayerSkinData {
+public interface IPlayerSkinData extends net.onixary.shapeShifterCurseForge.api.PlayerSkinData {
     @Deprecated(forRemoval = false)
     boolean isKeepOriginalSkin();
 
@@ -30,4 +30,12 @@ public interface IPlayerSkinData {
 
     @Deprecated(forRemoval = false)
     void copyFrom(IPlayerSkinData other);
+
+    @Override
+    default void copyFrom(net.onixary.shapeShifterCurseForge.api.PlayerSkinData other) {
+        if (!(other instanceof IPlayerSkinData legacy)) {
+            throw new IllegalArgumentException("Cannot copy skin data from an incompatible implementation");
+        }
+        copyFrom(legacy);
+    }
 }

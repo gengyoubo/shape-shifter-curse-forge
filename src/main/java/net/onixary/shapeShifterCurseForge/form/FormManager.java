@@ -3,8 +3,8 @@ package net.onixary.shapeShifterCurseForge.form;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.onixary.shapeShifterCurseForge.capability.IPlayerFormData;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
@@ -18,7 +18,7 @@ public final class FormManager {
     }
 
     public static FormDefinition current(Player player) {
-        IPlayerFormData data = player.getCapability(ModCapabilities.PLAYER_FORM).orElse(null);
+        PlayerFormData data = SscDataBridge.getFormData(player).orElse(null);
         if (data == null) {
             return FormRegistry.get(FormRegistry.ORIGINAL_BEFORE_ENABLE);
         }
@@ -37,7 +37,7 @@ public final class FormManager {
             return false;
         }
 
-        boolean changed = player.getCapability(ModCapabilities.PLAYER_FORM).map(data -> {
+        boolean changed = SscDataBridge.getFormData(player).map(data -> {
             String currentId = data.getFormId();
             if (!target.id().toString().equals(currentId)) {
                 data.setPreviousFormId(currentId);
@@ -96,7 +96,7 @@ public final class FormManager {
     }
 
     public static void applySyncedForm(Player player, String formId, String groupId, int tier, boolean enabled) {
-        player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> {
+        SscDataBridge.getFormData(player).ifPresent(data -> {
             data.setFormId(formId);
             data.setFormGroupId(groupId);
             data.setFormTier(tier);

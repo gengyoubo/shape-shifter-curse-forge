@@ -8,8 +8,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
-import net.onixary.shapeShifterCurseForge.capability.IPlayerFormData;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
@@ -32,7 +32,7 @@ public final class TransformativeEffectService {
         if (target == null || !canHaveEffect(player)) {
             return false;
         }
-        player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> {
+        SscDataBridge.getFormData(player).ifPresent(data -> {
             data.setTransformativeEffectFormId(target.id().toString());
             data.setTransformativeEffectTicks(DEFAULT_DURATION);
         });
@@ -41,13 +41,13 @@ public final class TransformativeEffectService {
     }
 
     public static boolean has(Player player) {
-        return player.getCapability(ModCapabilities.PLAYER_FORM).map(data ->
+        return SscDataBridge.getFormData(player).map(data ->
                 data.getTransformativeEffectFormId() != null && data.getTransformativeEffectTicks() > 0
         ).orElse(false);
     }
 
     public static boolean clear(Player player) {
-        return player.getCapability(ModCapabilities.PLAYER_FORM).map(data -> {
+        return SscDataBridge.getFormData(player).map(data -> {
             boolean hadEffect = hasData(data);
             data.setTransformativeEffectFormId(null);
             data.setTransformativeEffectTicks(0);
@@ -56,8 +56,8 @@ public final class TransformativeEffectService {
     }
 
     public static boolean activate(ServerPlayer player) {
-        ResourceLocation targetId = player.getCapability(ModCapabilities.PLAYER_FORM)
-                .map(IPlayerFormData::getTransformativeEffectFormId)
+        ResourceLocation targetId = SscDataBridge.getFormData(player)
+                .map(PlayerFormData::getTransformativeEffectFormId)
                 .map(ResourceLocation::tryParse)
                 .orElse(null);
         if (targetId == null) {
@@ -84,7 +84,7 @@ public final class TransformativeEffectService {
         }
         WAS_SLEEPING.put(player.getUUID(), sleeping);
 
-        player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> {
+        SscDataBridge.getFormData(player).ifPresent(data -> {
             if (!hasData(data)) {
                 return;
             }
@@ -103,7 +103,7 @@ public final class TransformativeEffectService {
                 && form.hasFlag("transform_effect_can_apply");
     }
 
-    private static boolean hasData(IPlayerFormData data) {
+    private static boolean hasData(PlayerFormData data) {
         return data.getTransformativeEffectFormId() != null
                 && !data.getTransformativeEffectFormId().isBlank()
                 && data.getTransformativeEffectTicks() > 0;

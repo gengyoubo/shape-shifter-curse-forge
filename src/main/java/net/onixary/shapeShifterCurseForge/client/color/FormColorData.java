@@ -12,7 +12,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import org.slf4j.Logger;
 
@@ -380,7 +380,7 @@ public final class FormColorData {
         if (Minecraft.getInstance().player == null) {
             return null;
         }
-        var data = Minecraft.getInstance().player.getCapability(ModCapabilities.PLAYER_SKIN).orElse(null);
+        var data = SscDataBridge.getSkinData(Minecraft.getInstance().player).orElse(null);
         if (data == null) {
             return null;
         }

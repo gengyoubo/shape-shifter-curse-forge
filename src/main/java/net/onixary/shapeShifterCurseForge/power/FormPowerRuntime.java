@@ -38,7 +38,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerPlayer;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
 import java.util.HashMap;
@@ -103,7 +103,7 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:chance" -> actor.getRandom().nextFloat()
                     < Math.max(0.0F, Math.min(1.0F, floatValue(condition, "chance", 0.0F)));
             case "shape-shifter-curse:can_render_gui" -> true;
-            case "shape-shifter-curse:enable_random_sound" -> actor.getCapability(ModCapabilities.PLAYER_SKIN)
+            case "shape-shifter-curse:enable_random_sound" -> SscDataBridge.getSkinData(actor)
                     .map(data -> data.isEnableFormRandomSound()).orElse(true);
             case "shape-shifter-curse:is_item_in_cooldown" -> itemInCooldown(actor, condition);
             case "shape-shifter-curse:last_attack_witch_time" -> compare(

@@ -7,7 +7,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
@@ -62,7 +62,7 @@ public final class ColorAutoSync {
                     SscClientConfig.CUSTOM_ACCENT_1_GREY_REVERSE.get(),
                     SscClientConfig.CUSTOM_ACCENT_2_GREY_REVERSE.get()));
         } else {
-            var skin = minecraft.player.getCapability(ModCapabilities.PLAYER_SKIN).orElse(null);
+            var skin = SscDataBridge.getSkinData(minecraft.player).orElse(null);
             colors = skin == null ? null : skin.getFormColor();
             if (colors == null) {
                 return;

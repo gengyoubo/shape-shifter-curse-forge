@@ -8,8 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.capability.IPlayerSkinData;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -350,7 +350,7 @@ public final class FormTextureUtils {
     /** Server-synced skin color for rendering (ABGR, as baked). Null when disabled. */
     @Nullable
     public static ColorSetting getPlayerColorSetting(Player player) {
-        IPlayerSkinData data = player.getCapability(ModCapabilities.PLAYER_SKIN).orElse(null);
+        PlayerSkinData data = SscDataBridge.getSkinData(player).orElse(null);
         if (data == null || !data.isEnableFormColor()) {
             return null;
         }

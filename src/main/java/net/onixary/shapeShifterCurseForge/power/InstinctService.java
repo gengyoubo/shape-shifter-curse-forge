@@ -5,8 +5,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.onixary.shapeShifterCurseForge.capability.IPlayerFormData;
-import net.onixary.shapeShifterCurseForge.capability.ModCapabilities;
+import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
+import net.onixary.shapeShifterCurseForge.api.SscDataBridge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
@@ -19,11 +19,11 @@ public final class InstinctService {
     private InstinctService() { }
 
     public static float value(Player player) {
-        return player.getCapability(ModCapabilities.PLAYER_FORM).map(IPlayerFormData::getInstinctValue).orElse(0.0F);
+        return SscDataBridge.getFormData(player).map(PlayerFormData::getInstinctValue).orElse(0.0F);
     }
 
     public static void add(Player player, String effectId, float amount, int duration, boolean immediate) {
-        player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> {
+        SscDataBridge.getFormData(player).ifPresent(data -> {
             FormDefinition form = FormManager.current(player);
             if (form.hasFlag("no_instinct") || form.hasFlag("lock_instinct")) return;
             if (immediate) {
@@ -40,7 +40,7 @@ public final class InstinctService {
     }
 
     public static void tick(ServerPlayer player) {
-        player.getCapability(ModCapabilities.PLAYER_FORM).ifPresent(data -> {
+        SscDataBridge.getFormData(player).ifPresent(data -> {
             FormDefinition form = FormManager.current(player);
             if (form.hasFlag("no_instinct")) {
                 data.setInstinctValue(0.0F);
