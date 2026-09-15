@@ -30,3 +30,8 @@ fabric\\gradlew.bat -p fabric build
 不会将 Player Animation Lib 作为运行依赖引入。
 
 Forge 端不依赖 AzureLib 或 Player Animation Lib。Apoli、Calio、Trinkets、Curios、JEI 和其他联动库也不属于当前核心依赖。
+
+## 附属开发 Wiki
+
+- [Geo 形态从零建模与骨骼绑定](docs/geo-modeling.md)：玩家骨骼、耳朵/尾巴/翅膀的父子绑定、第一人称与物品栏预览。
+- [SSC Forge Java 注册](docs/java-registration.md)：Form、Power、Condition、Action、Evolution、延迟注册与 Fabric 内容迁移差异。
