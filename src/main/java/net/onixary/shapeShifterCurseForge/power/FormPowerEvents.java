@@ -81,6 +81,8 @@ public final class FormPowerEvents {
         // client as well, otherwise the vanilla client prediction refills the HUD
         // until the next server entity-data sync.
         if (player.level().isClientSide) {
+            enforceSprinting(player);
+            applyClimbing(player);
             tickCustomWaterBreathing(player);
             return;
         }
@@ -743,8 +745,14 @@ public final class FormPowerEvents {
             JsonObject start = power.getAsJsonObject("start_climb_condition");
             JsonObject keep = power.getAsJsonObject("continue_climb_condition");
             if (FormPowerRuntime.test(player, player, start) || FormPowerRuntime.test(player, player, keep)) {
-                player.setDeltaMovement(player.getDeltaMovement().x, Math.max(player.getDeltaMovement().y, -0.15D),
-                        player.getDeltaMovement().z);
+                Vec3 motion = player.getDeltaMovement();
+                double y = Math.max(motion.y, -0.15D);
+                if (Double.compare(motion.y, y) != 0) {
+                    player.setDeltaMovement(motion.x, y, motion.z);
+                    // The server tracker otherwise broadcasts hasImpulse only to
+                    // watchers, not to the player whose climb velocity changed.
+                    if (!player.level().isClientSide) player.hurtMarked = true;
+                }
                 player.resetFallDistance();
             }
         });

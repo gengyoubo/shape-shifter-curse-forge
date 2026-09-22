@@ -50,7 +50,13 @@ public final class MissingPowerEvents {
 
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
-        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) return;
+        if (!(event.getEntity() instanceof Player player)) return;
+        // LikeWaterMixin alters travel on both Fabric logical sides. Keep this
+        // local prediction separate from its server-authoritative counterpart.
+        if (player.level().isClientSide) {
+            maintainSimpleMovement(player);
+            return;
+        }
 
         maintainEffects(player);
         maintainFlight(player);
@@ -242,6 +248,7 @@ public final class MissingPowerEvents {
         if (player.getDeltaMovement().y < 0.0D) {
             var velocity = player.getDeltaMovement();
             player.setDeltaMovement(velocity.x, Math.max(velocity.y, -0.02D), velocity.z);
+            player.hurtMarked = true;
         }
     }
 

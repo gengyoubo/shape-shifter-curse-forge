@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Server-side implementations for continuous movement and defensive form powers. */
+/** Server-authoritative implementations for continuous movement and defensive form powers. */
 public final class MovementPowerService {
     private static final Map<UUID, Integer> DODGE_COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Boolean> DODGE_RIGHT = new HashMap<>();
@@ -57,6 +57,7 @@ public final class MovementPowerService {
             Vec3 dodge = right ? new Vec3(-horizontal.z, 0.0D, horizontal.x) : new Vec3(horizontal.z, 0.0D, -horizontal.x);
             player.push(dodge.x * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D), 0.0D,
                     dodge.z * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D));
+            markMotionForOwner(player);
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
             DODGE_COOLDOWNS.put(player.getUUID(), Math.max(1, FormPowerRuntime.intValue(power, "cooldown", 20)));
             break;
@@ -65,7 +66,8 @@ public final class MovementPowerService {
 
     private static void walkPowderSnow(Player player) {
         if (player.getBlockStateOn().is(Blocks.POWDER_SNOW) || player.level().getBlockState(player.blockPosition()).is(Blocks.POWDER_SNOW)) {
-            player.setDeltaMovement(player.getDeltaMovement().x, Math.max(player.getDeltaMovement().y, 0.0D), player.getDeltaMovement().z);
+            Vec3 motion = player.getDeltaMovement();
+            setMotionAndSync(player, motion.x, Math.max(motion.y, 0.0D), motion.z);
             player.resetFallDistance();
         }
     }
@@ -80,7 +82,7 @@ public final class MovementPowerService {
             // already slowed 0.25, so *4 restores; but only if currently slowed, avoid exponential blowup by clamping
             double restoredX = Math.abs(motion.x * 4.0D) > 0.5D ? motion.x : motion.x * 4.0D;
             double restoredZ = Math.abs(motion.z * 4.0D) > 0.5D ? motion.z : motion.z * 4.0D;
-            player.setDeltaMovement(restoredX, Math.max(motion.y, -0.05D), restoredZ);
+            setMotionAndSync(player, restoredX, Math.max(motion.y, -0.05D), restoredZ);
             // alternative: set to original input velocity if needed; keep single restoration per tick without compounding
         }
     }
@@ -102,7 +104,7 @@ public final class MovementPowerService {
             targetX = motion.x * scale;
             targetZ = motion.z * scale;
         }
-        player.setDeltaMovement(targetX, motion.y, targetZ);
+        setMotionAndSync(player, targetX, motion.y, targetZ);
     }
 
     private static void modifyFalling(Player player, JsonObject power) {
@@ -110,7 +112,7 @@ public final class MovementPowerService {
         double velocity = FormPowerRuntime.doubleValue(power, "velocity", 0.0D);
         Vec3 motion = player.getDeltaMovement();
         if (velocity >= 0.0D && motion.y < 0.0D) {
-            player.setDeltaMovement(motion.x, Math.max(motion.y, -velocity), motion.z);
+            setMotionAndSync(player, motion.x, Math.max(motion.y, -velocity), motion.z);
         }
     }
 
@@ -146,9 +148,28 @@ public final class MovementPowerService {
         double speed = FormPowerRuntime.doubleValue(power, "attraction_speed", 0.1D);
         if (player.getLookAngle().dot(direction) < 0.0D) speed = FormPowerRuntime.doubleValue(power, "escape_attraction_speed", 0.025D);
         Vec3 motion = player.getDeltaMovement();
-        player.setDeltaMovement(direction.x * speed, motion.y, direction.z * speed);
+        setMotionAndSync(player, direction.x * speed, motion.y, direction.z * speed);
         FormPowerRuntime.execute(player, closest instanceof net.minecraft.world.entity.LivingEntity living ? living : player,
                 power.getAsJsonObject("entity_action"));
         FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action"));
+    }
+
+    /**
+     * Forge's normal tracker sends {@code hasImpulse} motion updates only to
+     * watchers. {@code hurtMarked} additionally sends the motion packet to the
+     * owning ServerPlayer, matching Fabric's velocityModified flag.
+     */
+    private static void markMotionForOwner(Player player) {
+        player.hurtMarked = true;
+    }
+
+    private static void setMotionAndSync(Player player, double x, double y, double z) {
+        Vec3 before = player.getDeltaMovement();
+        if (Double.compare(before.x, x) == 0 && Double.compare(before.y, y) == 0
+                && Double.compare(before.z, z) == 0) {
+            return;
+        }
+        player.setDeltaMovement(x, y, z);
+        markMotionForOwner(player);
     }
 }
