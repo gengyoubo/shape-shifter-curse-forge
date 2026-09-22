@@ -13,6 +13,7 @@ import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 import net.onixary.shapeShifterCurseForge.registry.ModCreativeModeTabs;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
+import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,6 +35,8 @@ public final class ShapeShifterCurseForge {
         ModBlocks.BLOCKS.register(modBus);
         ModEntities.ENTITIES.register(modBus);
         ModCreativeModeTabs.TABS.register(modBus);
+        ModRecipeSerializers.SERIALIZERS.register(modBus);
+        ModRecipeSerializers.TYPES.register(modBus);
         SscAdvancementTriggers.initialize();
         FormManager.initialize();
         ModNetwork.initialize();

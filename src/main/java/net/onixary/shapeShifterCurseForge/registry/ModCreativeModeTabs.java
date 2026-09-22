@@ -45,6 +45,27 @@ public final class ModCreativeModeTabs {
                         output.accept(ModItems.INHIBITOR.get());
                         output.accept(ModItems.POWERFUL_INHIBITOR.get());
                         output.accept(ModItems.MOONDUST_CRYSTAL_GRIT_ITEM.get());
+                        output.accept(ModItems.DEW_COVERED_COBWEB_ITEM.get());
+                        output.accept(ModItems.WEB_COMPOSTER_ITEM.get());
+                        output.accept(ModItems.ALTAR_ITEM.get());
+                        output.accept(ModItems.ALTER_ITEM.get());
+                        output.accept(ModItems.FORM_ATTUNER_ITEM.get());
+                        output.accept(ModItems.RIPPLE_MIRROR.get());
+                        output.accept(ModItems.AUXILIARY_AXE.get());
+                        output.accept(ModItems.AUXILIARY_PICKAXE.get());
+                        output.accept(ModItems.AUXILIARY_SWORD.get());
+                        output.accept(ModItems.BOTTLED_SNOWFALL.get());
+                        output.accept(ModItems.DIAMOND_MINING_CLAW.get());
+                        output.accept(ModItems.MORPHSCALE_CORE.get());
+                        output.accept(ModItems.SUPER_MORPHSCALE_CORE.get());
+                        output.accept(ModItems.MORPHSCALE_HEADRING.get());
+                        output.accept(ModItems.MORPHSCALE_VEST.get());
+                        output.accept(ModItems.MORPHSCALE_CUISH.get());
+                        output.accept(ModItems.MORPHSCALE_ANKLET.get());
+                        output.accept(ModItems.NETHERITE_MORPHSCALE_HEADRING.get());
+                        output.accept(ModItems.NETHERITE_MORPHSCALE_VEST.get());
+                        output.accept(ModItems.NETHERITE_MORPHSCALE_CUISH.get());
+                        output.accept(ModItems.NETHERITE_MORPHSCALE_ANKLET.get());
                     })
                     .build());
 

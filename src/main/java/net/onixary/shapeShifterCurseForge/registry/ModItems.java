@@ -110,6 +110,87 @@ public final class ModItems {
             "moondust_crystal_grit", () -> new BlockItem(
                     ModBlocks.MOONDUST_CRYSTAL_GRIT.get(), new Item.Properties()));
 
+    // --- 1.10.0 fabric parity: block items + ripple_mirror ---
+    public static final RegistryObject<Item> DEW_COVERED_COBWEB_ITEM = ITEMS.register(
+            "dew_covered_cobweb", () -> new BlockItem(ModBlocks.DEW_COVERED_COBWEB.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> WEB_COMPOSTER_ITEM = ITEMS.register(
+            "web_composter", () -> new BlockItem(ModBlocks.WEB_COMPOSTER.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> ALTAR_ITEM = ITEMS.register(
+            "altar", () -> new BlockItem(ModBlocks.ALTAR.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> ALTER_ITEM = ITEMS.register(
+            "alter", () -> new BlockItem(ModBlocks.ALTER.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> FORM_ATTUNER_ITEM = ITEMS.register(
+            "form_attuner", () -> new BlockItem(ModBlocks.FORM_ATTUNER.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> RIPPLE_MIRROR = ITEMS.register(
+            "ripple_mirror", () -> new TooltipItem(
+                    new Item.Properties().stacksTo(1),
+                    "item.shape-shifter-curse.ripple_mirror.tooltip",
+                    ChatFormatting.GRAY));
+
+    public static final RegistryObject<Item> TEMP_WEB_BRIDGE_ITEM = ITEMS.register(
+            "temp_web_bridge", () -> new BlockItem(ModBlocks.TEMP_WEB_BRIDGE.get(), new Item.Properties()));
+
+    // --- 1.10.0 fabric parity: tools / armor / special items referenced by recipes & models ---
+    public static final RegistryObject<Item> AUXILIARY_AXE = ITEMS.register(
+            "auxiliary_axe", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> AUXILIARY_PICKAXE = ITEMS.register(
+            "auxiliary_pickaxe", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> AUXILIARY_SWORD = ITEMS.register(
+            "auxiliary_sword", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> BOTTLED_SNOWFALL = ITEMS.register(
+            "bottled_snowfall", () -> new Item(new Item.Properties().stacksTo(16)));
+    public static final RegistryObject<Item> DIAMOND_MINING_CLAW = ITEMS.register(
+            "diamond_mining_claw", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> MORPHSCALE_CORE = ITEMS.register(
+            "morphscale_core", () -> new TooltipItem(new Item.Properties(), "item.shape-shifter-curse.morphscale_core.tooltip", ChatFormatting.GRAY));
+    public static final RegistryObject<Item> SUPER_MORPHSCALE_CORE = ITEMS.register(
+            "super_morphscale_core", () -> new TooltipItem(new Item.Properties(), "item.shape-shifter-curse.super_morphscale_core.tooltip", ChatFormatting.GRAY));
+    public static final RegistryObject<Item> MORPHSCALE_HEADRING = ITEMS.register(
+            "morphscale_headring", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> MORPHSCALE_VEST = ITEMS.register(
+            "morphscale_vest", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> MORPHSCALE_CUISH = ITEMS.register(
+            "morphscale_cuish", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> MORPHSCALE_ANKLET = ITEMS.register(
+            "morphscale_anklet", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> NETHERITE_MORPHSCALE_HEADRING = ITEMS.register(
+            "netherite_morphscale_headring", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> NETHERITE_MORPHSCALE_VEST = ITEMS.register(
+            "netherite_morphscale_vest", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> NETHERITE_MORPHSCALE_CUISH = ITEMS.register(
+            "netherite_morphscale_cuish", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> NETHERITE_MORPHSCALE_ANKLET = ITEMS.register(
+            "netherite_morphscale_anklet", () -> new Item(new Item.Properties().stacksTo(1)));
+    // cosmetics / spawn eggs / misc models present in fabric jar
+    public static final RegistryObject<Item> CREATIVE_INHIBITOR = ITEMS.register(
+            "creative_inhibitor", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> CURSED_BOOK_OF_SHAPE_SHIFTER = ITEMS.register(
+            "cursed_book_of_shape_shifter", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> CUSTOM_TRINKET = ITEMS.register(
+            "custom_trinket", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> PATRON_FORM_ITEM = ITEMS.register(
+            "patron_form_item", () -> new Item(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<Item> SPIDER_FLUID_COCOON = ITEMS.register(
+            "spider_fluid_cocoon", () -> new Item(new Item.Properties().stacksTo(16)));
+    // Fabric spawn eggs – stub as generic spawn-egg-like items (no entity yet)
+    public static final RegistryObject<Item> CUSTOM_AXOLOTL_SPAWN_EGG = ITEMS.register(
+            "custom_axolotl_spawn_egg", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> CUSTOM_BAT_SPAWN_EGG = ITEMS.register(
+            "custom_bat_spawn_egg", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> CUSTOM_OCELOT_SPAWN_EGG = ITEMS.register(
+            "custom_ocelot_spawn_egg", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> CUSTOM_SPIDER_SPAWN_EGG = ITEMS.register(
+            "custom_spider_spawn_egg", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> CUSTOM_WOLF_SPAWN_EGG = ITEMS.register(
+            "custom_wolf_spawn_egg", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> TRANSFORMATIVE_AXOLOTL_BUCKET = ITEMS.register(
+            "transformative_axolotl_bucket", () -> new Item(new Item.Properties().stacksTo(1)));
+
     private ModItems() {
     }
 }
