@@ -178,20 +178,50 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         final float[] modified = {factor};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
-            if (!("apoli:modify_slipperiness".equals(type)
-                    || "shape-shifter-curse:conditioned_modify_slipperiness".equals(type))) return;
+            if (!"apoli:modify_slipperiness".equals(type)) return;
             if (!FormPowerRuntime.matchesBlockState(player.level(), player.blockPosition().below(),
                     power.getAsJsonObject("block_condition"))) return;
-            if ("shape-shifter-curse:conditioned_modify_slipperiness".equals(type)
-                    && !FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) return;
-            if ("shape-shifter-curse:conditioned_modify_slipperiness".equals(type)
-                    && power.has("modifier") && power.get("modifier").isJsonPrimitive()) {
-                modified[0] = power.get("modifier").getAsFloat();
-            } else {
-                modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], power.getAsJsonObject("modifier"));
-            }
+            modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], power.getAsJsonObject("modifier"));
         });
         cir.setReturnValue(modified[0]);
+    }
+
+    /**
+     * Fabric's conditioned_modify_slipperiness edits block friction (0.6 -&gt; 0.95),
+     * not the speed factor. getFriction lives on Forge's IForgeBlockState interface,
+     * so instead of a fragile interface mixin we adjust the friction value where
+     * LivingEntity.travel consumes it.
+     */
+    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;handleRelativeFrictionAndCalculateMovement(Lnet/minecraft/world/phys/Vec3;F)Lnet/minecraft/world/phys/Vec3;"),
+            index = 1)
+    private float ssc$modifyFriction(float friction) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player)) return friction;
+        final float[] modified = {friction};
+        final boolean[] applied = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:conditioned_modify_slipperiness".equals(FormPowerRegistry.typeOf(power))) return;
+            BlockPos affecting = player.blockPosition().below();
+            if (!FormPowerRuntime.matchesBlockState(player.level(), affecting,
+                    power.getAsJsonObject("block_condition"))) return;
+            if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) return;
+            com.google.gson.JsonElement modEl = power.get("modifier");
+            if (modEl != null && modEl.isJsonPrimitive()) {
+                // Fabric: original 0.6 + 0.35 = 0.95 (addition)
+                float delta = modEl.getAsFloat();
+                float next = friction + delta;
+                if (next > 0.98F) next = 0.98F;
+                if (next < 0.1F) next = 0.1F;
+                modified[0] = next;
+                applied[0] = true;
+            } else if (modEl != null && modEl.isJsonObject()) {
+                modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], modEl.getAsJsonObject());
+                applied[0] = true;
+            }
+        });
+        return applied[0] ? modified[0] : friction;
     }
 
     @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
