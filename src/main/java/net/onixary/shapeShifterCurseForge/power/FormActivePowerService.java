@@ -461,7 +461,9 @@ public final class FormActivePowerService {
             if (!"shape-shifter-curse:triple_jump".equals(FormPowerRegistry.typeOf(power))) return;
             String ordinal = jump == 1 ? "first" : jump == 2 ? "second" : "third";
             float multiplier = FormPowerRuntime.floatValue(power, ordinal + "_jump_multiplier", 1.0F);
-            double y = fromGround ? player.getDeltaMovement().y * multiplier : 0.42D * multiplier;
+            // use constant base jump, not existing delta which would amplify stacked velocity
+            double y = 0.42D * multiplier;
+            // preserve horizontal but replace vertical with calculated jump
             player.setDeltaMovement(player.getDeltaMovement().x, y, player.getDeltaMovement().z);
             FormPowerRuntime.execute(player, player, power.getAsJsonObject(ordinal + "_jump_action"));
         });

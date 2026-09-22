@@ -845,14 +845,24 @@ public final class FormPowerEvents {
             return;
         }
 
-        AttributeModifier.Operation operation = waterSpeedModifier ? AttributeModifier.Operation.MULTIPLY_TOTAL
-                : switch (FormPowerRuntime.stringValue(modifier, "operation", "addition")) {
-                    case "multiply_base" -> AttributeModifier.Operation.MULTIPLY_BASE;
-                    case "multiply_total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
-                    default -> AttributeModifier.Operation.ADDITION;
-                };
-        double amount = waterSpeedModifier ? FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D
-                : FormPowerRuntime.doubleValue(modifier, "value", 0.0D);
+        boolean isLegacy = LEGACY_WATER_SPEED.equals(attributeId);
+        AttributeModifier.Operation operation;
+        double amount;
+        if (isLegacy) {
+            // Fabric water_speed 1.2 means 20% boost, not 120%; convert to 0.2 for Forge SWIM_SPEED
+            operation = AttributeModifier.Operation.MULTIPLY_TOTAL;
+            amount = FormPowerRuntime.doubleValue(modifier, "value", 1.0D) - 1.0D;
+        } else if (waterSpeedModifier) {
+            operation = AttributeModifier.Operation.MULTIPLY_TOTAL;
+            amount = FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D;
+        } else {
+            operation = switch (FormPowerRuntime.stringValue(modifier, "operation", "addition")) {
+                case "multiply_base" -> AttributeModifier.Operation.MULTIPLY_BASE;
+                case "multiply_total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;
+                default -> AttributeModifier.Operation.ADDITION;
+            };
+            amount = FormPowerRuntime.doubleValue(modifier, "value", 0.0D);
+        }
         float oldMaxHealth = player.getMaxHealth();
         float healthRatio = oldMaxHealth <= 0.0F ? 1.0F : player.getHealth() / oldMaxHealth;
         instance.addTransientModifier(new AttributeModifier(uuid,

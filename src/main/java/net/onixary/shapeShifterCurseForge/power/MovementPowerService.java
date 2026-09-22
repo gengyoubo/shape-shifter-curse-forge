@@ -45,11 +45,15 @@ public final class MovementPowerService {
                 player.getBoundingBox().inflate(range), candidate -> candidate.getOwner() != player && !candidate.isRemoved())) {
             Vec3 velocity = projectile.getDeltaMovement();
             if (velocity.lengthSqr() < 0.01D || projectile.position().distanceTo(player.position()) > triggerDistance) continue;
-            Vec3 towardPlayer = player.position().subtract(projectile.position()).normalize();
-            if (velocity.normalize().dot(towardPlayer) <= 0.7D) continue;
+            Vec3 normVel = velocity.lengthSqr() < 1e-8 ? Vec3.ZERO : velocity.normalize();
+            Vec3 towardPlayer = player.position().subtract(projectile.position());
+            double len2 = towardPlayer.lengthSqr();
+            Vec3 towardNorm = len2 < 1e-8 ? Vec3.ZERO : towardPlayer.normalize();
+            if (normVel.dot(towardNorm) <= 0.7D) continue;
             boolean right = !DODGE_RIGHT.getOrDefault(player.getUUID(), false);
             DODGE_RIGHT.put(player.getUUID(), right);
-            Vec3 horizontal = new Vec3(velocity.x, 0.0D, velocity.z).normalize();
+            double horizLen2 = velocity.x*velocity.x + velocity.z*velocity.z;
+            Vec3 horizontal = horizLen2 < 1e-8 ? new Vec3(1,0,0) : new Vec3(velocity.x, 0.0D, velocity.z).normalize();
             Vec3 dodge = right ? new Vec3(-horizontal.z, 0.0D, horizontal.x) : new Vec3(horizontal.z, 0.0D, -horizontal.x);
             player.push(dodge.x * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D), 0.0D,
                     dodge.z * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D));
