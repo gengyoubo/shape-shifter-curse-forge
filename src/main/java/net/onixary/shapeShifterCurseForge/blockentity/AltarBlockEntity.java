@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.MenuProvider;
@@ -36,7 +37,7 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
                 fuelMap.put(item, 800);
             } catch (Exception ignored) {}
             try {
-                var reg = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(new net.minecraft.resources.ResourceLocation(net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge.RESOURCE_NAMESPACE, "untreated_moondust"));
+                var reg = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge.RESOURCE_NAMESPACE, "untreated_moondust"));
                 if (reg != null) fuelMap.putIfAbsent(reg, 800);
             } catch (Exception ignored) {}
         }

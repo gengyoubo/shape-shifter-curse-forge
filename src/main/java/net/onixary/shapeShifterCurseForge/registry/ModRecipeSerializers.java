@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.registry;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -38,7 +39,7 @@ public final class ModRecipeSerializers {
         private final RecipeSerializer<?> serializer;
         DummyRecipe(net.minecraft.resources.ResourceLocation id, RecipeSerializer<?> ser) { this.id = id; this.serializer = ser; }
         DummyRecipe(net.minecraft.resources.ResourceLocation id) { this(id, null); }
-        DummyRecipe() { this.id = new net.minecraft.resources.ResourceLocation(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "dummy"); this.serializer = null; }
+        DummyRecipe() { this.id = ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "dummy"); this.serializer = null; }
         @Override public boolean matches(net.minecraft.world.Container c, net.minecraft.world.level.Level l) { return false; }
         @Override public net.minecraft.world.item.ItemStack assemble(net.minecraft.world.Container c, net.minecraft.core.RegistryAccess a) { return net.minecraft.world.item.ItemStack.EMPTY; }
         @Override public boolean canCraftInDimensions(int w, int h) { return false; }

@@ -9,8 +9,8 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.menu.AltarMenu;
 
 public class AltarScreen extends AbstractContainerScreen<AltarMenu> {
-    private static final ResourceLocation BG = new ResourceLocation(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/altar_craft_ui.png");
-    private static final ResourceLocation BG_ALTER = new ResourceLocation(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/alter_craft_ui.png");
+    private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/altar_craft_ui.png");
+    private static final ResourceLocation BG_ALTER = ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/alter_craft_ui.png");
     private final boolean isAlter;
     public AltarScreen(AltarMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);

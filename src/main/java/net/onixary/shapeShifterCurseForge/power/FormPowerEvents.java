@@ -886,7 +886,7 @@ public final class FormPowerEvents {
 
     private static net.minecraft.world.damagesource.DamageSource gillsDamageSource(Player player) {
         var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
-                new ResourceLocation(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "no_water_for_gills"));
+                ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "no_water_for_gills"));
         var holder = player.level().registryAccess().registryOrThrow(
                 net.minecraft.core.registries.Registries.DAMAGE_TYPE).getHolderOrThrow(key);
         return new net.minecraft.world.damagesource.DamageSource(holder);

@@ -73,7 +73,7 @@ public class AlterShapelessRecipe implements AltarRecipe {
             NonNullList<Ingredient> ings = NonNullList.create();
             for (int i=0;i<arr.size();i++) { var ing = Ingredient.fromJson(arr.get(i), false); if (!ing.isEmpty()) ings.add(ing); }
             Ingredient cat = json.has("catalyst") ? Ingredient.fromJson(json.get("catalyst"), false) : null;
-            ResourceLocation adv = json.has("require_advancement") ? new ResourceLocation(GsonHelper.getAsString(json, "require_advancement")) : null;
+            ResourceLocation adv = json.has("require_advancement") ? ResourceLocation.parse(GsonHelper.getAsString(json, "require_advancement")) : null;
             int fuel = GsonHelper.getAsInt(json, "fuel_cost", 1);
             if (ings.isEmpty()) throw new JsonParseException("No ingredients");
             if (ings.size()>9) throw new JsonParseException("Too many");

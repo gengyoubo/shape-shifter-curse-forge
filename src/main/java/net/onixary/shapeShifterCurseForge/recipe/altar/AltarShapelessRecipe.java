@@ -101,7 +101,7 @@ public class AltarShapelessRecipe implements AltarRecipe {
             Ingredient catalyst = null;
             if (json.has("catalyst")) catalyst = Ingredient.fromJson(json.get("catalyst"), false);
             ResourceLocation adv = null;
-            if (json.has("require_advancement")) adv = new ResourceLocation(GsonHelper.getAsString(json, "require_advancement"));
+            if (json.has("require_advancement")) adv = ResourceLocation.parse(GsonHelper.getAsString(json, "require_advancement"));
             int fuel = GsonHelper.getAsInt(json, "fuel_cost", 1);
             if (ings.isEmpty()) throw new JsonParseException("No ingredients for altar shapeless recipe");
             if (ings.size() > 9) throw new JsonParseException("Too many ingredients");

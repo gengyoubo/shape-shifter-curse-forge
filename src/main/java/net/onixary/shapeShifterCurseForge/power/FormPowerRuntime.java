@@ -63,7 +63,11 @@ public final class FormPowerRuntime {
         boolean result = javaResult != null ? javaResult : switch (type) {
             case "apoli:and" -> testAll(actor, target, condition.getAsJsonArray("conditions"));
             case "apoli:or" -> testAny(actor, target, condition.getAsJsonArray("conditions"));
-            case "apoli:sneaking" -> actor.isCrouching();
+            // Apoli's sneaking condition tracks the real sneak input flag, not
+            // the current pose. Forge's one-block axolotl crawl uses a CROUCHING
+            // pose for collision, but Fabric's KeepSneaking power does not let
+            // that synthetic pose activate sneaking-only attributes.
+            case "apoli:sneaking" -> actor.isShiftKeyDown();
             case "apoli:sprinting" -> actor.isSprinting();
             case "apoli:on_ground" -> actor.onGround();
             case "apoli:moving" -> actor.getDeltaMovement().horizontalDistanceSqr() > 0.0004D;
