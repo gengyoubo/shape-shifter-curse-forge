@@ -12,7 +12,6 @@ import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
-import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -111,30 +110,17 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
     private void ssc$forceFeralPose(CallbackInfo ci) {
         Player player = (Player) (Object) this;
         boolean isFeral = FormManager.current(player).bodyType() == FormBodyType.FERAL;
-        boolean forceCrawling = shouldForceCrawling(player);
-        // Axolotl forms are NORMAL body types, but their keep_sneaking power
-        // still needs the special one-block pose. Other normal forms retain
-        // vanilla pose handling unless that power is actually active.
-        if (!isFeral && !forceCrawling) {
+        // Fabric only replaces this method for FERAL forms.  In particular,
+        // axolotl crouching remains vanilla crouching: SSC adjusts its bounds
+        // and renderer without inventing a separate crawl pose.
+        if (!isFeral) {
             return;
-        }
-        // Keep the collision-aware vanilla order, with the two axolotl state
-        // overrides inserted before the fallback is resolved.  Vanilla leaves
-        // the swimming flag set for a tick after entering a one-block tunnel;
-        // clear that flag so the special compressed pose is not mistaken for
-        // actual water swimming.
-        if (forceCrawling && !player.isInWater()) {
-            player.setSwimming(false);
         }
         Pose pose;
         if (this.isFallFlying()) {
             pose = Pose.FALL_FLYING;
         } else if (this.isSleeping()) {
             pose = Pose.STANDING;
-        } else if (forceCrawling) {
-            // Automatic one-block crawling is the same form state as holding
-            // Shift. Water swimming remains a separate state below.
-            pose = Pose.CROUCHING;
         } else if (this.isSwimming()) {
             pose = Pose.SWIMMING;
         } else if (this.isAutoSpinAttack()) {
@@ -147,26 +133,13 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
 
         Pose resolved = pose;
         if (!this.isSpectator() && !this.isPassenger() && !this.canEnterPose(pose)) {
-            if (forceCrawling) {
-                resolved = Pose.CROUCHING;
-            } else if (this.canEnterPose(Pose.CROUCHING)) {
+            if (this.canEnterPose(Pose.CROUCHING)) {
                 resolved = Pose.CROUCHING;
             } else {
                 resolved = Pose.SWIMMING;
             }
         }
         this.setPose(resolved);
-        if (forceCrawling) {
-            // setPose does not guarantee that Forge's Size event has run in the
-            // same update. Refresh immediately so the low crawl hitbox is used
-            // before collision resolution tries to move the player out of the
-            // one-block space.
-            CrawlingScaleService.tick(player);
-        }
         ci.cancel();
-    }
-
-    private static boolean shouldForceCrawling(Player player) {
-        return CrawlingScaleService.isForcedCrawling(player);
     }
 }

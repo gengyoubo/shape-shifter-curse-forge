@@ -7,7 +7,6 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
-import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -232,14 +231,6 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         LivingEntity self = (LivingEntity) (Object) this;
         if (!(self instanceof Player player)) return speed;
         final float[] modified = {speed};
-        // Automatic one-block crawling has no real sneak input packet, so it
-        // would otherwise move at full walking speed. Apply vanilla's sneak
-        // input factor only to grounded movement; applying it in the air
-        // removes most of the forward carry from a crawl jump.
-        if (player.onGround() && CrawlingScaleService.isForcedCrawling(player)
-                && !player.isShiftKeyDown()) {
-            modified[0] *= 0.3F;
-        }
         if (player.onGround() || player.isInWater()) return modified[0];
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("apoli:modify_air_speed".equals(FormPowerRegistry.typeOf(power))

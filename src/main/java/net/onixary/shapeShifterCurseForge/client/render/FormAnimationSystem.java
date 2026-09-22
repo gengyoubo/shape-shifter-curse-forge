@@ -11,7 +11,6 @@ import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
-import net.onixary.shapeShifterCurseForge.power.CrawlingScaleService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,11 +97,10 @@ public final class FormAnimationSystem {
         Selection transition = transitionAnimation(player);
         if (transition != null) return transition;
         State state = stateOf(player);
-        // Yarn PlayerEntity#isSneaking is Mojmap Player#isShiftKeyDown. isCrouching
-        // is the pose flag instead and becomes false/late during several crawl states.
-        // Automatic one-block crawling follows the same animation branch as
-        // holding Shift; actual water contact is resolved as SWIM separately.
-        boolean sneak = player.isShiftKeyDown() || CrawlingScaleService.isForcedCrawling(player);
+        // Sneak remains an input condition.  The separate vanilla crawling pose
+        // is handled below as State.CRAWL, without changing the player's pose or
+        // movement rules ourselves.
+        boolean sneak = player.isShiftKeyDown();
         List<String> offered = candidates(path, state, sneak, player);
         for (String candidate : offered) {
             Selection selection = selectionFor(path, state, candidate);
@@ -197,7 +195,7 @@ public final class FormAnimationSystem {
             if (player.isUsingItem()) return player.isBlocking() ? State.BLOCK : State.USE_ITEM;
             return motion.swingTicks >= 10 ? State.MINING : State.ATTACK;
         }
-        if (player.isVisuallyCrawling()) return State.CRAWL;
+        if (isVanillaCrawlingForAnimation(player)) return State.CRAWL;
         if (motion.moving) return player.isSprinting() ? State.SPRINT : State.WALK;
         return State.IDLE;
     }
@@ -263,7 +261,12 @@ public final class FormAnimationSystem {
                 case MINING -> add(result, sneak ? "axolotl_2_crawling_tool_swing" : null);
                 case FLYING, FALL_FLYING -> add(result, "axolotl_3_creative_flight");
                 case SLEEP -> add(result, "axolotl_3_sleep");
-                case CRAWL -> add(result, "axolotl_3_idle");
+                // A one-block-high ceiling makes vanilla put the player in its
+                // real crawling pose.  That pose must drive the axolotl crawl
+                // clips too; it is visual-only here and does not synthesize
+                // crouching, swimming, or a sneak key press.
+                case CRAWL -> add(result, motionOf(player).moving
+                        ? "axolotl_3_crawling" : "axolotl_3_crawling_idle");
                 default -> { }
             }
         } else if (path.equals("ocelot_2")) {
@@ -472,6 +475,18 @@ public final class FormAnimationSystem {
      */
     private static boolean isSwimmingAnimation(Player player) {
         return player.isSwimming();
+    }
+
+    /**
+     * Vanilla ordinarily exposes a one-block crawl as {@code isVisuallyCrawling()},
+     * which is the SWIMMING pose outside water.  A scaled axolotl can instead fit in
+     * the same gap while vanilla has only fallen back to CROUCHING.  It is still the
+     * automatic low-clearance pose shown in-game, but is neither a real sneak-key
+     * press nor a reason to alter movement.  Treat it as crawl for Geo selection.
+     */
+    private static boolean isVanillaCrawlingForAnimation(Player player) {
+        return player.isVisuallyCrawling()
+                || (!player.isInWater() && player.isCrouching() && !player.isShiftKeyDown());
     }
 
     /** Fabric's RushJumpAnimController selects rush from horizontal velocity alone. */

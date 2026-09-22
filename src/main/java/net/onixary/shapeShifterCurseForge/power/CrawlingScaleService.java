@@ -137,24 +137,8 @@ public final class CrawlingScaleService {
     }
 
     private static boolean isActive(JsonObject power, Player player) {
-        if (!power.has("condition")
-                || FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-            return true;
-        }
-        // The automatic one-block crawl is represented by keep_sneaking.  Its
-        // purpose is to force the crawl state even though the player is not
-        // physically holding sneak, so the crawling power's active scale must
-        // follow that state as well.
-        return "shape-shifter-curse:crawling".equals(FormPowerRegistry.typeOf(power))
-                && isForcedCrawling(player);
-    }
-
-    public static boolean isForcedCrawling(Player player) {
-        // Fabric only overrides PlayerEntity#updatePose for FERAL forms.  The
-        // earlier Forge adaptation additionally forced a normal axolotl into a
-        // crouch when must_crawling detected a one-block gap.  Do not synthesize
-        // that pose: Geo crawling remains driven by an actual Shift input.
-        return false;
+        return !power.has("condition")
+                || FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
     }
 
     private static JsonObject conditionScalePower(Player player) {

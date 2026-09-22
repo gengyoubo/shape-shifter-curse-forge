@@ -698,7 +698,6 @@ public final class FormPowerEvents {
                         + "/" + power.installed())
                 .reduce((left, right) -> left + "," + right).orElse("<none>");
         String snapshot = "sprint=" + debug.sprinting() + ", shift=" + player.isShiftKeyDown()
-                + ", forcedCrawl=" + CrawlingScaleService.isForcedCrawling(player)
                 + ", air=" + player.getAirSupply() + ", water=" + player.getFluidHeight(FluidTags.WATER)
                 + ", ground=" + player.onGround() + ", speed=" + debug.effectiveValue()
                 + ", powers=" + powers;

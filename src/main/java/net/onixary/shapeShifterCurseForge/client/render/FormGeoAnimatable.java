@@ -170,6 +170,17 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         return inventoryPreview;
     }
 
+    /**
+     * These clips contain their own 90-degree {@code body} transform.  Applying
+     * Minecraft's visual-swimming transform as well would rotate the rendered Geo
+     * body a second time when a low ceiling puts the player in the crawling pose.
+     */
+    public boolean usesAxolotlCrawlBodyTransform() {
+        return extraPrimary != null
+                && ("axolotl_3_crawling".equals(extraPrimary.id())
+                || "axolotl_3_crawling_idle".equals(extraPrimary.id()));
+    }
+
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,
                                                                       FormAnimationSystem.Selection selection,
                                                                       float partialTick) {
