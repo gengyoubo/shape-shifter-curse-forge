@@ -74,7 +74,14 @@ public final class FormPowerEvents {
 
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
-        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        // Fabric's UpdateAir mixin runs on both sides.  Mirror its air value on the
+        // client as well, otherwise the vanilla client prediction refills the HUD
+        // until the next server entity-data sync.
+        if (player.level().isClientSide) {
+            tickCustomWaterBreathing(player);
             return;
         }
 
@@ -318,14 +325,16 @@ public final class FormPowerEvents {
 
     @SubscribeEvent
     public static void jump(LivingEvent.LivingJumpEvent event) {
-        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) {
+        if (!(event.getEntity() instanceof Player player)) {
             return;
         }
-        if (BatAttachService.detachForJump(player)) {
-            return;
+        if (!player.level().isClientSide) {
+            if (BatAttachService.detachForJump(player)) {
+                return;
+            }
+            FormActivePowerService.registerGroundJump(player);
+            FormActivePowerService.triggerVanillaKey(player, "key.jump");
         }
-        FormActivePowerService.registerGroundJump(player);
-        FormActivePowerService.triggerVanillaKey(player, "key.jump");
 
         // Jump height itself is handled by LivingEntityMixin#getJumpPower,
         // which applies apoli:modify_jump inside vanilla's calculation.
@@ -348,8 +357,17 @@ public final class FormPowerEvents {
             }
         });
 
+        Vec3 velocityBeforeActions = player.getDeltaMovement();
         for (JsonObject action : pendingActions) {
             FormPowerRuntime.execute(player, player, action);
+        }
+        // Fabric executes ActionOnJumpPower on both logical sides, so the local
+        // player immediately sees its forward boost. Forge's Entity#push only
+        // marks hasImpulse, whose tracker broadcast excludes the owning player;
+        // hurtMarked uses the matching broadcast-and-send path for that owner.
+        if (!player.level().isClientSide
+                && !player.getDeltaMovement().equals(velocityBeforeActions)) {
+            player.hurtMarked = true;
         }
         if (player instanceof LivingEntityJumpState jumpState) {
             jumpState.ssc$clearJumpStartedOnBlock();
@@ -772,25 +790,6 @@ public final class FormPowerEvents {
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 player.setAirSupply(player.getMaxAirSupply());
             }
-            if ("shape-shifter-curse:custom_water_breathing".equals(type)
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
-                    && !player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)) {
-                int level = Math.max(1, FormPowerRuntime.intValue(power, "land_water_breathing_level", 24));
-                if (!player.isCreative() && !player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)
-                        && !player.hasEffect(MobEffects.WATER_BREATHING)
-                        && !player.hasEffect(MobEffects.CONDUIT_POWER)
-                        && player.tickCount % level == 0) {
-                    player.setAirSupply(player.getAirSupply() - 1);
-                    if (player.getAirSupply() <= -20 && power.has("damage_when_no_air")
-                            && power.get("damage_when_no_air").getAsBoolean()) {
-                        player.hurt(player.damageSources().drown(), 2.0F);
-                    }
-                }
-            } else if ("shape-shifter-curse:custom_water_breathing".equals(type)
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
-                    && !player.isCreative() && player.getAirSupply() < player.getMaxAirSupply()) {
-                player.setAirSupply(Math.min(player.getMaxAirSupply(), player.getAirSupply() + 1));
-            }
             if ("shape-shifter-curse:optional_effect_immunity".equals(type)
                     && power.has("effects") && power.get("effects").isJsonArray()) {
                 for (var effectId : power.getAsJsonArray("effects")) {
@@ -801,6 +800,128 @@ public final class FormPowerEvents {
                 }
             }
         });
+        tickCustomWaterBreathing(player);
+    }
+
+    /**
+     * Forge port of Fabric's CustomWaterBreathingMixin UpdateAir tick (moisture/oxygen).
+     * Vanilla's own air change is neutralized in {@link #onLivingBreathe} so the values
+     * below are net changes, matching Fabric where the mixin owns the whole section:
+     * <ul>
+     *   <li>creative/spectator refills to maxAir (Fabric first branch); without this,
+     *       creative air sticks at &le;0 and every air&gt;0-gated power (e.g. axolotl
+     *       sprinting_speed) silently stops working;</li>
+     *   <li>land drain subtracts {@code increaseAirSupply(0)} (normally 4) after
+     *       the respiration-style roll. Thus it is -4 when the roll skips and -5
+     *       when it does not; {@code level &gt;= 1000} still drains by -4;</li>
+     *   <li>rain and eye-in-water recover via vanilla {@code increaseAirSupply} (+4);</li>
+     *   <li>depleted state: without damage configured negatives clamp to -1
+     *       ("oxygen (moisture)"); with damage configured the -20 loop deals the
+     *       custom gills damage instead of vanilla drown (see {@link #onLivingDrown}).</li>
+     * </ul>
+     */
+    private static void tickCustomWaterBreathing(Player player) {
+        final int[] totalLevel = {0};
+        final boolean[] damageWhenNoAir = {false};
+        final boolean[] any = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:custom_water_breathing".equals(FormPowerRegistry.typeOf(power))) return;
+            if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            any[0] = true;
+            totalLevel[0] += Math.max(0, FormPowerRuntime.intValue(power, "land_water_breathing_level", 24));
+            if (FormPowerRuntime.booleanValue(power, "damage_when_no_air", false)) damageWhenNoAir[0] = true;
+        });
+        if (!any[0]) return;
+
+        if (player.isCreative() || player.isSpectator()) {
+            if (player.getAirSupply() < player.getMaxAirSupply()) {
+                player.setAirSupply(player.getMaxAirSupply());
+            }
+            return;
+        }
+        if (player.hasEffect(MobEffects.WATER_BREATHING) || player.hasEffect(MobEffects.CONDUIT_POWER)) {
+            if (player.getAirSupply() < player.getMaxAirSupply()) {
+                player.setAirSupply(Math.min(player.getAirSupply() + 4, player.getMaxAirSupply()));
+            }
+        } else if (player.level().isRainingAt(player.blockPosition())) {
+            if (player.getAirSupply() < player.getMaxAirSupply()) {
+                player.setAirSupply(Math.min(player.getAirSupply() + 4, player.getMaxAirSupply()));
+            }
+        } else if (player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)) {
+            if (player.getAirSupply() < player.getMaxAirSupply()) {
+                player.setAirSupply(Math.min(player.getAirSupply() + 4, player.getMaxAirSupply()));
+            }
+        } else {
+            boolean skip = totalLevel[0] >= 1000
+                    || (totalLevel[0] > 0 && player.getRandom().nextInt(totalLevel[0] + 1) > 0);
+            // Exact Fabric expression:
+            // setAir(getNextAirUnderwaterSlow(getAir(), level) - increaseAirSupply(0)).
+            int airAfterRespirationRoll = player.getAirSupply() - (skip ? 0 : 1);
+            player.setAirSupply(airAfterRespirationRoll - Math.min(4, player.getMaxAirSupply()));
+        }
+        if (damageWhenNoAir[0]) {
+            if (player.getAirSupply() == -20) {
+                player.setAirSupply(0);
+                if (player.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                    serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.BUBBLE,
+                            player.getX(), player.getY() + 0.5D, player.getZ(),
+                            8, 0.5D, 0.1D, 0.5D, 0.0D);
+                }
+                player.hurt(gillsDamageSource(player), 2.0F);
+            }
+        } else {
+            if (player.getAirSupply() < 0) {
+                player.setAirSupply(-1);
+            }
+        }
+    }
+
+    private static net.minecraft.world.damagesource.DamageSource gillsDamageSource(Player player) {
+        var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
+                new ResourceLocation(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "no_water_for_gills"));
+        var holder = player.level().registryAccess().registryOrThrow(
+                net.minecraft.core.registries.Registries.DAMAGE_TYPE).getHolderOrThrow(key);
+        return new net.minecraft.world.damagesource.DamageSource(holder);
+    }
+
+    /**
+     * Neutralizes vanilla's own air delta for power holders so {@link #tickCustomWaterBreathing}
+     * is the single owner of moisture values (Fabric's mixin replaces the whole section).
+     * Without this, vanilla's underwater -1 would stack on top of the custom logic.
+     */
+    @SubscribeEvent
+    public static void onLivingBreathe(net.minecraftforge.event.entity.living.LivingBreatheEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        final boolean[] active = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!active[0] && "shape-shifter-curse:custom_water_breathing".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                active[0] = true;
+            }
+        });
+        if (!active[0]) return;
+        event.setConsumeAirAmount(0);
+        event.setCanRefillAir(false);
+    }
+
+    /**
+     * Takes over the -20 drowning loop for power holders: vanilla drown is cancelled,
+     * {@link #tickCustomWaterBreathing} applies the custom gills damage (or the -1 clamp)
+     * on the same tick instead.
+     */
+    @SubscribeEvent
+    public static void onLivingDrown(net.minecraftforge.event.entity.living.LivingDrownEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        final boolean[] active = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!active[0] && "shape-shifter-curse:custom_water_breathing".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                active[0] = true;
+            }
+        });
+        if (active[0]) {
+            event.setCanceled(true);
+        }
     }
 
     /**
@@ -970,6 +1091,48 @@ public final class FormPowerEvents {
 
     public record SwimModifierDebug(ResourceLocation powerId, boolean conditionMet, boolean installed,
                                     double amount, String operation) {
+    }
+
+    /** Movement-speed probe for the walk-vs-sprint report: lists every movement_speed
+     * modifier (installed or not), the vanilla sprint boost, and the live sprint flag. */
+    public static MoveSpeedDebug moveSpeedDebug(Player player) {
+        var instance = player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        List<SwimModifierDebug> powers = new ArrayList<>();
+        FormPowerRegistry.visitActive(player, (powerId, power) -> {
+            String type = FormPowerRegistry.typeOf(power);
+            if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)
+                    && !"shape-shifter-curse:delay_attribute".equals(type)) {
+                return;
+            }
+            com.google.gson.JsonElement modEl = power.get("modifier");
+            if (modEl == null || !modEl.isJsonObject()) return;
+            JsonObject modifier = modEl.getAsJsonObject();
+            ResourceLocation attributeId = ResourceLocation.tryParse(
+                    FormPowerRuntime.stringValue(modifier, "attribute", ""));
+            if (attributeId == null || !attributeId.toString().equals("minecraft:generic.movement_speed")) {
+                return;
+            }
+            UUID modifierId = attributeModifierId(powerId, attributeId, power);
+            boolean conditionMet = attributeConditionMet(player, power, type, modifierId);
+            boolean installed = instance != null && instance.getModifier(modifierId) != null;
+            powers.add(new SwimModifierDebug(powerId, conditionMet, installed,
+                    FormPowerRuntime.doubleValue(modifier, "value", 0.0D),
+                    FormPowerRuntime.stringValue(modifier, "operation", "addition")));
+        });
+        boolean vanillaBoost = false;
+        try {
+            vanillaBoost = instance != null && instance.getModifier(
+                    UUID.fromString("662A6B8D-DA3E-4C1C-8813-96EA6097278D")) != null;
+        } catch (IllegalArgumentException ignored) { }
+        return new MoveSpeedDebug(player.isSprinting(), instance != null,
+                instance == null ? 0.0D : instance.getBaseValue(),
+                instance == null ? 0.0D : instance.getValue(), vanillaBoost,
+                LAST_ATTRIBUTE_REFRESH_TICK.getOrDefault(player.getUUID(), -1), List.copyOf(powers));
+    }
+
+    public record MoveSpeedDebug(boolean sprinting, boolean attributePresent, double baseValue,
+                                 double effectiveValue, boolean vanillaSprintBoost, int lastRefreshTick,
+                                 List<SwimModifierDebug> powers) {
     }
 
     private static final class DelayAttributeState {

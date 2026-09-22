@@ -119,6 +119,15 @@ public final class FormCommand {
         context.getSource().sendSuccess(() -> Component.literal("SWIM_SPEED: attribute=" + swim.attributePresent()
                 + ", base=" + swim.baseValue() + ", effective=" + swim.effectiveValue()
                 + ", refreshedTick=" + swim.lastRefreshTick() + "; " + modifiers), false);
+        FormPowerEvents.MoveSpeedDebug move = FormPowerEvents.moveSpeedDebug(player);
+        String moveMods = move.powers().stream().map(power -> power.powerId()
+                        + " [condition=" + power.conditionMet() + ", installed=" + power.installed()
+                        + ", " + power.operation() + " " + power.amount() + "]")
+                .reduce((left, right) -> left + ", " + right).orElse("<none assigned>");
+        context.getSource().sendSuccess(() -> Component.literal("MOVE_SPEED: sprinting=" + move.sprinting()
+                + ", base=" + move.baseValue() + ", effective=" + move.effectiveValue()
+                + ", vanillaBoost=" + move.vanillaSprintBoost()
+                + ", refreshedTick=" + move.lastRefreshTick() + "; " + moveMods), false);
         return SINGLE_SUCCESS;
     }
 
