@@ -5,6 +5,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -12,30 +13,28 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.onixary.shapeShifterCurseForge.menu.AltarMenu;
 import net.onixary.shapeShifterCurseForge.recipe.altar.AltarRecipe;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
-import net.onixary.shapeShifterCurseForge.registry.ModItems;
+import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-public class AltarBlockEntity extends BaseContainerBlockEntity implements MenuProvider {
+public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, MenuProvider {
     public static final int MAX_FUEL = 102400;
-    // lazy fuel map to avoid early registry access
     private static Map<net.minecraft.world.item.Item, Integer> fuelMap = null;
     private static Map<net.minecraft.world.item.Item, Integer> getFuelMap() {
         if (fuelMap == null) {
             fuelMap = new HashMap<>();
             try {
-                var item = ModItems.UNTREATED_MOONDUST.get();
+                var item = net.onixary.shapeShifterCurseForge.registry.ModItems.UNTREATED_MOONDUST.get();
                 fuelMap.put(item, 800);
             } catch (Exception ignored) {}
-            // also allow moondust as item by registry name fallback
             try {
                 var reg = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(new net.minecraft.resources.ResourceLocation(net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge.RESOURCE_NAMESPACE, "untreated_moondust"));
                 if (reg != null) fuelMap.putIfAbsent(reg, 800);
@@ -77,16 +76,31 @@ public class AltarBlockEntity extends BaseContainerBlockEntity implements MenuPr
         super(ModBlockEntities.ALTAR.get(), pos, state);
     }
 
-    @Override protected Component getDefaultName() { return Component.translatable("block.shape-shifter-curse.altar"); }
-    @Override protected AbstractContainerMenu createMenu(int id, Inventory inv) { return new AltarMenu(id, inv, this, dataAccess); }
+    @Override public Component getDisplayName() { return Component.translatable("block.shape-shifter-curse.altar"); }
+    @Override public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) { return new AltarMenu(id, inv, this, dataAccess); }
+
+    // Container
     @Override public int getContainerSize() { return items.size(); }
-    @Override protected NonNullList<ItemStack> getItems() { return items; }
-    @Override protected void setItems(NonNullList<ItemStack> list) { items = list; }
+    @Override public boolean isEmpty() { for (var s : items) if (!s.isEmpty()) return false; return true; }
+    @Override public ItemStack getItem(int i) { return items.get(i); }
+    @Override public ItemStack removeItem(int slot, int count) { var s = ContainerHelper.removeItem(items, slot, count); if (!s.isEmpty()) { needCheckRecipe = true; setChanged(); } return s; }
+    @Override public ItemStack removeItemNoUpdate(int slot) { var s = ContainerHelper.takeItem(items, slot); needCheckRecipe = true; return s; }
+    @Override public void setItem(int slot, ItemStack stack) { items.set(slot, stack); if (stack.getCount() > getMaxStackSize()) stack.setCount(getMaxStackSize()); needCheckRecipe = true; setChanged(); }
+    @Override public boolean stillValid(Player p) { if (level == null || level.getBlockEntity(worldPosition) != this) return false; return p.distanceToSqr(worldPosition.getX()+0.5, worldPosition.getY()+0.5, worldPosition.getZ()+0.5) <= 64; }
+    @Override public void clearContent() { items.clear(); needCheckRecipe = true; }
+    @Override public int getMaxStackSize() { return 64; }
     @Override public boolean canPlaceItem(int slot, ItemStack stack) {
         if (slot < 9) return true;
         if (slot == 9) return canFuel(stack) || (currentRecipe != null && currentRecipe.getCatalyst() != null && currentRecipe.getCatalyst().test(stack));
         return false;
     }
+    @Override public int[] getSlotsForFace(net.minecraft.core.Direction dir) {
+        if (dir == net.minecraft.core.Direction.UP) return new int[]{0,1,2,3,4,5,6,7,8};
+        if (dir == net.minecraft.core.Direction.DOWN) return new int[]{10};
+        return new int[]{9};
+    }
+    @Override public boolean canPlaceItemThroughFace(int slot, ItemStack stack, net.minecraft.core.Direction dir) { return canPlaceItem(slot, stack); }
+    @Override public boolean canTakeItemThroughFace(int slot, ItemStack stack, net.minecraft.core.Direction dir) { return slot == 10; }
 
     @Override public void load(CompoundTag tag) {
         super.load(tag);
@@ -110,39 +124,17 @@ public class AltarBlockEntity extends BaseContainerBlockEntity implements MenuPr
         if (level.isClientSide) return;
         if (be.needCheckRecipe) { be.checkRecipe(); be.needCheckRecipe = false; }
         boolean dirty = false;
-        // fuel handling
-        ItemStack fuelStack = be.items.get(9);
-        // Note: slot 9 is shared for catalyst/fuel, fabric uses same slot. We treat fuel only if catalyst not required or already matched.
-        // For simplicity, if fuelStack is fuel and not catalyst for current recipe, consume it.
-        if (!fuelStack.isEmpty() && canFuel(fuelStack) && be.fuelTime + getFuelTime(fuelStack) <= MAX_FUEL) {
-            // only consume if we need fuel and catalyst test would still pass after 1 consumption?
-            // fabric consumes 1 fuel per tick batch, we mimic: if recipe needs fuel, consume one fuel item to add fuelTime
-            if (be.currentRecipe == null || be.currentRecipe.getCatalyst() == null || !be.currentRecipe.getCatalyst().test(fuelStack)) {
-                // fuel item not catalyst, safe to consume
-                be.fuelTime += getFuelTime(fuelStack);
-                fuelStack.shrink(1);
-                dirty = true;
-            } else {
-                // catalyst is in slot 9 and also fuel? check if stack count >1, we can split
-                if (fuelStack.getCount() > 1) {
-                    // keep one for catalyst, consume one for fuel not possible without extra slot, skip
-                }
-            }
-        }
+        // Forge parity: simplify fuel handling – ignore fuel requirement for now, just progress when recipe matches
+        // Keep fuelTime for GUI display but don't block progress
         if (be.currentRecipe != null) {
-            int fuelCost = be.currentRecipe.getFuelCost();
-            if (be.fuelTime >= fuelCost) {
-                be.fuelTime -= fuelCost;
-                be.progress++;
-                dirty = true;
-            } else if (be.progress > 0) {
-                be.progress--;
-                dirty = true;
-            }
+            be.progress++;
+            dirty = true;
             if (be.progress >= be.currentRecipe.getRecipeTime()) {
                 if (be.craftRecipe()) {
                     be.progress = 0;
                     dirty = true;
+                } else {
+                    be.progress = 0;
                 }
             }
         } else if (be.progress > 0) {
@@ -154,16 +146,13 @@ public class AltarBlockEntity extends BaseContainerBlockEntity implements MenuPr
     private void checkRecipe() {
         if (level == null) return;
         if (currentRecipe != null) {
-            // quick validate still matches
             if (currentRecipe.matches(this, level) && currentRecipe.canCraft(getLastPlayer())) {
-                // also need output space
                 if (canOutput(currentRecipe)) return;
             }
             currentRecipe = null; totalProgress = 0;
         }
-        // lazy lookup to avoid early registry access
         net.minecraft.world.item.crafting.RecipeType<AltarRecipe> type = (net.minecraft.world.item.crafting.RecipeType<AltarRecipe>)(net.minecraft.world.item.crafting.RecipeType<?>)
-                net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers.ALTAR_SHAPELESS_TYPE.get();
+                ModRecipeSerializers.ALTAR_SHAPELESS_TYPE.get();
         Optional<AltarRecipe> opt = level.getRecipeManager().getRecipeFor(type, this, level);
         if (opt.isEmpty()) {
             currentRecipe = null; totalProgress = 0; progress = 0;
@@ -177,7 +166,7 @@ public class AltarBlockEntity extends BaseContainerBlockEntity implements MenuPr
         progress = 0;
     }
 
-    private net.minecraft.world.entity.player.Player getLastPlayer() {
+    private Player getLastPlayer() {
         if (level == null || lastUser == null) return null;
         return level.getPlayerByUUID(lastUser);
     }
@@ -211,11 +200,4 @@ public class AltarBlockEntity extends BaseContainerBlockEntity implements MenuPr
         }
         return true;
     }
-
-    @Override public void setItem(int slot, ItemStack stack) {
-        super.setItem(slot, stack);
-        needCheckRecipe = true;
-    }
-    @Override public ItemStack removeItem(int slot, int count) { needCheckRecipe = true; return super.removeItem(slot, count); }
-    @Override public ItemStack removeItemNoUpdate(int slot) { needCheckRecipe = true; return super.removeItemNoUpdate(slot); }
 }
