@@ -150,17 +150,11 @@ public final class CrawlingScaleService {
     }
 
     public static boolean isForcedCrawling(Player player) {
-        if (player.isInWaterOrBubble() || player.isPassenger() || player.isSpectator()) {
-            return false;
-        }
-        final boolean[] forced = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!forced[0] && "shape-shifter-curse:keep_sneaking".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                forced[0] = true;
-            }
-        });
-        return forced[0];
+        // Fabric only overrides PlayerEntity#updatePose for FERAL forms.  The
+        // earlier Forge adaptation additionally forced a normal axolotl into a
+        // crouch when must_crawling detected a one-block gap.  Do not synthesize
+        // that pose: Geo crawling remains driven by an actual Shift input.
+        return false;
     }
 
     private static JsonObject conditionScalePower(Player player) {

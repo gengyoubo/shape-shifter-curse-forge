@@ -61,6 +61,8 @@ public final class FormPowerEvents {
     /** Modifiers currently owned by the Forge-native Apoli compatibility layer, per player. */
     private static final Map<UUID, Map<UUID, AttributeInstance>> OWNED_ATTRIBUTE_MODIFIERS = new HashMap<>();
     private static final Map<UUID, Integer> LAST_ATTRIBUTE_REFRESH_TICK = new HashMap<>();
+    /** Last Axolotl III movement snapshot written to the server log, per player. */
+    private static final Map<UUID, String> LAST_AXOLOTL_MOVE_DEBUG = new HashMap<>();
     /** Per-power transition state matching SSC Fabric's DelayAttributePower. */
     private static final Map<UUID, Map<UUID, DelayAttributeState>> DELAY_ATTRIBUTE_STATES = new HashMap<>();
     /** Cached condition results for apoli:conditioned_attribute tick_rate semantics. */
@@ -81,6 +83,12 @@ public final class FormPowerEvents {
         // client as well, otherwise the vanilla client prediction refills the HUD
         // until the next server entity-data sync.
         if (player.level().isClientSide) {
+            // Fabric's AttributePower and ConditionedAttributePower also update on
+            // the logical client.  The server's attribute value was already right,
+            // but omitting this left the owning client predicting vanilla movement
+            // until a correction arrived.
+            refreshAttributes(player);
+            logAxolotlMovementState(player);
             enforceSprinting(player);
             applyClimbing(player);
             tickCustomWaterBreathing(player);
@@ -88,6 +96,7 @@ public final class FormPowerEvents {
         }
 
         refreshAttributes(player);
+        logAxolotlMovementState(player);
         FormActivePowerService.tick(player);
         InstinctService.tick((net.minecraft.server.level.ServerPlayer) player);
         BatAttachService.tick(player);
@@ -620,8 +629,9 @@ public final class FormPowerEvents {
     }
 
     private static void refreshAttributes(Player player) {
+        UUID stateKey = attributeStateKey(player);
         Map<UUID, AttributeInstance> owned = OWNED_ATTRIBUTE_MODIFIERS.computeIfAbsent(
-                player.getUUID(), ignored -> new HashMap<>());
+                stateKey, ignored -> new HashMap<>());
         Set<UUID> wanted = new HashSet<>();
         Set<UUID> seen = new HashSet<>();
         FormPowerRegistry.visitActive(player, (id, power) -> refreshAttribute(player, id, power, wanted, seen, owned));
@@ -629,7 +639,7 @@ public final class FormPowerEvents {
             if (wanted.contains(entry.getKey())) {
                 return false;
             }
-            Map<UUID, Boolean> healthStates = UPDATE_HEALTH_MODIFIERS.get(player.getUUID());
+            Map<UUID, Boolean> healthStates = UPDATE_HEALTH_MODIFIERS.get(stateKey);
             boolean updateHealth = healthStates != null && healthStates.getOrDefault(entry.getKey(), false);
             float oldMaxHealth = player.getMaxHealth();
             float healthRatio = oldMaxHealth <= 0.0F ? 1.0F : player.getHealth() / oldMaxHealth;
@@ -642,19 +652,61 @@ public final class FormPowerEvents {
             }
             return true;
         });
-        Map<UUID, DelayAttributeState> delayStates = DELAY_ATTRIBUTE_STATES.get(player.getUUID());
+        Map<UUID, DelayAttributeState> delayStates = DELAY_ATTRIBUTE_STATES.get(stateKey);
         if (delayStates != null) {
             delayStates.keySet().retainAll(seen);
         }
-        Map<UUID, ConditionedAttributeState> conditionedStates = CONDITIONED_ATTRIBUTE_STATES.get(player.getUUID());
+        Map<UUID, ConditionedAttributeState> conditionedStates = CONDITIONED_ATTRIBUTE_STATES.get(stateKey);
         if (conditionedStates != null) {
             conditionedStates.keySet().retainAll(seen);
         }
-        Map<UUID, Boolean> updateHealthStates = UPDATE_HEALTH_MODIFIERS.get(player.getUUID());
+        Map<UUID, Boolean> updateHealthStates = UPDATE_HEALTH_MODIFIERS.get(stateKey);
         if (updateHealthStates != null) {
             updateHealthStates.keySet().retainAll(seen);
         }
-        LAST_ATTRIBUTE_REFRESH_TICK.put(player.getUUID(), player.tickCount);
+        LAST_ATTRIBUTE_REFRESH_TICK.put(stateKey, player.tickCount);
+    }
+
+    /**
+     * Integrated servers host the logical client and server in one JVM.  Their
+     * Player instances have the same UUID but must never share transient-modifier
+     * bookkeeping, or one side can believe the other side's modifier is local.
+     */
+    private static UUID attributeStateKey(Player player) {
+        if (!player.level().isClientSide) {
+            return player.getUUID();
+        }
+        return UUID.nameUUIDFromBytes(("client-attributes:" + player.getUUID())
+                .getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * The in-game power-status command writes to chat, not latest.log.  Keep a
+     * compact server-log probe for the three Axolotl III land-speed powers so a
+     * dedicated-server report contains the actual condition and installed state.
+     * It is edge-triggered, so ordinary movement does not flood the log.
+     */
+    private static void logAxolotlMovementState(Player player) {
+        if (!"shape-shifter-curse:axolotl_3".equals(FormManager.current(player).id().toString())) {
+            LAST_AXOLOTL_MOVE_DEBUG.remove(attributeStateKey(player));
+            return;
+        }
+        MoveSpeedDebug debug = moveSpeedDebug(player);
+        String powers = debug.powers().stream()
+                .filter(power -> power.powerId().getPath().startsWith("form_axolotl_3_"))
+                .map(power -> power.powerId().getPath() + "=" + power.conditionMet()
+                        + "/" + power.installed())
+                .reduce((left, right) -> left + "," + right).orElse("<none>");
+        String snapshot = "sprint=" + debug.sprinting() + ", shift=" + player.isShiftKeyDown()
+                + ", forcedCrawl=" + CrawlingScaleService.isForcedCrawling(player)
+                + ", air=" + player.getAirSupply() + ", water=" + player.getFluidHeight(FluidTags.WATER)
+                + ", ground=" + player.onGround() + ", speed=" + debug.effectiveValue()
+                + ", powers=" + powers;
+        UUID stateKey = attributeStateKey(player);
+        if (!snapshot.equals(LAST_AXOLOTL_MOVE_DEBUG.put(stateKey, snapshot))) {
+            ShapeShifterCurseForge.LOGGER.info("[SSC-MOVE-DEBUG] side={} player={} {}",
+                    player.level().isClientSide ? "client" : "server", player.getGameProfile().getName(), snapshot);
+        }
     }
 
     private static void adjustFoodHealTimer(Player player) {
@@ -963,7 +1015,7 @@ public final class FormPowerEvents {
         UUID uuid = attributeModifierId(powerId, attributeId, power);
         seen.add(uuid);
         boolean updateHealth = power.has("updateHealth") && power.get("updateHealth").getAsBoolean();
-        UPDATE_HEALTH_MODIFIERS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(uuid, updateHealth);
+        UPDATE_HEALTH_MODIFIERS.computeIfAbsent(attributeStateKey(player), ignored -> new HashMap<>()).put(uuid, updateHealth);
         if (!attributeConditionMet(player, power, type, uuid)) {
             return;
         }
@@ -1014,7 +1066,7 @@ public final class FormPowerEvents {
         }
         if ("apoli:conditioned_attribute".equals(type)) {
             ConditionedAttributeState state = CONDITIONED_ATTRIBUTE_STATES
-                    .computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+                    .computeIfAbsent(attributeStateKey(player), ignored -> new HashMap<>())
                     .computeIfAbsent(modifierId, ignored -> new ConditionedAttributeState());
             int tickRate = Math.max(1, FormPowerRuntime.intValue(power, "tick_rate", 20));
             if (!state.initialized || player.tickCount % tickRate == 0) {
@@ -1027,7 +1079,7 @@ public final class FormPowerEvents {
         if (!"shape-shifter-curse:delay_attribute".equals(type)) {
             return conditionMet;
         }
-        DelayAttributeState state = DELAY_ATTRIBUTE_STATES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+        DelayAttributeState state = DELAY_ATTRIBUTE_STATES.computeIfAbsent(attributeStateKey(player), ignored -> new HashMap<>())
                 .computeIfAbsent(modifierId, ignored -> new DelayAttributeState(
                         Math.max(0, FormPowerRuntime.intValue(power, "delay", 0))));
         int tickRate = Math.max(1, FormPowerRuntime.intValue(power, "tick_rate", 1));
@@ -1085,7 +1137,7 @@ public final class FormPowerEvents {
         });
         return new SwimSpeedDebug(instance != null, instance == null ? 0.0D : instance.getBaseValue(),
                 instance == null ? 0.0D : instance.getValue(),
-                LAST_ATTRIBUTE_REFRESH_TICK.getOrDefault(player.getUUID(), -1), List.copyOf(powers));
+                LAST_ATTRIBUTE_REFRESH_TICK.getOrDefault(attributeStateKey(player), -1), List.copyOf(powers));
     }
 
     private static UUID attributeModifierId(ResourceLocation powerId, ResourceLocation attributeId, JsonObject power) {
@@ -1135,7 +1187,7 @@ public final class FormPowerEvents {
         return new MoveSpeedDebug(player.isSprinting(), instance != null,
                 instance == null ? 0.0D : instance.getBaseValue(),
                 instance == null ? 0.0D : instance.getValue(), vanillaBoost,
-                LAST_ATTRIBUTE_REFRESH_TICK.getOrDefault(player.getUUID(), -1), List.copyOf(powers));
+                LAST_ATTRIBUTE_REFRESH_TICK.getOrDefault(attributeStateKey(player), -1), List.copyOf(powers));
     }
 
     public record MoveSpeedDebug(boolean sprinting, boolean attributePresent, double baseValue,

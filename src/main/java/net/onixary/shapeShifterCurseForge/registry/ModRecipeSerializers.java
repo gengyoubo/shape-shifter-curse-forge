@@ -59,7 +59,8 @@ public final class ModRecipeSerializers {
     public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe.Serializer());
     public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPELESS = SERIALIZERS.register("alter_shapeless", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe.Serializer());
     public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe.Serializer());
-    public static final RegistryObject<RecipeSerializer<?>> MORPH_SCALE_UPGRADE = SERIALIZERS.register("morph_scale_upgrade", ModRecipeSerializers::makeDummySerializer);
+    public static final RegistryObject<RecipeSerializer<?>> MORPH_SCALE_UPGRADE = SERIALIZERS.register(
+            "morph_scale_upgrade", net.onixary.shapeShifterCurseForge.recipe.MorphScaleUpgradeRecipe.Serializer::new);
 
     private ModRecipeSerializers() {}
 }

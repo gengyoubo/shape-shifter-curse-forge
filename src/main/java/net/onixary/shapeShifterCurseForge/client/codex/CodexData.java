@@ -2,6 +2,7 @@ package net.onixary.shapeShifterCurseForge.client.codex;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 
 /** Centralized Codex content: headers, status, per-form texts and tier descriptions. */
@@ -55,7 +56,6 @@ public final class CodexData {
     public static Component getPlayerStatusText(Player player) {
         // Mirrors Fabric: infected when a transformative effect is present, then the
         // cursed-moon day/night states, otherwise normal.
-        // TODO: transformative effect check picks up once that system lands.
         StringBuilder statusTextBuilder = new StringBuilder();
         boolean hasAnyStatus = false;
 
@@ -81,8 +81,10 @@ public final class CodexData {
     }
 
     private static boolean hasTransformativeEffect(Player player) {
-        // TODO: transformative mob-effect system is not ported yet.
-        return false;
+        return SscApi.currentForm(player).map(data ->
+                data.getTransformativeEffectFormId() != null
+                        && !data.getTransformativeEffectFormId().isBlank()
+                        && data.getTransformativeEffectTicks() > 0).orElse(false);
     }
 
     public static Component getDescText(ContentType type, Player player) {
