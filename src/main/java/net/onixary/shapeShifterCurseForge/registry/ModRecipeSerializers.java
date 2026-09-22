@@ -21,7 +21,6 @@ public final class ModRecipeSerializers {
     public static final DeferredRegister<RecipeType<?>> TYPES = DeferredRegister.create(
             Registries.RECIPE_TYPE, ShapeShifterCurseForge.RESOURCE_NAMESPACE);
 
-    // Dummy recipe that always matches but does nothing – prevents "unknown recipe type" crash.
     private record DummyRecipeType<T extends Recipe<?>>(String id) implements RecipeType<T> {
         @Override public String toString() { return ShapeShifterCurseForge.RESOURCE_NAMESPACE + ":" + id; }
     }
@@ -34,7 +33,6 @@ public final class ModRecipeSerializers {
         };
     }
 
-    // Minimal dummy recipe implementation
     private static class DummyRecipe implements Recipe<net.minecraft.world.Container> {
         private final net.minecraft.resources.ResourceLocation id;
         private final RecipeSerializer<?> serializer;
@@ -56,10 +54,10 @@ public final class ModRecipeSerializers {
     public static final RegistryObject<RecipeType<?>> ALTER_SHAPED_TYPE = TYPES.register("alter_shaped", () -> new DummyRecipeType<>("alter_shaped"));
     public static final RegistryObject<RecipeType<?>> MORPH_SCALE_UPGRADE_TYPE = TYPES.register("morph_scale_upgrade", () -> new DummyRecipeType<>("morph_scale_upgrade"));
 
-    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPELESS = SERIALIZERS.register("altar_shapeless", ModRecipeSerializers::makeDummySerializer);
-    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", ModRecipeSerializers::makeDummySerializer);
-    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPELESS = SERIALIZERS.register("alter_shapeless", ModRecipeSerializers::makeDummySerializer);
-    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", ModRecipeSerializers::makeDummySerializer);
+    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPELESS = SERIALIZERS.register("altar_shapeless", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe.Serializer());
+    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe.Serializer());
+    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPELESS = SERIALIZERS.register("alter_shapeless", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe.Serializer());
+    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe.Serializer());
     public static final RegistryObject<RecipeSerializer<?>> MORPH_SCALE_UPGRADE = SERIALIZERS.register("morph_scale_upgrade", ModRecipeSerializers::makeDummySerializer);
 
     private ModRecipeSerializers() {}

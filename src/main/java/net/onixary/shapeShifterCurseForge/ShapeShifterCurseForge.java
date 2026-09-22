@@ -10,9 +10,11 @@ import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
+import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModCreativeModeTabs;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
+import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
 import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,8 +35,10 @@ public final class ShapeShifterCurseForge {
 
         ModItems.ITEMS.register(modBus);
         ModBlocks.BLOCKS.register(modBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modBus);
         ModEntities.ENTITIES.register(modBus);
         ModCreativeModeTabs.TABS.register(modBus);
+        ModMenuTypes.MENUS.register(modBus);
         ModRecipeSerializers.SERIALIZERS.register(modBus);
         ModRecipeSerializers.TYPES.register(modBus);
         SscAdvancementTriggers.initialize();
