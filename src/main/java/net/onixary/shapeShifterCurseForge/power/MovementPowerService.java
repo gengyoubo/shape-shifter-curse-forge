@@ -71,8 +71,13 @@ public final class MovementPowerService {
         if (!player.level().getBlockState(pos).is(Blocks.COBWEB) && !player.level().getBlockState(pos.below()).is(Blocks.COBWEB)) return;
         double multiplier = FormPowerRuntime.doubleValue(power, "multiplier", 1.0D);
         if (multiplier <= 0.0D) {
+            // vanilla cobweb multiplies by 0.25; resist should restore to ~1.0, not compound each tick
             Vec3 motion = player.getDeltaMovement();
-            player.setDeltaMovement(motion.x * 4.0D, Math.max(motion.y, -0.05D), motion.z * 4.0D);
+            // already slowed 0.25, so *4 restores; but only if currently slowed, avoid exponential blowup by clamping
+            double restoredX = Math.abs(motion.x * 4.0D) > 0.5D ? motion.x : motion.x * 4.0D;
+            double restoredZ = Math.abs(motion.z * 4.0D) > 0.5D ? motion.z : motion.z * 4.0D;
+            player.setDeltaMovement(restoredX, Math.max(motion.y, -0.05D), restoredZ);
+            // alternative: set to original input velocity if needed; keep single restoration per tick without compounding
         }
     }
 
@@ -80,8 +85,20 @@ public final class MovementPowerService {
         if (!player.getBlockStateOn().is(Blocks.SOUL_SAND) && !player.getBlockStateOn().is(Blocks.SOUL_SOIL)) return;
         double boost = 0.03D * Math.min(FormPowerRuntime.intValue(power, "level", 1),
                 FormPowerRuntime.intValue(power, "max_level", 3));
+        // soul speed should be additive to base speed, not multiplicative compounding each tick
+        // use horizontal speed clamp to prevent exponential acceleration
         Vec3 motion = player.getDeltaMovement();
-        player.setDeltaMovement(motion.x * (1.0D + boost), motion.y, motion.z * (1.0D + boost));
+        double targetX = motion.x + Math.signum(motion.x) * boost * 0.5D;
+        double targetZ = motion.z + Math.signum(motion.z) * boost * 0.5D;
+        // cap max horizontal speed to 0.35 (approx sprint) + boost
+        double cap = 0.35D + boost;
+        double speed = Math.sqrt(motion.x * motion.x + motion.z * motion.z);
+        if (speed > cap) {
+            double scale = cap / speed;
+            targetX = motion.x * scale;
+            targetZ = motion.z * scale;
+        }
+        player.setDeltaMovement(targetX, motion.y, targetZ);
     }
 
     private static void modifyFalling(Player player, JsonObject power) {

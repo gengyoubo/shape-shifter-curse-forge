@@ -15,7 +15,10 @@ public final class AnubisMinionService {
         int maximum = FormPowerRuntime.intValue(action, "max_minion_count", Integer.MAX_VALUE);
         long existing = level.getEntitiesOfClass(Wolf.class, player.getBoundingBox().inflate(96.0D),
                 wolf -> wolf.isTame() && player.getUUID().equals(wolf.getOwnerUUID())).size();
-        int count = Math.max(1, Math.min(FormPowerRuntime.intValue(action, "count", 1), (int) Math.max(0, maximum - existing)));
+        int remaining = (int) Math.max(0, maximum - existing);
+        if (remaining <= 0) return;
+        int count = Math.min(FormPowerRuntime.intValue(action, "count", 1), remaining);
+        if (count <= 0) return;
         for (int index = 0; index < count; index++) {
             Wolf wolf = net.minecraft.world.entity.EntityType.WOLF.create(level);
             if (wolf == null) continue;

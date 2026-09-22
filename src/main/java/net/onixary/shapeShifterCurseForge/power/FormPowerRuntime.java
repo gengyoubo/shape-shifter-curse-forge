@@ -171,7 +171,8 @@ public final class FormPowerRuntime {
     private static long lastAttackAge(Player player, LastAttackKind kind) {
         Map<UUID, Long> attacks = kind == LastAttackKind.WITCH ? LAST_WITCH_ATTACK : LAST_PILLAGER_ATTACK;
         Long last = attacks.get(player.getUUID());
-        return last == null ? Long.MIN_VALUE / 16 : player.level().getGameTime() - last;
+        // use safe sentinel <2^53 to avoid double precision loss (was Long.MIN_VALUE/16)
+        return last == null ? 1_000_000_000L : player.level().getGameTime() - last;
     }
 
     /** Keeps the custom idle_stay condition in sync with the animation state: five seconds. */
@@ -471,15 +472,16 @@ public final class FormPowerRuntime {
         return false;
     }
 
+    private static final double EPS = 1e-6;
     private static boolean compare(double value, JsonObject json) {
         double compared = doubleValue(json, "compare_to", 0.0D);
         return switch (stringValue(json, "comparison", "==")) {
             case ">" -> value > compared;
-            case ">=" -> value >= compared;
+            case ">=" -> value >= compared - EPS;
             case "<" -> value < compared;
-            case "<=" -> value <= compared;
-            case "!=" -> value != compared;
-            default -> value == compared;
+            case "<=" -> value <= compared + EPS;
+            case "!=" -> Math.abs(value - compared) > EPS;
+            default -> Math.abs(value - compared) <= EPS;
         };
     }
 
@@ -625,7 +627,11 @@ public final class FormPowerRuntime {
 
     private static boolean isVegan(ItemStack stack, JsonObject condition) {
         boolean fallback = booleanValue(condition, "default", false);
-        return stack.hasTag() && stack.getTag().getByte("vegandelight:is_vegan") == 1 || fallback;
+        if (!stack.hasTag()) return fallback;
+        byte v = stack.getTag().getByte("vegandelight:is_vegan");
+        // tag present: 1 => vegan, 0 => not vegan, missing => fallback
+        if (stack.getTag().contains("vegandelight:is_vegan")) return v == 1;
+        return fallback;
     }
 
     private static boolean inverted(JsonObject condition, boolean value) {
@@ -832,9 +838,13 @@ public final class FormPowerRuntime {
         if ("local".equals(space) || "local_horizontal_normalized".equals(space)) {
             Vec3 forward = actor.getLookAngle();
             if ("local_horizontal_normalized".equals(space)) {
-                forward = new Vec3(forward.x, 0.0D, forward.z).normalize();
+                double len2 = forward.x * forward.x + forward.z * forward.z;
+                if (len2 < 1e-8) forward = new Vec3(0,0,1);
+                else forward = new Vec3(forward.x, 0.0D, forward.z).normalize();
             }
-            Vec3 side = new Vec3(forward.z, 0.0D, -forward.x).normalize();
+            Vec3 side = new Vec3(forward.z, 0.0D, -forward.x);
+            double sideLen2 = side.x*side.x + side.z*side.z;
+            if (sideLen2 > 1e-8) side = side.normalize(); else side = new Vec3(1,0,0);
             actor.push(side.x * x + forward.x * z, y, side.z * x + forward.z * z);
         } else {
             actor.push(x, y, z);
@@ -1092,9 +1102,11 @@ public final class FormPowerRuntime {
         if (actor.level().isClientSide) return;
         double radius = Math.max(0.0D, intValue(action, "power", 0) * 2.0D);
         if (radius <= 0.0D) return;
+        // clamp radius to avoid huge damage (vanilla TNT ~4)
+        radius = Math.min(radius, 12.0D);
         boolean causesDamage = !action.has("explosion_damage_entity") || action.get("explosion_damage_entity").getAsBoolean();
-        double multiplier = doubleValue(action, "damage_multiplier", 1.0D);
-        double baseDamage = doubleValue(action, "base_damage", 0.0D);
+        double multiplier = Math.max(0.0D, Math.min(5.0D, doubleValue(action, "damage_multiplier", 1.0D)));
+        double baseDamage = Math.max(0.0D, doubleValue(action, "base_damage", 0.0D));
         for (Entity candidate : actor.level().getEntities(actor, actor.getBoundingBox().inflate(radius))) {
             if (!(candidate instanceof LivingEntity living) || candidate.ignoreExplosion()
                     || !test(actor, candidate, action.getAsJsonObject("entity_condition"))) continue;
@@ -1102,10 +1114,16 @@ public final class FormPowerRuntime {
             if (distance > radius) continue;
             double scale = 1.0D - distance / radius;
             if (causesDamage) {
-                float damage = (float) (((scale * scale + scale) * 7.0D * radius + 1.0D) * multiplier + baseDamage);
+                // vanilla-like: (scale^2+scale)/2 *8*radius +1
+                double vanilla = ((scale * scale + scale) * 0.5D * 8.0D * radius + 1.0D);
+                float damage = (float) Math.min(100.0D, vanilla * multiplier + baseDamage);
                 living.hurt(actor.damageSources().explosion(actor, actor), damage);
             }
-            Vec3 push = candidate.position().subtract(actor.position()).normalize().scale(scale);
+            Vec3 diff = candidate.position().subtract(actor.position());
+            double len2 = diff.lengthSqr();
+            Vec3 push;
+            if (len2 < 1e-8) push = new Vec3(0, 0.3, 0);
+            else push = diff.normalize().scale(scale * 0.5D);
             candidate.push(push.x, Math.max(0.1D, push.y), push.z);
             execute(actor, living, action.getAsJsonObject("entity_action"));
         }

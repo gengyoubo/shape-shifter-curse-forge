@@ -14,7 +14,8 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 /** Persisted replacement for Cardinal Components' instinct meter and timed instinct effects. */
 public final class InstinctService {
     private static final float MAX_INSTINCT = 100.0F;
-    private static final float BASE_RATE = MAX_INSTINCT / 180_000.0F;
+    // Fabric uses 180s (3600 ticks) to fill 0->100; 180_000 ticks would be 2.5h and is ms-vs-ticks confusion.
+    private static final float BASE_RATE = MAX_INSTINCT / 3600.0F;
 
     private InstinctService() { }
 
@@ -49,21 +50,28 @@ public final class InstinctService {
                 return;
             }
             CompoundTag effects = data.getInstinctEffects();
-            float rate = form.hasFlag("lock_instinct") ? -MAX_INSTINCT : BASE_RATE;
+            // drain at ~2x fill rate when locked, not instant -100/tick
+            float rate = form.hasFlag("lock_instinct") ? -BASE_RATE * 2.0F : BASE_RATE;
             for (String id : java.util.List.copyOf(effects.getAllKeys())) {
                 CompoundTag effect = effects.getCompound(id);
+                int dur = effect.getInt("Duration");
+                if (dur <= 0) { effects.remove(id); continue; }
                 rate += effect.getFloat("Value");
-                if (effect.getInt("Duration") <= 0) effects.remove(id);
-                else effect.putInt("Duration", effect.getInt("Duration") - 1);
+                effect.putInt("Duration", dur - 1);
             }
             data.setInstinctEffects(effects);
             data.setInstinctRate(rate);
-            data.setInstinctValue(value(player) + rate);
-            if (value(player) >= MAX_INSTINCT) {
+            float next = value(player) + rate;
+            // clamp 0..MAX and preserve overshoot via modulo
+            if (next < 0.0F) next = 0.0F;
+            else if (next >= MAX_INSTINCT) {
+                float overshoot = next - MAX_INSTINCT;
                 FormGrowthService.advanceByInstinct(player);
-                data.setInstinctValue(0.0F);
+                // carry overshoot, clamped
+                next = Math.max(0.0F, Math.min(overshoot, MAX_INSTINCT - 0.001F));
                 data.setInstinctEffects(new CompoundTag());
             }
+            data.setInstinctValue(Math.max(0.0F, Math.min(next, MAX_INSTINCT)));
         });
     }
 

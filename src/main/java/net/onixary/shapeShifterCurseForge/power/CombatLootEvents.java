@@ -25,7 +25,7 @@ public final class CombatLootEvents {
             FormPowerRegistry.visitActive(player, (id, power) -> {
                 if (!"shape-shifter-curse:modify_entity_loot".equals(FormPowerRegistry.typeOf(power))
                         || !FormPowerRuntime.matchesItem(drop.getItem(), power.getAsJsonObject("from_item_condition"))
-                        || player.getRandom().nextFloat() >= FormPowerRuntime.floatValue(power, "chance", 0.0F)) return;
+                        || player.getRandom().nextFloat() >= Math.max(0.0F, Math.min(1.0F, FormPowerRuntime.floatValue(power, "chance", 0.0F)))) return;
                 ItemStack replacement = stackFromLootPower(power, drop.getItem());
                 if (!replacement.isEmpty()) drop.setItem(replacement);
             });
@@ -39,7 +39,7 @@ public final class CombatLootEvents {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape-shifter-curse:modify_block_drop".equals(FormPowerRegistry.typeOf(power))
                     || !matchesBlock(event.getState(), power.getAsJsonObject("block_condition"))
-                    || player.getRandom().nextFloat() >= FormPowerRuntime.floatValue(power, "chance", 0.0F)) return;
+                    || player.getRandom().nextFloat() >= Math.max(0.0F, Math.min(1.0F, FormPowerRuntime.floatValue(power, "chance", 0.0F)))) return;
             // Replace this crop break completely so vanilla loot cannot also be collected.
             event.setCanceled(true);
             level.removeBlock(event.getPos(), false);

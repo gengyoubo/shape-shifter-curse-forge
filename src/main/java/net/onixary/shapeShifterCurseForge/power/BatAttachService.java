@@ -101,7 +101,8 @@ public final class BatAttachService {
         player.setDeltaMovement(Vec3.ZERO);
         if (jump) {
             Vec3 forward = player.getLookAngle();
-            Vec3 horizontal = new Vec3(forward.x, 0.0D, forward.z).normalize();
+            double len2 = forward.x*forward.x + forward.z*forward.z;
+            Vec3 horizontal = len2 < 1e-8 ? new Vec3(0,0,1) : new Vec3(forward.x, 0.0D, forward.z).normalize();
             player.push(horizontal.x * 1.25D, 0.8D, horizontal.z * 1.25D);
         } else {
             player.push(0.0D, 0.4D, 0.0D);
@@ -113,7 +114,7 @@ public final class BatAttachService {
         Vec3 center = Vec3.atCenterOf(attachment.pos());
         Vec3 target = attachment.bottom()
                 ? center.add(0.0D, -1.5D, 0.0D)
-                : center.add(attachment.side().getStepX(), -0.5D, attachment.side().getStepZ());
+                : center.add(attachment.side().getStepX() * 0.6D, -0.5D, attachment.side().getStepZ() * 0.6D);
         player.setPos(target.x, target.y, target.z);
         player.setDeltaMovement(Vec3.ZERO);
         player.setOnGround(true);

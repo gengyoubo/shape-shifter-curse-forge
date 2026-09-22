@@ -969,7 +969,7 @@ public final class FormPowerEvents {
 
         private DelayAttributeState(int delay) {
             this.delay = delay;
-            this.transitionTicks = delay;
+            this.transitionTicks = 0;
         }
     }
 
