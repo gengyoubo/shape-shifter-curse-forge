@@ -367,10 +367,17 @@ public final class FormPowerRuntime {
             return value;
         }
         double amount = doubleValue(modifier, "value", 0.0D);
+        // SSC's data uses the extended Apoli modifier operations, not just the three
+        // vanilla ones. Without an explicit base/total model, every multiply variant
+        // folds to value * (1 + amount) and every add variant to value + amount.
         return switch (stringValue(modifier, "operation", "addition")) {
-            // SSC's data uses set_total to replace the value outright (e.g. zeroing non-meat food).
+            case "addition", "add_base_early", "add_base_late" -> value + amount;
+            case "multiply_base", "multiply_base_additive", "multiply_base_multiplicative",
+                    "multiply_total", "multiply_total_additive", "multiply_total_multiplicative"
+                    -> value * (1.0D + amount);
             case "set_total", "set" -> amount;
-            case "multiply_base", "multiply_total" -> value * (1.0D + amount);
+            case "min_base", "min_total" -> Math.max(value, amount);
+            case "max_base", "max_total" -> Math.min(value, amount);
             default -> value + amount;
         };
     }
@@ -582,6 +589,11 @@ public final class FormPowerRuntime {
     }
 
     private static boolean matchesEntityGroup(Entity target, String group) {
+        // SSC marks a player's artificial entity group with marker powers (undead_group,
+        // aquatic, form_spider_entity_group); Apoli's entity_group condition sees those.
+        if (target instanceof Player player && playerGroupMarker(player, group)) {
+            return true;
+        }
         if (!(target instanceof LivingEntity living)) return false;
         return switch (group) {
             case "undead" -> living.getMobType() == net.minecraft.world.entity.MobType.UNDEAD;
@@ -589,6 +601,17 @@ public final class FormPowerRuntime {
             case "aquatic" -> living.getMobType() == net.minecraft.world.entity.MobType.WATER;
             default -> false;
         };
+    }
+
+    private static boolean playerGroupMarker(Player player, String group) {
+        String marker = switch (group) {
+            case "undead" -> "undead_group";
+            case "arthropod" -> "form_spider_entity_group";
+            case "aquatic" -> "aquatic";
+            default -> null;
+        };
+        return marker != null && FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
+                net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge.RESOURCE_NAMESPACE, marker));
     }
 
     private static boolean hasPower(Player actor, JsonObject condition) {

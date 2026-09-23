@@ -55,6 +55,9 @@ public final class WebBulletEntity extends ThrowableItemProjectile {
             int duration = 40 + tier * 40;
             target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, tier - 1));
             target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, tier - 1));
+            // Visible "entangled" tier effect (its amplifier tracks remaining duration).
+            target.addEffect(new MobEffectInstance(
+                    net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED.get(), duration, tier - 1));
             WebEntanglementService.apply(getOwner(), target, switch (tier) {
                 case 2 -> 400;
                 case 3 -> 600;

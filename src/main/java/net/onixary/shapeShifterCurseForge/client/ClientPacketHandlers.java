@@ -1,0 +1,45 @@
+package net.onixary.shapeShifterCurseForge.client;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenuV2;
+import net.onixary.shapeShifterCurseForge.client.codex.NormalFormSelectScreen;
+import net.onixary.shapeShifterCurseForge.client.screen.FormAttunerScreen;
+
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Client-only packet side effects.
+ *
+ * <p>Network packet classes are loaded on the dedicated server too (for registration).
+ * Any client-only class referenced directly in a packet's bytecode (for example a
+ * {@code Screen} subclass) is therefore loaded during that registration, which throws
+ * "Attempted to load class ... for invalid dist DEDICATED_SERVER". Routing the client
+ * work through this helper keeps the packet classes free of client references: the
+ * packets only contain a deferred {@code invokestatic} into this class, which is never
+ * loaded on the server.</p>
+ */
+public final class ClientPacketHandlers {
+    private ClientPacketHandlers() {
+    }
+
+    public static void openSelectForm(String targetName, UUID targetUUID) {
+        Minecraft.getInstance().setScreen(new NormalFormSelectScreen(
+                Component.literal("FormSelectScreen"), targetName, targetUUID));
+    }
+
+    public static void openColorMenu() {
+        if (FormColorSelectMenuV2.instance == null && Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().setScreen(new FormColorSelectMenuV2(
+                    Component.literal("text.shape-shifter-curse.config.form_color_select_menu_v2"),
+                    Minecraft.getInstance().screen));
+        }
+    }
+
+    public static void openFormAttuner(int level, int maxLevel, String formGroupId,
+                                       Set<String> unlockedPerks, String statusKey) {
+        Minecraft.getInstance().setScreen(new FormAttunerScreen(
+                level, maxLevel, formGroupId, unlockedPerks, statusKey));
+    }
+}

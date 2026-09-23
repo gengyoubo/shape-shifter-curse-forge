@@ -1,11 +1,9 @@
 package net.onixary.shapeShifterCurseForge.network;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
-import net.onixary.shapeShifterCurseForge.client.screen.FormAttunerScreen;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -37,8 +35,8 @@ public record OpenFormAttunerPacket(int level, int maxLevel, String formGroupId,
     public static void handle(OpenFormAttunerPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
         NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
-                () -> () -> Minecraft.getInstance().setScreen(new FormAttunerScreen(packet.level, packet.maxLevel,
-                        packet.formGroupId, packet.unlockedPerks, packet.statusKey))));
+                () -> () -> net.onixary.shapeShifterCurseForge.client.ClientPacketHandlers.openFormAttuner(
+                        packet.level, packet.maxLevel, packet.formGroupId, packet.unlockedPerks, packet.statusKey)));
         context.setPacketHandled(true);
     }
 }

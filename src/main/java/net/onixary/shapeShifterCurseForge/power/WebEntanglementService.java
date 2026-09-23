@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.power;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -61,10 +62,48 @@ public final class WebEntanglementService {
         state.expiresIn--;
         if (state.fullTicks > 0) {
             state.fullTicks--;
+            // Fully entangled ("cocooned"): immobilize by (re)applying the full effect.
+            if (state.fullTicks % 10 == 0) {
+                target.addEffect(new MobEffectInstance(
+                        net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED_FULL.get(),
+                        12, 0, false, false, false));
+            }
         }
         if (state.expiresIn <= 0 && state.fullTicks <= 0) {
             STATES.remove(target.getUUID());
         }
+    }
+
+    /** Whether the entity is currently fully entangled (cocooned). */
+    public static boolean isFull(LivingEntity target) {
+        State state = STATES.get(target.getUUID());
+        return state != null && state.fullTicks > 0;
+    }
+
+    /**
+     * SSC's can_loot_spider_fluid_cocoon marker: a creature that dies while cocooned may
+     * drop Nutrient Sacs when killed by a spider-form player.
+     */
+    @SubscribeEvent
+    public static void onDeath(net.minecraftforge.event.entity.living.LivingDeathEvent event) {
+        LivingEntity target = event.getEntity();
+        if (target.level().isClientSide) {
+            return;
+        }
+        State state = STATES.remove(target.getUUID());
+        if (state == null || state.fullTicks <= 0) {
+            return;
+        }
+        if (!(event.getSource().getEntity() instanceof net.minecraft.world.entity.player.Player player)) {
+            return;
+        }
+        if (!FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
+                ShapeShifterCurseForge.RESOURCE_NAMESPACE, "can_loot_spider_fluid_cocoon"))) {
+            return;
+        }
+        int count = 1 + target.level().getRandom().nextInt(3);
+        target.spawnAtLocation(new net.minecraft.world.item.ItemStack(
+                net.onixary.shapeShifterCurseForge.registry.ModItems.SPIDER_FLUID_COCOON.get(), count));
     }
 
     private static final class State {

@@ -52,6 +52,24 @@ public final class MobRelationEvents {
         }
     }
 
+    /** SSC's hostile_iron_golem marker (spider forms): village iron golems actively attack the player. */
+    @SubscribeEvent
+    public static void ironGolemHostile(LivingEvent.LivingTickEvent event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
+                || player.tickCount % 20 != 0 || !hasMarker(player, "hostile_iron_golem")) return;
+        for (net.minecraft.world.entity.animal.IronGolem golem : player.level().getEntitiesOfClass(
+                net.minecraft.world.entity.animal.IronGolem.class, player.getBoundingBox().inflate(16.0D))) {
+            if (golem.getTarget() != player) {
+                golem.setTarget(player);
+            }
+        }
+    }
+
+    private static boolean hasMarker(Player player, String path) {
+        return FormPowerRegistry.has(player, net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                ShapeShifterCurseForge.RESOURCE_NAMESPACE, path));
+    }
+
     private static boolean hasScareVillagerPower(Player player) {
         final boolean[] result = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
