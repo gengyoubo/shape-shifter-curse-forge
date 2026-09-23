@@ -137,6 +137,14 @@ public final class CrawlingScaleService {
     }
 
     private static boolean isActive(JsonObject power, Player player) {
+        // The reworked axolotl path uses Minecraft's real SWIMMING/crawling
+        // pose. Its base dimensions are already 0.6 blocks high, so applying
+        // the crawling power's active_scale (also 0.6) would compress it a
+        // second time. Keep the Power's scale branch for ordinary crouching,
+        // but never stack it on vanilla's actual crawling pose.
+        if (player.isVisuallyCrawling()) {
+            return false;
+        }
         return !power.has("condition")
                 || FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
     }

@@ -154,7 +154,11 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
 
     @Unique
     private static boolean ssc$shouldForceVanillaCrawl(Player player) {
-        if (!player.isShiftKeyDown() || player.isInWaterOrBubble() || player.isPassenger()
+        // This is an on-ground substitute for vanilla's crawl entry.  Do not
+        // turn a held Shift into crawling while jumping/falling or flying in
+        // Creative; those states must retain their normal vanilla poses.
+        if (!player.onGround() || player.getAbilities().flying
+                || !player.isShiftKeyDown() || player.isInWaterOrBubble() || player.isPassenger()
                 || player.isFallFlying() || player.isSleeping() || player.isAutoSpinAttack()) {
             return false;
         }

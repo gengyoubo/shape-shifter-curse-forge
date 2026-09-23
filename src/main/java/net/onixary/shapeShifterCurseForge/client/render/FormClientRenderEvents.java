@@ -119,7 +119,7 @@ public final class FormClientRenderEvents {
             // vanilla's scale(-1,-1,1). That scale conjugates (negates) the body X/Y
             // rotations, so the transform must stay ahead of it to match Fabric exactly.
             applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick(),
-                    renderer.getAnimatable().usesAxolotlCrawlBodyTransform());
+                    renderer.getAnimatable().suppressesVanillaSwimRotation());
             applyPlayerAnimationBodyTransform(renderer.getAnimatable().getBodyTransform(), poseStack);
             applyVanillaPlayerScale(poseStack);
             poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
@@ -327,7 +327,7 @@ public final class FormClientRenderEvents {
 
     /** Mirrors LivingEntityRenderer#render and PlayerRenderer#setupRotations for 1.20.1. */
     private static void applyVanillaPlayerTransforms(Player player, PoseStack poseStack, float partialTick,
-                                                     boolean animationOwnsCrawlRotation) {
+                                                     boolean suppressVanillaSwimRotation) {
         boolean shouldSit = player.isPassenger() && player.getVehicle() != null && player.getVehicle().shouldRiderSit();
         float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
         float headYaw = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
@@ -349,7 +349,7 @@ public final class FormClientRenderEvents {
         }
 
         applyPlayerRotations(player, poseStack, player.tickCount + partialTick, bodyYaw, partialTick,
-                animationOwnsCrawlRotation);
+                suppressVanillaSwimRotation);
     }
 
     /**
@@ -366,7 +366,7 @@ public final class FormClientRenderEvents {
     /** Exact PlayerRenderer swimming/fall-flying branch around the base LivingEntity rotations. */
     private static void applyPlayerRotations(Player player, PoseStack poseStack,
                                              float animationProgress, float bodyYaw, float partialTick,
-                                             boolean animationOwnsCrawlRotation) {
+                                             boolean suppressVanillaSwimRotation) {
         float swimAmount = player.getSwimAmount(partialTick);
         applyLivingRotations(player, poseStack, animationProgress, bodyYaw, partialTick);
 
@@ -391,7 +391,7 @@ public final class FormClientRenderEvents {
                 double cross = velocity.x * view.z - velocity.z * view.x;
                 poseStack.mulPose(Axis.YP.rotation((float) (Math.signum(cross) * Math.acos(alignment))));
             }
-        } else if (swimAmount > 0.0F && !animationOwnsCrawlRotation) {
+        } else if (swimAmount > 0.0F && !suppressVanillaSwimRotation) {
             boolean inSwimmableFluid = player.isInWater()
                     || player.isInFluidType((fluidType, height) -> player.canSwimInFluidType(fluidType));
             float targetPitch = inSwimmableFluid ? -90.0F - player.getXRot() : -90.0F;

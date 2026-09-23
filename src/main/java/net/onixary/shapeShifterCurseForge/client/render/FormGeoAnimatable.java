@@ -181,6 +181,16 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 || "axolotl_3_crawling_idle".equals(extraPrimary.id()));
     }
 
+    /**
+     * The crawling jump starts while vanilla's {@code swimAmount} is still
+     * interpolating away.  It is already authored as a land crawl jump, so the
+     * residual vanilla swim rotation would incorrectly turn it another 90°.
+     */
+    public boolean suppressesVanillaSwimRotation() {
+        return usesAxolotlCrawlBodyTransform()
+                || extraPrimary != null && "axolotl_2_crawling_jump".equals(extraPrimary.id());
+    }
+
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,
                                                                       FormAnimationSystem.Selection selection,
                                                                       float partialTick) {
