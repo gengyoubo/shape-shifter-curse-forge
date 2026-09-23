@@ -4,7 +4,7 @@ import net.minecraftforge.common.ForgeConfigSpec;
 
 import java.util.List;
 
-/** Server-authoritative gameplay options. Forge writes this to the common config. */
+/** Gameplay and diagnostics options in Forge's common config. */
 public final class SscCommonConfig {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
 
@@ -20,6 +20,10 @@ public final class SscCommonConfig {
     public static final ForgeConfigSpec.BooleanValue ENABLE_CURSED_MOON_TRANSFORM = BUILDER
             .comment("Allow the Cursed Moon to advance a player's form and restore it at dawn.")
             .define("cursed_moon.enable_transform", true);
+
+    public static final ForgeConfigSpec.BooleanValue ENABLE_MOVEMENT_DEBUG_LOGGING = BUILDER
+            .comment("Log detailed player movement, swimming, and jump diagnostics on this side.")
+            .define("debug.movement_logging", false);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

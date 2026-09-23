@@ -10,6 +10,7 @@ import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 
 import java.util.HashMap;
@@ -46,7 +47,7 @@ public final class FormActivePowerService {
         Map<String, Boolean> keys = PRESSED_KEYS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
         boolean wasPressed = keys.getOrDefault(key, false);
         keys.put(key, pressed);
-        if ("key.jump".equals(key)) {
+        if ("key.jump".equals(key) && SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()) {
             ShapeShifterCurseForge.LOGGER.info(
                     "[SSC-JUMP-DEBUG] input player={} pressed={} wasPressed={} form={} fluidHeight={} eyeInWater={} velocity={}",
                     player.getGameProfile().getName(), pressed, wasPressed,
@@ -192,6 +193,9 @@ public final class FormActivePowerService {
     }
 
     private static void logJumpState(ServerPlayer player) {
+        if (!SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()) {
+            return;
+        }
         ShapeShifterCurseForge.LOGGER.info(
                 "[SSC-JUMP-DEBUG] state stage={} player={} y={} yOld={} deltaY={} velocity={} onGround={} verticalCollision={} horizontalCollision={} fluidHeight={} eyeInWater={}",
                 "post-travel-state", player.getGameProfile().getName(), player.getY(), player.yOld,
@@ -329,7 +333,7 @@ public final class FormActivePowerService {
             JsonObject condition = power.has("condition") ? power.getAsJsonObject("condition") : power.getAsJsonObject("entity_condition");
             boolean jumpOutWater = JUMP_OUT_WATER.equals(id);
             boolean conditionMet = FormPowerRuntime.test(player, player, condition);
-            if (jumpOutWater) {
+            if (jumpOutWater && SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()) {
                 ShapeShifterCurseForge.LOGGER.info(
                         "[SSC-JUMP-DEBUG] press-candidate player={} condition={} fluidHeight={} eyeInWater={} velocityBefore={}",
                         player.getGameProfile().getName(), conditionMet,
@@ -395,9 +399,11 @@ public final class FormActivePowerService {
                 return;
             }
             Vec3 before = player.getDeltaMovement();
-            ShapeShifterCurseForge.LOGGER.info(
-                    "[SSC-JUMP-DEBUG] post-travel-candidate player={} fluidHeight={} velocityBefore={}",
-                    player.getGameProfile().getName(), player.getFluidHeight(FluidTags.WATER), before);
+            if (SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()) {
+                ShapeShifterCurseForge.LOGGER.info(
+                        "[SSC-JUMP-DEBUG] post-travel-candidate player={} fluidHeight={} velocityBefore={}",
+                        player.getGameProfile().getName(), player.getFluidHeight(FluidTags.WATER), before);
+            }
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
             double maxY = FormPowerRuntime.doubleValue(power, "max_y_velocity", 0.8D);
             if (maxY >= 0.0D && player.getDeltaMovement().y > maxY) {
@@ -407,10 +413,12 @@ public final class FormActivePowerService {
             armWaterLaunchGrace(player);
             syncLaunchVelocity(player);
             startCooldown(player, id, FormPowerRuntime.intValue(power, "cooldown", 0));
-            ShapeShifterCurseForge.LOGGER.info(
-                    "[SSC-JUMP-DEBUG] post-travel-fired player={} velocityAfter={} deltaY={}",
-                    player.getGameProfile().getName(), player.getDeltaMovement(),
-                    player.getDeltaMovement().y - before.y);
+            if (SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()) {
+                ShapeShifterCurseForge.LOGGER.info(
+                        "[SSC-JUMP-DEBUG] post-travel-fired player={} velocityAfter={} deltaY={}",
+                        player.getGameProfile().getName(), player.getDeltaMovement(),
+                        player.getDeltaMovement().y - before.y);
+            }
         });
     }
 

@@ -11,6 +11,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeMod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
@@ -45,7 +46,8 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
     @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("HEAD"))
     private void ssc$debugSwimmingTravelStart(Vec3 input, CallbackInfo ci) {
         Player player = (Player) (Object) this;
-        ssc$debugAxolotlSwimmingTravel = MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+        ssc$debugAxolotlSwimmingTravel = SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()
+                && MovementPowerService.hasAlwaysSprintSwimmingPower(player)
                 && (player.isInWater() || player.isSwimming());
         if (!ssc$debugAxolotlSwimmingTravel) return;
         ShapeShifterCurseForge.LOGGER.info(
@@ -95,7 +97,8 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
             index = 0)
     private Vec3 ssc$preserveNonSprintSwimVerticalVelocity(Vec3 original) {
         Player player = (Player) (Object) this;
-        if (MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+        if (SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()
+                && MovementPowerService.hasAlwaysSprintSwimmingPower(player)
                 && (player.isInWater() || player.isSwimming())) {
             ShapeShifterCurseForge.LOGGER.info(
                     "[SSC-TRAVEL-DEBUG] stage=player-swim-impulse-before-set side={} tick={} swimming={} sprinting={} velocityBeforeSet={} currentVelocity={}",

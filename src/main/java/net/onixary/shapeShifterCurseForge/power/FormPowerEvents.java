@@ -36,6 +36,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
@@ -772,6 +773,7 @@ public final class FormPowerEvents {
      * It is edge-triggered, so ordinary movement does not flood the log.
      */
     private static void logAxolotlMovementState(Player player) {
+        if (!SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()) return;
         if (!"shape-shifter-curse:axolotl_3".equals(FormManager.current(player).id().toString())) {
             UUID stateKey = attributeStateKey(player);
             LAST_AXOLOTL_MOVE_DEBUG.remove(stateKey);

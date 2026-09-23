@@ -261,7 +261,9 @@ public final class MissingPowerEvents {
         previous.addAll(wanted);
     }
 
-    //这里绝对不能删除，不然会造成有限制的游泳速度
+    // 请勿在此处设置 hurtMarked：ServerPlayer 的 X/Z 方向位移变化量并不
+    // 代表本地玩家由客户端驱动的游泳速度。
+    // 将其与所有者同步会清除客户端的水平游泳动量。
     private static void maintainSimpleMovement(Player player) {
         if (hasPowerId(player, "like_water") || !player.isInWater() || player.isShiftKeyDown()) return;
         var velocity = player.getDeltaMovement();

@@ -6,6 +6,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
@@ -417,7 +418,8 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
 
     @Unique
     private static boolean ssc$shouldDebugAxolotlSwim(Player player) {
-        return MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+        return SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()
+                && MovementPowerService.hasAlwaysSprintSwimmingPower(player)
                 && (player.isInWater() || player.isSwimming());
     }
 }
