@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+@SuppressWarnings("deprecation")
 public final class PlayerFormData implements IPlayerFormData {
     public static final String ORIGINAL_BEFORE_ENABLE_FORM = "shape-shifter-curse:original_before_enable";
     public static final String ORIGINAL_SHIFTER_FORM = "shape-shifter-curse:original_shifter";

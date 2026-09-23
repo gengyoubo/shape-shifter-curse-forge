@@ -1,8 +1,6 @@
 package net.onixary.shapeShifterCurseForge.power;
 
-import com.google.gson.JsonObject;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;

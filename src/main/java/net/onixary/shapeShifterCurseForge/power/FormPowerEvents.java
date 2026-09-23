@@ -44,15 +44,10 @@ import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 import net.onixary.shapeShifterCurseForge.effect.TransformativeStatusEffect;
 
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /** Server event bridge for the high-frequency Apoli power families used by the forms. */
+@SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class FormPowerEvents {
     private FormPowerEvents() {
@@ -175,7 +170,7 @@ public final class FormPowerEvents {
                 || net.minecraft.world.item.alchemy.PotionUtils.getPotion(potion.getItem())
                 != net.minecraft.world.item.alchemy.Potions.WATER) return;
         for (Player player : potion.level().getEntitiesOfClass(Player.class,
-                potion.getBoundingBox().inflate(4.0D), candidate -> candidate.isAlive())) {
+                potion.getBoundingBox().inflate(4.0D), LivingEntity::isAlive)) {
             FormPowerRegistry.visitActive(player, (id, power) -> {
                 if ("shape-shifter-curse:action_on_splash_potion_take_effect".equals(FormPowerRegistry.typeOf(power))
                         && power.has("trigger_on_no_effect") && power.get("trigger_on_no_effect").getAsBoolean()
@@ -421,7 +416,7 @@ public final class FormPowerEvents {
         } else {
             result = FormPowerRuntime.test(player, player, condition);
         }
-        return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
+        return (condition.has("inverted") && condition.get("inverted").getAsBoolean()) != result;
     }
 
     @SubscribeEvent
@@ -819,18 +814,18 @@ public final class FormPowerEvents {
         boolean listed = false;
         // Apoli (and SSC's optional variant) accept a single "effect" and/or an "effects" list.
         if (power.has("effect") && power.get("effect").isJsonPrimitive()) {
-            listed = effectId.toString().equals(power.get("effect").getAsString());
+            listed = Objects.requireNonNull(effectId).toString().equals(power.get("effect").getAsString());
         }
         if (!listed && power.has("effects") && power.get("effects").isJsonArray()) {
             for (var entry : power.getAsJsonArray("effects")) {
-                if (effectId.toString().equals(entry.getAsString())) {
+                if (Objects.requireNonNull(effectId).toString().equals(entry.getAsString())) {
                     listed = true;
                     break;
                 }
             }
         }
         // "inverted" means immune to everything EXCEPT the listed effects.
-        return power.has("inverted") && power.get("inverted").getAsBoolean() ? !listed : listed;
+        return (power.has("inverted") && power.get("inverted").getAsBoolean()) != listed;
     }
 
     /** Collects the "effect" and "effects" ids declared by an effect filter. */
@@ -1154,9 +1149,6 @@ public final class FormPowerEvents {
             // Fabric water_speed 1.2 means 20% boost, not 120%; convert to 0.2 for Forge SWIM_SPEED
             operation = AttributeModifier.Operation.MULTIPLY_TOTAL;
             amount = FormPowerRuntime.doubleValue(modifier, "value", 1.0D) - 1.0D;
-        } else if (waterSpeedModifier) {
-            operation = AttributeModifier.Operation.MULTIPLY_TOTAL;
-            amount = FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D;
         } else {
             // Apoli's extended attribute operations are collapsed to the three vanilla
             // AttributeModifier operations. SSC's data only uses addition/multiply_base/multiply_total,

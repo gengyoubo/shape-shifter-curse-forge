@@ -134,10 +134,6 @@ public final class FormColorCommand {
         }
         String encoded = net.onixary.shapeShifterCurseForge.client.color.FormColorData.colorSettingToString(
                 color, "base64".equals(format));
-        if (encoded == null) {
-            context.getSource().sendFailure(Component.literal("Encode failed"));
-            return 0;
-        }
         Component message = "command".equals(mode)
                 ? net.onixary.shapeShifterCurseForge.client.color.FormColorData.toCopyableText(encoded, encoded)
                 : Component.literal(encoded);

@@ -15,6 +15,8 @@ import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.level.Level;
 import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
 
+import java.util.Objects;
+
 /**
  * Forge equivalent of Fabric's MorphScaleUpgradeRecipe.  The template and
  * addition are data-driven; the middle smithing slot may be any item that has
@@ -41,7 +43,7 @@ public final class MorphScaleUpgradeRecipe implements SmithingRecipe {
 
     @Override
     public boolean isBaseIngredient(ItemStack stack) {
-        return !stack.isEmpty() && (!stack.hasTag() || !stack.getTag().getBoolean(MORPH_SCALE_ITEM));
+        return !stack.isEmpty() && (!stack.hasTag() || !Objects.requireNonNull(stack.getTag()).getBoolean(MORPH_SCALE_ITEM));
     }
 
     @Override
@@ -88,7 +90,7 @@ public final class MorphScaleUpgradeRecipe implements SmithingRecipe {
 
     @Override
     public RecipeType<?> getType() {
-        return RecipeType.SMITHING;
+        return SmithingRecipe.super.getType();
     }
 
     public static final class Serializer implements RecipeSerializer<MorphScaleUpgradeRecipe> {

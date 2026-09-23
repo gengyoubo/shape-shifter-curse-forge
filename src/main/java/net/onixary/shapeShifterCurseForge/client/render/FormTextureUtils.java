@@ -426,9 +426,6 @@ public final class FormTextureUtils {
         if (satInt == 0) {
             hueInt = 0;
         }
-        if (hueInt == 360) {
-            hueInt = 0;
-        }
         return new int[]{hueInt, satInt, valInt};
     }
 }

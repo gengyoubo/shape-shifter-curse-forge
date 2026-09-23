@@ -34,14 +34,18 @@ public final class FormGrowthService {
         return changed;
     }
 
-    /** Instinct reaches its threshold independently of catalyst resistance. */
-    public static boolean advanceByInstinct(ServerPlayer player) {
+    /**
+     * Instinct reaches its threshold independently of catalyst resistance.
+     */
+    public static void advanceByInstinct(ServerPlayer player) {
         FormDefinition current = FormManager.current(player);
         if (current.hasFlag("no_instinct") || current.hasFlag("lock_instinct") || current.hasFlag("special_form")) {
-            return false;
+            return;
         }
         FormDefinition target = FormRegistry.nextInProgression(current);
-        return target != null && FormManager.setForm(player, target.id());
+        if (target != null) {
+            FormManager.setForm(player, target.id());
+        }
     }
 
     private static boolean advance(ServerPlayer player, FormDefinition current, boolean powerful) {

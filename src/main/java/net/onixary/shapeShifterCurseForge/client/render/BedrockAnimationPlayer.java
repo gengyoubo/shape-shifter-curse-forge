@@ -9,7 +9,6 @@ import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import software.bernie.geckolib.model.GeoModel;
 
 import java.io.InputStreamReader;

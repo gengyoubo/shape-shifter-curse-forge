@@ -2,9 +2,9 @@ package net.onixary.shapeShifterCurseForge.client.codex;
 
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
 
 import java.util.function.BiPredicate;
+import java.util.function.Supplier;
 
 /** Button with configurable accepted mouse buttons (left/right/middle click). */
 public class ButtonWidgetOKey extends Button {
@@ -15,7 +15,7 @@ public class ButtonWidgetOKey extends Button {
     public static final BiPredicate<ButtonWidgetOKey, Integer> MIDDLE_CLICK = (button, key) -> key == 2;
 
     public static final Button.CreateNarration DEFAULT_NARRATION_SUPPLIER =
-            textSupplier -> (MutableComponent) textSupplier.get();
+            Supplier::get;
 
     public ButtonWidgetOKey(int x, int y, int width, int height, Component message,
                             OnPress onPress, Button.CreateNarration narrationSupplier) {

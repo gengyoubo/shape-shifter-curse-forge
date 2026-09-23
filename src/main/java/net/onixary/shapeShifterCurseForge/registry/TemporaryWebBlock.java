@@ -14,6 +14,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
 
 /** Temporary, non-dropping platform placed by spider bridge and web-bullet abilities. */
+@SuppressWarnings("deprecation")
 public final class TemporaryWebBlock extends HorizontalDirectionalBlock {
     public static final IntegerProperty AGE = BlockStateProperties.AGE_3;
 

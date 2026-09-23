@@ -51,7 +51,6 @@ public final class FormUpgradeScreen extends Screen {
     private final int tier;
     private final ResourceLocation formGroupId;
     private final Set<ResourceLocation> unlockedPerks;
-    private final String statusKey;
 
     private PerkTree tree;
     private final List<NodeLayout> nodes = new ArrayList<>();
@@ -76,7 +75,7 @@ public final class FormUpgradeScreen extends Screen {
         this.tier = Math.max(0, tier);
         this.formGroupId = formGroupId;
         this.unlockedPerks = Set.copyOf(unlockedPerks == null ? Set.of() : unlockedPerks);
-        this.statusKey = statusKey == null ? "" : statusKey;
+        String statusKey1 = statusKey == null ? "" : statusKey;
     }
 
     @Override
@@ -171,7 +170,7 @@ public final class FormUpgradeScreen extends Screen {
             NodeLayout from = nodeById(edge.from());
             NodeLayout to = nodeById(edge.to());
             if (from != null && to != null) {
-                line(graphics, sx(from), sy(from), sx(to), sy(to), 0xFF8B65B7);
+                line(graphics, sx(from), sy(from), sx(to), sy(to));
             }
         }
         int vMouseX = virtualX(mouseX);
@@ -227,7 +226,7 @@ public final class FormUpgradeScreen extends Screen {
         if (perk.requiredAttunerLevel() > tier) {
             return false;
         }
-        return tree.previous(perkId).stream().allMatch(unlockedPerks::contains);
+        return unlockedPerks.containsAll(tree.previous(perkId));
     }
 
     @Override
@@ -352,10 +351,10 @@ public final class FormUpgradeScreen extends Screen {
         return "perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + suffix;
     }
 
-    private static void line(GuiGraphics graphics, int x0, int y0, int x1, int y1, int color) {
+    private static void line(GuiGraphics graphics, int x0, int y0, int x1, int y1) {
         int dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1, error = dx + dy;
         while (true) {
-            graphics.fill(x0, y0, x0 + 1, y0 + 1, color);
+            graphics.fill(x0, y0, x0 + 1, y0 + 1, -7641673);
             if (x0 == x1 && y0 == y1) return;
             int twiceError = 2 * error;
             if (twiceError >= dy) { error += dy; x0 += sx; }

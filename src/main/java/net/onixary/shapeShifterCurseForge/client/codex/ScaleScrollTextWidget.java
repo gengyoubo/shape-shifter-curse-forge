@@ -33,14 +33,14 @@ public class ScaleScrollTextWidget extends AbstractWidget implements WidgetEXUti
     private boolean textDone = false;
 
     private final List<WidgetEXUtils.IWidgetEX> widgetList = List.of();
-    private WidgetEXUtils.WidgetRect rect;
+    private final WidgetEXUtils.WidgetRect rect;
 
     private List<FormattedCharSequence> texts = new ArrayList<>();
     private List<FormattedCharSequence> currentTexts = new ArrayList<>();
 
     public boolean enableScrollableIconRender = false;
-    public int iconSize = 8;
-    public ResourceLocation iconTextureId = ResourceLocation.fromNamespaceAndPath(
+    public final int iconSize = 8;
+    public final ResourceLocation iconTextureId = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/scrollable_icon.png");
 
     public int textsLineCount = 0;

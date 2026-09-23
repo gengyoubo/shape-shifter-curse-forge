@@ -14,6 +14,7 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
  * Sprint3 剩余 P1 的 Forge 事件侧补齐（原 Fabric 需 Mixin 的部分在 Forge 已有等价事件）。
  * 按需在此追加即可视为“补完”，无需为每个 Fabric Mixin 单建文件。
  */
+@SuppressWarnings({"StatementWithEmptyBody", "deprecation"})
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class Sprint3SupplementEvents {
     private Sprint3SupplementEvents() {
@@ -29,7 +30,6 @@ public final class Sprint3SupplementEvents {
         // 复用与 Fabric 一致的判定：遍历 ModifyBlockDropPower 的条件与概率
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape-shifter-curse:modify_block_drop".equals(FormPowerRegistry.typeOf(power))) {
-                return;
             }
             // 条件与掉落替换由 Power 自身的 JSON 驱动；此处仅为占位，实际掉落替换
             // 在 1.20.1 通过 LootTableModifier 更稳妥，已在数据包侧可配，事件侧保留钩子
@@ -57,8 +57,10 @@ public final class Sprint3SupplementEvents {
     // ——— 免疫：中毒/凋零等状态效果的瞬时分支已在 FormPowerEvents 覆盖，此处补足“试图添加效果被拒”的回调 ———
     @SubscribeEvent
     public static void onEffectApplicable(MobEffectEvent.Applicable event) {
-        if (!(event.getEntity() instanceof Player player) || event.getEffectInstance() == null) {
+        if (!(event.getEntity() instanceof Player player)) {
             return;
+        } else {
+            event.getEffectInstance();
         }
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("apoli:effect_immunity".equals(FormPowerRegistry.typeOf(power))

@@ -18,7 +18,8 @@ public class AltarMenu extends AbstractContainerMenu {
         // catalyst/fuel 9
         addSlot(new Slot(container, 9, 152, 57));
         // output 10
-        addSlot(new Slot(container, 10, 124, 35) { @Override public boolean mayPlace(ItemStack s){ return false; } @Override public boolean mayPickup(Player p){ return true; } });
+        addSlot(new Slot(container, 10, 124, 35) { @Override public boolean mayPlace(ItemStack s){ return false; }
+        });
         // player
         for(int y=0;y<3;y++) for(int x=0;x<9;x++) addSlot(new Slot(inv, x+y*9+9, 8+x*18, 84+y*18));
         for(int x=0;x<9;x++) addSlot(new Slot(inv, x, 8+x*18, 142));
@@ -28,7 +29,7 @@ public class AltarMenu extends AbstractContainerMenu {
     @Override public ItemStack quickMoveStack(Player player, int index) {
         ItemStack copy = ItemStack.EMPTY;
         Slot slot = slots.get(index);
-        if (slot != null && slot.hasItem()) {
+        if (slot.hasItem()) {
             ItemStack stack = slot.getItem(); copy = stack.copy();
             if (index < 11) {
                 if (!moveItemStackTo(stack, 11, 47, true)) return ItemStack.EMPTY;

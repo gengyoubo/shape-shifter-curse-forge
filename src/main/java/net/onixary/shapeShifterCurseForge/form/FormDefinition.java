@@ -28,7 +28,7 @@ public record FormDefinition(
     }
 
     /** @deprecated Use {@link #stage()}; tier is the retained storage/compatibility term. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public int tier() {
         return tier;
     }

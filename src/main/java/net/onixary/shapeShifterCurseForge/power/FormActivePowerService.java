@@ -8,6 +8,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /** Server-authoritative active, toggle, cooldown, charge and mana state for form powers. */
+@SuppressWarnings("deprecation")
 public final class FormActivePowerService {
     private static final float DEFAULT_MANA = 20.0F;
     private static final Map<UUID, Map<String, Boolean>> PRESSED_KEYS = new HashMap<>();
@@ -186,13 +188,13 @@ public final class FormActivePowerService {
         }
 
         triggerContinuousJumpOutWater(serverPlayer);
-        logJumpState(serverPlayer, "post-travel-state");
+        logJumpState(serverPlayer);
     }
 
-    private static void logJumpState(ServerPlayer player, String stage) {
+    private static void logJumpState(ServerPlayer player) {
         ShapeShifterCurseForge.LOGGER.info(
                 "[SSC-JUMP-DEBUG] state stage={} player={} y={} yOld={} deltaY={} velocity={} onGround={} verticalCollision={} horizontalCollision={} fluidHeight={} eyeInWater={}",
-                stage, player.getGameProfile().getName(), player.getY(), player.yOld,
+                "post-travel-state", player.getGameProfile().getName(), player.getY(), player.yOld,
                 player.getY() - player.yOld, player.getDeltaMovement(), player.onGround(),
                 player.verticalCollision, player.horizontalCollision,
                 player.getFluidHeight(FluidTags.WATER), player.isEyeInFluid(FluidTags.WATER));
@@ -220,12 +222,11 @@ public final class FormActivePowerService {
         applyTripleJump(serverPlayer, 1, true);
     }
 
-    public static boolean consumeMana(Player player, float amount) {
+    public static void consumeMana(Player player, float amount) {
         if (!hasMana(player, amount)) {
-            return false;
+            return;
         }
         setMana(player, mana(player) - amount);
-        return true;
     }
 
     /** Adds mana to the currently selected mana pool, clamped to that pool's maximum. */
@@ -321,7 +322,7 @@ public final class FormActivePowerService {
     private static boolean triggerActive(ServerPlayer player, String key) {
         final boolean[] triggered = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"apoli:active_self".equals(FormPowerRegistry.typeOf(power)) || !usesKey(power, key)
+            if (!"apoli:active_self".equals(FormPowerRegistry.typeOf(power)) || usesKey(power, key)
                     || isOnCooldown(player, id)) {
                 return;
             }
@@ -343,15 +344,9 @@ public final class FormActivePowerService {
             if (jumpOutWater) {
                 return;
             }
-            Vec3 before = jumpOutWater ? player.getDeltaMovement() : null;
+            Vec3 before = null;
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
             startCooldown(player, id, FormPowerRuntime.intValue(power, "cooldown", 0));
-            if (jumpOutWater) {
-                ShapeShifterCurseForge.LOGGER.info(
-                        "[SSC-JUMP-DEBUG] press-fired player={} velocityAfter={} deltaY={}",
-                        player.getGameProfile().getName(), player.getDeltaMovement(),
-                        player.getDeltaMovement().y - before.y);
-            }
             triggered[0] = true;
         });
         return triggered[0];
@@ -361,7 +356,7 @@ public final class FormActivePowerService {
     private static void triggerContinuousActive(ServerPlayer player, String key) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"apoli:active_self".equals(FormPowerRegistry.typeOf(power))
-                    || !usesKey(power, key)
+                    || usesKey(power, key)
                     || !power.getAsJsonObject("key").has("continuous")
                     || !power.getAsJsonObject("key").get("continuous").getAsBoolean()
                     || isOnCooldown(player, id)) {
@@ -387,7 +382,7 @@ public final class FormActivePowerService {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!JUMP_OUT_WATER.equals(id)
                     || !"apoli:active_self".equals(FormPowerRegistry.typeOf(power))
-                    || !usesKey(power, "key.jump")
+                    || usesKey(power, "key.jump")
                     || !power.getAsJsonObject("key").has("continuous")
                     || !power.getAsJsonObject("key").get("continuous").getAsBoolean()
                     || isOnCooldown(player, id)) {
@@ -430,7 +425,7 @@ public final class FormActivePowerService {
 
     private static void charge(ServerPlayer player, String key) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:charge_action".equals(FormPowerRegistry.typeOf(power)) || !usesKey(power, key)
+            if (!"shape-shifter-curse:charge_action".equals(FormPowerRegistry.typeOf(power)) || usesKey(power, key)
                     || isOnCooldown(player, id)) {
                 return;
             }
@@ -456,7 +451,7 @@ public final class FormActivePowerService {
 
     private static void releaseCharge(ServerPlayer player, String key) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:charge_action".equals(FormPowerRegistry.typeOf(power)) || !usesKey(power, key)) {
+            if (!"shape-shifter-curse:charge_action".equals(FormPowerRegistry.typeOf(power)) || usesKey(power, key)) {
                 return;
             }
             int tier = jsonTier(player);
@@ -508,7 +503,7 @@ public final class FormActivePowerService {
 
     private static int jsonTier(Player player) {
         String path = SscApi.currentForm(player)
-                .map(data -> data.getFormId()).orElse("");
+                .map(PlayerFormData::getFormId).orElse("");
         int underscore = path.lastIndexOf('_');
         if (underscore >= 0) {
             try {
@@ -521,8 +516,8 @@ public final class FormActivePowerService {
     }
 
     private static boolean usesKey(JsonObject power, String key) {
-        return power.has("key") && power.get("key").isJsonObject()
-                && key.equals(FormPowerRuntime.stringValue(power.getAsJsonObject("key"), "key", ""));
+        return !power.has("key") || !power.get("key").isJsonObject()
+                || !key.equals(FormPowerRuntime.stringValue(power.getAsJsonObject("key"), "key", ""));
     }
 
     private static boolean isOnCooldown(Player player, ResourceLocation id) {

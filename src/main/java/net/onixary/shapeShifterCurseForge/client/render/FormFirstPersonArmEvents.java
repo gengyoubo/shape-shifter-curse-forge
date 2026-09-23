@@ -54,8 +54,7 @@ public final class FormFirstPersonArmEvents {
     public static void renderArm(RenderArmEvent event) {
         AbstractClientPlayer player = event.getPlayer();
         Minecraft minecraft = Minecraft.getInstance();
-        if (player == null || player != minecraft.player
-                || !minecraft.options.getCameraType().isFirstPerson()) {
+        if (player != minecraft.player || !minecraft.options.getCameraType().isFirstPerson()) {
             return;
         }
 

@@ -14,6 +14,7 @@ import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 
+@SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class PlayerCapabilityEvents {
     private static final ResourceLocation PLAYER_FORM_ID = ResourceLocation.fromNamespaceAndPath(

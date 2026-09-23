@@ -7,39 +7,39 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 /** Server-authoritative per-player form skin (color) settings. Colors are ABGR. */
 public interface IPlayerSkinData extends net.onixary.shapeShifterCurseForge.api.PlayerSkinData {
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     boolean isKeepOriginalSkin();
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setKeepOriginalSkin(boolean keepOriginalSkin);
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     boolean isEnableFormColor();
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setEnableFormColor(boolean enableFormColor);
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     FormTextureUtils.ColorSetting getFormColor();
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setFormColor(FormTextureUtils.ColorSetting formColor);
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     boolean isEnableFormRandomSound();
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setEnableFormRandomSound(boolean enableFormRandomSound);
 
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void copyFrom(IPlayerSkinData other);
 
     @Override

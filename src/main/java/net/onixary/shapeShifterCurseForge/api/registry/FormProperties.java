@@ -92,14 +92,14 @@ public final class FormProperties {
      * Low-level compatibility escape hatch. Prefer the semantic methods in this class so add-ons
      * do not couple themselves to SSC's internal flag storage.
      */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public FormProperties addFlags(String... values) {
         for (String value : values) addFlag(value);
         return this;
     }
 
     /** @deprecated Prefer a semantic method such as {@link #finalForm()}. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public FormProperties addFlag(String flag) {
         if (flag == null || flag.isBlank()) throw new IllegalArgumentException("SSC form flags must not be blank");
         flags.add(flag);
@@ -107,7 +107,7 @@ public final class FormProperties {
     }
 
     /** @deprecated Reserved for advanced compatibility use. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public FormProperties removeFlag(String flag) {
         flags.remove(flag);
         return this;

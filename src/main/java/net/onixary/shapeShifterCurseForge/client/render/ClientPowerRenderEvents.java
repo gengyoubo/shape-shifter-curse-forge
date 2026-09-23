@@ -13,6 +13,8 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 
+import java.util.Objects;
+
 /** Client-only presentation powers that don't require renderer replacement or external libraries. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
 public final class ClientPowerRenderEvents {
@@ -61,11 +63,11 @@ public final class ClientPowerRenderEvents {
         });
         if (type[0] == null || "none".equals(type[0])) return;
         float partialTick = (float) event.getPartialTick();
-        float phase = (player.tickCount + partialTick) * (player.isSprinting() ? 0.75F : 0.45F);
+        float phase = (Objects.requireNonNull(player).tickCount + partialTick) * (player.isSprinting() ? 0.75F : 0.45F);
         float swing = Mth.sin(phase) * Math.min(1.0F, player.walkAnimation.speed(partialTick));
         float roll = switch (type[0]) {
             case "feral" -> swing * 2.0F;
-            case "bat" -> swing * 1.0F;
+            case "bat" -> swing;
             case "float" -> swing * 0.35F;
             default -> swing * 1.5F;
         };

@@ -6,119 +6,119 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 
 public interface IPlayerFormData extends net.onixary.shapeShifterCurseForge.api.PlayerFormData {
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     String getFormId();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setFormId(String formId);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     String getPreviousFormId();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setPreviousFormId(String formId);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     String getFormGroupId();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setFormGroupId(String formGroupId);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     int getFormTier();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setFormTier(int formTier);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     boolean isContentEnabled();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setContentEnabled(boolean contentEnabled);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     float getInstinctValue();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setInstinctValue(float instinctValue);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     float getInstinctRate();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setInstinctRate(float instinctRate);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     CompoundTag getInstinctEffects();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setInstinctEffects(CompoundTag effects);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     boolean isCursedMoonApplied();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setCursedMoonApplied(boolean applied);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     boolean wasLastTransformByCure();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setLastTransformByCure(boolean cured);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     String getBeforeCursedMoonAppliedForm();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setBeforeCursedMoonAppliedForm(String formId);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     String getAfterCursedMoonAppliedForm();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setAfterCursedMoonAppliedForm(String formId);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     String getTransformativeEffectFormId();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setTransformativeEffectFormId(String formId);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     int getTransformativeEffectTicks();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void setTransformativeEffectTicks(int ticks);
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void copyFrom(IPlayerFormData other);
 
     @Override
@@ -130,10 +130,10 @@ public interface IPlayerFormData extends net.onixary.shapeShifterCurseForge.api.
     }
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     CompoundTag serializeNBT();
 
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     void deserializeNBT(CompoundTag tag);
 }

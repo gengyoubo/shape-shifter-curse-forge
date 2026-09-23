@@ -105,7 +105,7 @@ public final class FormAttunerScreen extends Screen {
         }
         for (PerkTree.Edge edge : tree.edges()) {
             NodeLayout from = nodes.get(edge.from()), to = nodes.get(edge.to());
-            if (from != null && to != null) line(graphics, from.centerX(), from.y + NODE_HEIGHT, to.centerX(), to.y, 0xFF8B65B7);
+            if (from != null && to != null) line(graphics, from.centerX(), from.y + NODE_HEIGHT, to.centerX(), to.y);
         }
         for (NodeLayout node : nodes.values()) renderNode(graphics, tree, node);
         renderedNodes.addAll(nodes.values());
@@ -126,7 +126,7 @@ public final class FormAttunerScreen extends Screen {
     private void renderNode(GuiGraphics graphics, PerkTree tree, NodeLayout node) {
         Perk perk = SscJavaRegistries.perk(node.perkId).orElse(null);
         boolean unlocked = unlockedPerks.contains(node.perkId);
-        boolean prerequisitesMet = tree.previous(node.perkId).stream().allMatch(unlockedPerks::contains);
+        boolean prerequisitesMet = unlockedPerks.containsAll(tree.previous(node.perkId));
         boolean available = perk != null && prerequisitesMet && attunementLevel >= perk.requiredAttunerLevel();
         int accent = unlocked ? 0xFF88E871 : available ? 0xFF81E9FF : 0xFF896A9F;
         graphics.fill(node.x, node.y, node.x + NODE_WIDTH, node.y + NODE_HEIGHT, 0xFF150D24);
@@ -164,10 +164,10 @@ public final class FormAttunerScreen extends Screen {
         }
     }
 
-    private static void line(GuiGraphics graphics, int x0, int y0, int x1, int y1, int color) {
+    private static void line(GuiGraphics graphics, int x0, int y0, int x1, int y1) {
         int dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1, error = dx + dy;
         while (true) {
-            graphics.fill(x0, y0, x0 + 1, y0 + 1, color);
+            graphics.fill(x0, y0, x0 + 1, y0 + 1, -7641673);
             if (x0 == x1 && y0 == y1) return;
             int twiceError = 2 * error;
             if (twiceError >= dy) { error += dy; x0 += sx; }

@@ -34,13 +34,13 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
     /** Applies the Fabric swimming-state fallback at the same point vanilla updates it. */
     @Inject(method = "updateSwimming", at = @At("HEAD"))
     private void ssc$rememberSwimming(CallbackInfo ci) {
-        ssc$wasSwimming = ((Player) (Object) this).isSwimming();
+        ssc$wasSwimming = this.isSwimming();
     }
 
     @Inject(method = "updateSwimming", at = @At("TAIL"))
     private void ssc$forceSwimmingUnderwater(CallbackInfo ci) {
         Player player = (Player) (Object) this;
-        if (player.isSwimming() || !MovementPowerService.shouldForceSwimming(player)
+        if (player.isSwimming() || MovementPowerService.shouldForceSwimming(player)
                 || player.isPassenger()) return;
 
         // Match Fabric's EntityMixin: entering swimming requires full
@@ -61,7 +61,7 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
     private Vec3 ssc$preserveNonSprintSwimVerticalVelocity(Vec3 original) {
         Player player = (Player) (Object) this;
         if (!player.isSwimming() || player.isPassenger()
-                || !MovementPowerService.shouldForceSwimming(player) || player.isSprinting()) {
+                || MovementPowerService.shouldForceSwimming(player) || player.isSprinting()) {
             return original;
         }
         Vec3 current = player.getDeltaMovement();

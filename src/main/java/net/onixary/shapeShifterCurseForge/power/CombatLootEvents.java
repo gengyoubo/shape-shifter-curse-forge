@@ -1,6 +1,5 @@
 package net.onixary.shapeShifterCurseForge.power;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -13,7 +12,10 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
+import java.util.Objects;
+
 /** Data-driven loot replacement powers. */
+@SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class CombatLootEvents {
     private CombatLootEvents() { }
@@ -68,7 +70,7 @@ public final class CombatLootEvents {
         Item item = id == null ? null : BuiltInRegistries.ITEM.get(id);
         if (item == null) return ItemStack.EMPTY;
         ItemStack replacement = new ItemStack(item, original.getCount());
-        if (original.hasTag()) replacement.setTag(original.getTag().copy());
+        if (original.hasTag()) replacement.setTag(Objects.requireNonNull(original.getTag()).copy());
         return replacement;
     }
 

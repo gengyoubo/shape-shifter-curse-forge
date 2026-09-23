@@ -47,7 +47,7 @@ public final class MobRelationEvents {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
                 || player.tickCount % 10 != 0 || !hasScareVillagerPower(player)) return;
         for (Villager villager : player.level().getEntitiesOfClass(Villager.class,
-                player.getBoundingBox().inflate(8.0D), candidate -> candidate.isAlive())) {
+                player.getBoundingBox().inflate(8.0D), LivingEntity::isAlive)) {
             villager.getBrain().setMemoryWithExpiry(MemoryModuleType.NEAREST_HOSTILE, player, 20L);
         }
     }
@@ -58,7 +58,7 @@ public final class MobRelationEvents {
     @SubscribeEvent
     public static void ironGolemHostile(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
-                || player.tickCount % 20 != 0 || !hasMarker(player, "hostile_iron_golem")) return;
+                || player.tickCount % 20 != 0 || !hasMarker(player)) return;
         for (net.minecraft.world.entity.animal.IronGolem golem : player.level().getEntitiesOfClass(
                 net.minecraft.world.entity.animal.IronGolem.class, player.getBoundingBox().inflate(16.0D))) {
             if (golem.getTarget() != player) {
@@ -67,9 +67,9 @@ public final class MobRelationEvents {
         }
     }
 
-    private static boolean hasMarker(Player player, String path) {
+    private static boolean hasMarker(Player player) {
         return FormPowerRegistry.has(player, net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
-                ShapeShifterCurseForge.RESOURCE_NAMESPACE, path));
+                ShapeShifterCurseForge.RESOURCE_NAMESPACE, "hostile_iron_golem"));
     }
 
     private static boolean hasScareVillagerPower(Player player) {

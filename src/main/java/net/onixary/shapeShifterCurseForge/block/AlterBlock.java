@@ -16,6 +16,7 @@ import net.onixary.shapeShifterCurseForge.blockentity.AlterBlockEntity;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import org.jetbrains.annotations.Nullable;
 
+@SuppressWarnings("deprecation")
 public class AlterBlock extends BaseEntityBlock {
     public AlterBlock(Properties props) { super(props); }
     @Override public RenderShape getRenderShape(BlockState s) { return RenderShape.MODEL; }

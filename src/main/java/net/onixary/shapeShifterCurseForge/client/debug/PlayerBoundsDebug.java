@@ -7,7 +7,6 @@ import net.minecraft.world.phys.AABB;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.Locale;

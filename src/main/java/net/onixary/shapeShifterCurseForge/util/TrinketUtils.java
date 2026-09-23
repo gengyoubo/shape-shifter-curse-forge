@@ -1,6 +1,5 @@
 package net.onixary.shapeShifterCurseForge.util;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
@@ -21,6 +20,7 @@ public class TrinketUtils {
         void onFormChange(ItemStack stack, AccessoryItem.SlotData slot, Player entity);
     }
 
+    @SuppressWarnings("EmptyMethod")
     public static class TrinketPowerData {
         public final List<ResourceLocation> accessoryPowers;
         public final List<ResourceLocation> allFormPowerAdd;
@@ -240,11 +240,7 @@ public class TrinketUtils {
                     for (ItemStack stack : stacks) {
                         if (stack.getItem() instanceof AccessoryItem && io != AccessoryUtils.nowAccessoryMod) continue;
                         AccessoryItem.SlotData data;
-                        if (slotPair.getA() == null) {
-                            data = new AccessoryItem.SlotData(ResourceLocation.fromNamespaceAndPath(ioName, slotPair.getB()), idx);
-                        } else {
-                            data = new AccessoryItem.SlotData(ResourceLocation.fromNamespaceAndPath(ioName, "%s/%s".formatted(slotPair.getA(), slotPair.getB())), idx);
-                        }
+                        data = new AccessoryItem.SlotData(ResourceLocation.fromNamespaceAndPath(ioName, "%s/%s".formatted(slotPair.getA(), slotPair.getB())), idx);
                         allAccessory.add(new net.minecraft.util.Tuple<>(data, stack));
                         idx++;
                     }

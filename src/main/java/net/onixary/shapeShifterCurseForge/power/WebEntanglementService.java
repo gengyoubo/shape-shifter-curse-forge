@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /** Accumulates web-bullet binding time and fires the full-entanglement advancement. */
+@SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class WebEntanglementService {
     private static final int FULL_THRESHOLD = 20 * 5 * 5;
@@ -34,11 +35,11 @@ public final class WebEntanglementService {
             return;
         }
         if (state == null || state.expiresIn <= 0) {
-            state = new State(0, 0);
+            state = new State();
         }
         state.duration = Math.min(FULL_THRESHOLD, state.duration + duration);
         state.expiresIn = Math.min(Integer.MAX_VALUE - duration, state.expiresIn) + duration;
-        if (state.duration >= FULL_THRESHOLD) {
+        if (state.duration == FULL_THRESHOLD) {
             state.duration = 0;
             state.fullTicks = target instanceof net.minecraft.world.entity.player.Player ? 20 * 5 : 20 * 15;
             if (owner instanceof ServerPlayer player) {
@@ -113,9 +114,9 @@ public final class WebEntanglementService {
         private int expiresIn;
         private int fullTicks;
 
-        private State(int duration, int expiresIn) {
-            this.duration = duration;
-            this.expiresIn = expiresIn;
+        private State() {
+            this.duration = 0;
+            this.expiresIn = 0;
         }
     }
 }

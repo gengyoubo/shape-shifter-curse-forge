@@ -12,12 +12,12 @@
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
         "CancelEntityStepSoundMixin",
-        "PlayerModelAnimMixin",
-        "PlayerRendererBodyMixin",
-        "HideThirdPersonItemMixin",
         "accessory.CurioImpl"
     ],
     "client": [
+        "PlayerModelAnimMixin",
+        "PlayerRendererBodyMixin",
+        "HideThirdPersonItemMixin",
         "client.InventoryScreenMixin",
         "client.PlayerEdgeClipMixin",
         "client.GameRendererBlockSelectionMixin",

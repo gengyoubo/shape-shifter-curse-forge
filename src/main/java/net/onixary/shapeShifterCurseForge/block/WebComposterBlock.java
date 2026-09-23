@@ -23,6 +23,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
 
 /** Fabric's three-meat nutrient cocoon composter. */
+@SuppressWarnings("deprecation")
 public final class WebComposterBlock extends Block {
     public static final IntegerProperty LEVEL = IntegerProperty.create("level", 0, 4);
     private static final TagKey<Item> MEAT = TagKey.create(Registries.ITEM,

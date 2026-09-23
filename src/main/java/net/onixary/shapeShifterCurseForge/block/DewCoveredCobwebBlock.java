@@ -13,6 +13,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** Fabric's dew-covered cobweb: no collision box, but normal cobweb slowdown. */
+@SuppressWarnings("deprecation")
 public final class DewCoveredCobwebBlock extends Block {
     public DewCoveredCobwebBlock(BlockBehaviour.Properties properties) {
         super(properties);

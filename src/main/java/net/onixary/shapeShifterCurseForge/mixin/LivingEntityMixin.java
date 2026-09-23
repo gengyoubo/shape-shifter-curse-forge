@@ -29,8 +29,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * Plain {@code @Inject(at = @At("RETURN"), cancellable = true)} is used
  * instead of MixinExtras {@code @ModifyReturnValue}.
  */
+@SuppressWarnings("JavadocReference")
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin implements LivingEntityJumpState {
+    @Unique
     private static final float SSC_MAX_WATER_FLEXIBILITY = 0.98F;
     @Unique
     public int ssc$noJumpTick = 0;
@@ -52,10 +54,7 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         if (!(self instanceof Player player)) {
             return;
         }
-        boolean shouldReset = false;
-        if (!player.isSprinting()) {
-            shouldReset = true;
-        }
+        boolean shouldReset = !player.isSprinting();
         if (player.onGround()) {
             ssc$tripleTicksOnGround++;
             final int[] resetTicks = {10};
@@ -328,10 +327,12 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         return original;
     }
 
+    @Unique
     public void ssc$setNoJumpTick(int tick) {
         ssc$noJumpTick = tick;
     }
 
+    @Unique
     public int ssc$getNoJumpTick() {
         return ssc$noJumpTick;
     }

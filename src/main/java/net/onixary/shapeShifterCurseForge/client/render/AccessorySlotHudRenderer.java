@@ -1,9 +1,7 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
-import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.client.event.RenderGuiEvent;
@@ -16,6 +14,7 @@ import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /** Forge HUD equivalent of Fabric's render_accessory_slot power. */
@@ -47,7 +46,7 @@ public final class AccessorySlotHudRenderer {
         });
         if (entries.isEmpty()) return;
 
-        entries.sort((left, right) -> Integer.compare(left.position, right.position));
+        entries.sort(Comparator.comparingInt(left -> left.position));
         GuiGraphics graphics = event.getGuiGraphics();
         int maxPosition = entries.stream().mapToInt(SlotEntry::position).max().orElse(0);
         int rows = Math.max(1, maxPosition / COLUMNS + 1);

@@ -22,6 +22,7 @@ import java.util.Set;
  * player state in a form subclass; use SSC's player data capability or a per-player power state
  * attachment instead.</p>
  */
+@SuppressWarnings("EmptyMethod")
 public class SscForm {
     /** A class-based form with no stage override is a stage-four form. */
     public static final int DEFAULT_STAGE = 4;
@@ -104,7 +105,7 @@ public class SscForm {
     }
 
     /** @deprecated Put the route in {@link Evolution} and register it explicitly. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public static Builder variantBuilder(ResourceLocation id, ResourceLocation branchTip) {
         return builder(id).variantOf(branchTip);
     }
@@ -209,7 +210,7 @@ public class SscForm {
          * the branch point the inheritance parent when {@link #inherits(ResourceLocation)} was
          * not explicitly called.
          */
-        @Deprecated(forRemoval = false)
+        @Deprecated()
         public Builder variantOf(ResourceLocation parentId) {
             ResourceLocation checked = Objects.requireNonNull(parentId, "parentId");
             variantParentId = checked;
@@ -222,7 +223,7 @@ public class SscForm {
         public Builder stage(int stage) { this.stage = stage; return this; }
 
         /** @deprecated Use {@link #stage(int)}. Tier is retained only for source compatibility. */
-        @Deprecated(forRemoval = false)
+        @Deprecated()
         public Builder tier(int tier) { return stage(tier); }
         public Builder maximumStage(int maximumStage) { this.maximumStage = maximumStage; return this; }
         public Builder weight(int weight) { this.weight = weight; return this; }
@@ -234,11 +235,11 @@ public class SscForm {
         public Builder jumpVelocityAddition(float addition) { jumpVelocityAddition = addition; return this; }
         public Builder fullyCustomModel(boolean fullyCustomModel) { this.fullyCustomModel = fullyCustomModel; return this; }
         /** @deprecated Prefer semantic form rules such as {@link #finalForm()}, or add gameplay through {@link SscPowers}. */
-        @Deprecated(forRemoval = false)
+        @Deprecated()
         public Builder addFlags(String... flags) { addAll(addedFlags, flags); return this; }
 
         /** @deprecated Reserved for advanced compatibility use. */
-        @Deprecated(forRemoval = false)
+        @Deprecated()
         public Builder removeFlags(String... flags) { addAll(removedFlags, flags); return this; }
 
         public Builder starterForm() { SscFormRules.applyStarterForm(addedFlags); return this; }

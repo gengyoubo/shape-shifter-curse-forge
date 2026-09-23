@@ -39,7 +39,8 @@ public final class FormManager {
 
         boolean changed = SscApi.currentForm(player).map(data -> {
             String currentId = data.getFormId();
-            if (!target.id().toString().equals(currentId)) {
+            boolean differentForm = !target.id().toString().equals(currentId);
+            if (differentForm) {
                 data.setPreviousFormId(currentId);
                 data.setFormId(target.id().toString());
                 data.setFormGroupId(target.groupId().toString());
@@ -47,7 +48,7 @@ public final class FormManager {
                 player.refreshDimensions();
             }
             data.setContentEnabled(!FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(target.id()));
-            return !target.id().toString().equals(currentId);
+            return differentForm;
         }).orElse(false);
 
         if (player instanceof ServerPlayer serverPlayer) {
@@ -74,7 +75,7 @@ public final class FormManager {
     }
 
     /** @deprecated Use {@link #moveToStage(Player, int)}. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public static boolean moveToTier(Player player, int tier) {
         return moveToStage(player, tier);
     }

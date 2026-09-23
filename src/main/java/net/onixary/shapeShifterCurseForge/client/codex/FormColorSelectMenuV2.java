@@ -1,6 +1,5 @@
 package net.onixary.shapeShifterCurseForge.client.codex;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -10,13 +9,10 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
@@ -33,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 // XuHaoNan:
 // 需要的功能
@@ -149,7 +146,6 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
 
     // Data4: 如果有flag则仅更新Data3，否则修改对应的Slider(不会更新Data3)
     private int isUpdateSlider = 0;
-    private StringWidget panelConfigNameLabel = null;
     private EditBox sliderRTextBox;
     private EditBox sliderGTextBox;
     private EditBox sliderBTextBox;
@@ -195,7 +191,7 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
     private static final String IDENTIFIER_NAMESPACE =
             net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge.RESOURCE_NAMESPACE;
     private static final String IDENTIFIER_PREFIX = "dynamic_fcs_v2_";
-    private static long nowColorSettingIndex = 0;
+    private static final long nowColorSettingIndex = 0;
     private int timer = 0;
     private final List<Pair<FcsButtonWidget, FcsButtonWidget>> globalSlotButton = new ArrayList<>();
     private final List<EditBox> globalSlotNameInputs = new ArrayList<>();
@@ -307,7 +303,7 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
                     this.setGlobalSetting(index);
                 }
             }
-        }), (textSupplier) -> (MutableComponent) textSupplier.get(), 0);
+        }), Supplier::get, 0);
 
         // X+15,Y+0,40,15 slot name input
         EditBox textFieldWidget = new EditBox(this.font, x + 15, y, 40, 15, EMPTY_TEXT);
@@ -319,7 +315,7 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
                     this.removeGlobalSetting(index);
                 }
             }
-        }), (textSupplier) -> (MutableComponent) textSupplier.get(), 30);
+        }), Supplier::get, 30);
         globalSlotButton.add(new Pair<>(updButtonWidget, deleteButtonWidget));
         globalSlotNameInputs.add(textFieldWidget);
         textFieldWidget.setValue(this.getGlobalSlotName(index));
@@ -768,9 +764,6 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         }).pos(bPosX + 20, bPosY + 196).size(68, 11).build());
         this.addRenderableWidget(Button.builder(UPLOAD_TO_CLIPBOARD, button -> {
             String clipboardData = FormColorData.colorSettingToString(this.getColorSetting(false), true);
-            if (clipboardData == null) {
-                return;
-            }
             minecraftClient.keyboardHandler.setClipboard(clipboardData);
         }).pos(bPosX + 94, bPosY + 196).size(68, 11).build());
         Button formScrollButton = Button.builder(NONE_FROM_NAME_LABEL, button -> {
@@ -779,12 +772,8 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         }).pos(bPosX + 48, bPosY + 20).size(86, 11).build();
         this.addRenderableWidget(formScrollButton);
         this.formNameLabel = formScrollButton;
-        this.addRenderableWidget(Button.builder(Component.literal("<"), button -> {
-            this.scrollFormID(-1, true);
-        }).pos(bPosX + 31, bPosY + 20).size(11, 11).build());
-        this.addRenderableWidget(Button.builder(Component.literal(">"), button -> {
-            this.scrollFormID(1, true);
-        }).pos(bPosX + 140, bPosY + 20).size(11, 11).build());
+        this.addRenderableWidget(Button.builder(Component.literal("<"), button -> this.scrollFormID(-1, true)).pos(bPosX + 31, bPosY + 20).size(11, 11).build());
+        this.addRenderableWidget(Button.builder(Component.literal(">"), button -> this.scrollFormID(1, true)).pos(bPosX + 140, bPosY + 20).size(11, 11).build());
         this.reloadFormIDName();
         StringWidget primaryColorLabel = new StringWidget(bPosX + 192, bPosY + 39, 68, 11,
                 PRIMARY_COLOR_LABEL, this.font).setColor(textColor);
@@ -883,7 +872,6 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         StringWidget configLabel = new StringWidget(bPosX + 177, bPosY + 68, 41, 11,
                 HEX_TEXT, this.font).setColor(textColor);
         this.addRenderableWidget(configLabel);
-        this.panelConfigNameLabel = configLabel;
         this.configPanel02.add(configLabel);
         EditBox configInput = new EditBox(this.font, bPosX + 222, bPosY + 68, 93, 11, EMPTY_TEXT);
         configInput.setMaxLength(9);
@@ -1011,10 +999,10 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         this.updatePanel();
     }
 
-    private void drawExtraPart(GuiGraphics graphics, int x, int y, int partX, int partY, int width, int height) {
+    private void drawExtraPart(GuiGraphics graphics, int x, int y, int partX) {
         int realX = partX + EXTRA_PART_START_X;
-        int realY = partY + EXTRA_PART_START_Y;
-        graphics.blit(BG_TEXTURE, x, y, realX, realY, width, height, BG_IMAGE_WIDTH, BG_IMAGE_HEIGHT);
+        int realY = EXTRA_PART_START_Y;
+        graphics.blit(BG_TEXTURE, x, y, realX, realY, 148, 173, BG_IMAGE_WIDTH, BG_IMAGE_HEIGHT);
     }
 
     public void renderTextureBackground(GuiGraphics graphics) {
@@ -1022,9 +1010,9 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
         int bgY = this.height / 2 - BG_HEIGHT / 2;
         graphics.blit(BG_TEXTURE, bgX, bgY, 0, 0, BG_WIDTH, BG_HEIGHT, BG_IMAGE_WIDTH, BG_IMAGE_HEIGHT);
         if (!isOpenPanel02) {
-            this.drawExtraPart(graphics, bgX + 172, bgY + 34, 0, 0, 148, 173);
+            this.drawExtraPart(graphics, bgX + 172, bgY + 34, 0);
         } else {
-            this.drawExtraPart(graphics, bgX + 172, bgY + 34, 149, 0, 148, 173);
+            this.drawExtraPart(graphics, bgX + 172, bgY + 34, 149);
         }
     }
 

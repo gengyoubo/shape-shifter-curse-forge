@@ -24,13 +24,12 @@ public final class FormGroup {
         formsByStage.computeIfAbsent(form.stage(), ignored -> new ArrayList<>()).add(form);
     }
 
-    public boolean remove(ResourceLocation formId) {
+    public void remove(ResourceLocation formId) {
         boolean removed = false;
         for (List<FormDefinition> forms : formsByStage.values()) {
             removed |= forms.removeIf(form -> form.id().equals(formId));
         }
         formsByStage.entrySet().removeIf(entry -> entry.getValue().isEmpty());
-        return removed;
     }
 
     public boolean isEmpty() {
@@ -48,13 +47,13 @@ public final class FormGroup {
     }
 
     /** @deprecated Use {@link #formsAtStage(int)}. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public List<FormDefinition> formsAtTier(int tier) {
         return formsAtStage(tier);
     }
 
     /** @deprecated Use {@link #firstAtStage(int)}. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public FormDefinition firstAtTier(int tier) {
         return firstAtStage(tier);
     }
@@ -65,7 +64,7 @@ public final class FormGroup {
     }
 
     /** @deprecated Use {@link #formsByStage()}. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public Map<Integer, List<FormDefinition>> formsByTier() {
         return formsByStage();
     }

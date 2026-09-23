@@ -49,7 +49,7 @@ public class AltarShapelessRecipe implements AltarRecipe {
         var adv = server.getAdvancements().getAdvancement(requireAdvancement);
         if (adv == null) return false;
         var progress = sp.getAdvancements().getOrStartProgress(adv);
-        return progress != null && progress.isDone();
+        return progress.isDone();
     }
 
     @Override

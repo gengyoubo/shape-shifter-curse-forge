@@ -53,7 +53,7 @@ public final class FormColorData {
 
     public final List<ResourceLocation> unlockedForms = new ArrayList<>();
 
-    public static int v2GlobalSlotCount = 9;
+    public static final int v2GlobalSlotCount = 9;
     public final List<String> v2GlobalNames = new ArrayList<>();
 
     private FormColorData() {

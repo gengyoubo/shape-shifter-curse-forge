@@ -13,7 +13,7 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 public class FcsButtonWidget extends Button {
     public final ResourceLocation widgetsTexture = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/form_color_select_menu_part.png");
-    public int textureX = 0;
+    public int textureX;
 
     public FcsButtonWidget(int x, int y, Component message, OnPress onPress,
                            Button.CreateNarration narrationSupplier, int textureX) {

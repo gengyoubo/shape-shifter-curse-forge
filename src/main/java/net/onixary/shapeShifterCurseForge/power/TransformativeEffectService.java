@@ -27,17 +27,16 @@ public final class TransformativeEffectService {
     private TransformativeEffectService() {
     }
 
-    public static boolean apply(ServerPlayer player, ResourceLocation targetId) {
+    public static void apply(ServerPlayer player, ResourceLocation targetId) {
         FormDefinition target = FormRegistry.get(targetId);
         if (target == null || !canHaveEffect(player)) {
-            return false;
+            return;
         }
         SscApi.currentForm(player).ifPresent(data -> {
             data.setTransformativeEffectFormId(target.id().toString());
             data.setTransformativeEffectTicks(DEFAULT_DURATION);
         });
         SscAdvancementTriggers.ON_GET_TRANSFORM_EFFECT.trigger(player);
-        return true;
     }
 
     public static boolean has(Player player) {
@@ -46,29 +45,28 @@ public final class TransformativeEffectService {
         ).orElse(false);
     }
 
-    public static boolean clear(Player player) {
-        return SscApi.currentForm(player).map(data -> {
+    public static void clear(Player player) {
+        SscApi.currentForm(player).map(data -> {
             boolean hadEffect = hasData(data);
             data.setTransformativeEffectFormId(null);
             data.setTransformativeEffectTicks(0);
             return hadEffect;
-        }).orElse(false);
+        });
     }
 
-    public static boolean activate(ServerPlayer player) {
+    public static void activate(ServerPlayer player) {
         ResourceLocation targetId = SscApi.currentForm(player)
                 .map(PlayerFormData::getTransformativeEffectFormId)
                 .map(ResourceLocation::tryParse)
                 .orElse(null);
         if (targetId == null) {
-            return false;
+            return;
         }
         FormDefinition current = FormManager.current(player);
         boolean applied = current.hasFlag("transform_effect_can_apply")
                 && FormRegistry.get(targetId) != null
                 && FormManager.setForm(player, targetId);
         clear(player);
-        return applied;
     }
 
     @SubscribeEvent

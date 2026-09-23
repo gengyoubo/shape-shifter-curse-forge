@@ -53,7 +53,7 @@ public final class CursedMoonData {
     }
 
     public static void clientTick(Level level) {
-        if (level == null || !isCursedMoonDay(level)) {
+        if (!isCursedMoonDay(level)) {
             return;
         }
         long timeOfDay = level.getDayTime() % 24000L;

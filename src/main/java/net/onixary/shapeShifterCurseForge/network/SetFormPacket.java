@@ -33,7 +33,7 @@ public record SetFormPacket(UUID targetUUID, ResourceLocation formId, boolean im
         NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> {
             ServerPlayer sender = context.getSender();
-            if (sender == null || sender.server == null) {
+            if (sender == null) {
                 return;
             }
             ServerPlayer target = sender.server.getPlayerList().getPlayer(packet.targetUUID);

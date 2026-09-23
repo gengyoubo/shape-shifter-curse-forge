@@ -73,9 +73,8 @@ public final class FormAnimationSystem {
             ResourceLocation fallback = null;
             if (!hasResource(source) && id.endsWith("_riding") && hasResource(RIDING_ANIMATIONS)) {
                 source = RIDING_ANIMATIONS;
-                fallback = null;
             }
-            return new Selection(id, id, source, fallback, speed, fade);
+            return new Selection(id, id, source, null, speed, fade);
         }
 
         private static Selection fromProfile(String logicalId, AnimationProfile.Clip clip) {
@@ -204,131 +203,150 @@ public final class FormAnimationSystem {
 
     private static List<String> candidates(String path, State state, boolean sneak, Player player) {
         List<String> result = new ArrayList<>();
-        if (path.equals("bat_1")) {
-            addIf(result, state, State.JUMP, "bat_1_jump");
-        } else if (path.equals("bat_2")) {
-            switch (state) {
-                case IDLE -> add(result, sneak ? "bat_1_sneak_idle" : null);
-                case JUMP -> add(result, "bat_2_jump");
-                case FALL, FLYING, FALL_FLYING -> add(result, "bat_2_slow_falling");
-                case MINING -> add(result, "bat_2_digging");
-                case ATTACK -> add(result, "bat_2_attack");
-                case RIDE -> add(result, rideAnimation(player, "bat_2_riding", "bat_1_sneak_idle"));
-                default -> { }
-            }
-        } else if (path.equals("bat_3")) {
-            switch (state) {
-                case IDLE -> add(result, sneak ? "bat_1_sneak_idle" : "bat_3_idle");
-                case WALK -> add(result, sneak ? "bat_3_sneak_walk" : "bat_3_walk");
-                // The Fabric controller intentionally speeds up the walk cycle for sprinting.
-                case SPRINT -> add(result, sneak ? "bat_3_sneak_walk" : "bat_3_sprint");
-                case JUMP -> add(result, "bat_3_jump");
-                case FALL, FLYING, FALL_FLYING, CRAWL -> add(result, "bat_2_slow_falling");
-                case MINING -> add(result, "bat_3_digging");
-                case ATTACK -> add(result, "bat_3_attack");
-                case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D ? "bat_3_climb" : "bat_3_attach_side");
-                case RIDE -> add(result, rideAnimation(player, "bat_3_riding", "bat_1_sneak_idle"));
-                case SLEEP -> add(result, "bat_3_sleep");
-                default -> { }
-            }
-        } else if (path.equals("axolotl_1")) {
-            // Form_Axolotl1 inherits the normal form for every state except water.
-            if (state == State.SWIM) add(result, "axolotl_2_swimming_idle");
-        } else if (path.equals("axolotl_2")) {
-            if (state == State.SWIM) add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
-            else if (sneak) {
+        switch (path) {
+            case "bat_1" -> addIf(result, state);
+            case "bat_2" -> {
                 switch (state) {
-                    case IDLE -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
-                    // Form_Axolotl2 only overrides WALK. Sprint, physical crawling and
-                    // falling deliberately inherit the normal-form controller.
-                    case WALK -> add(result, "axolotl_2_crawling_new");
-                    case JUMP -> add(result, "axolotl_2_crawling_jump");
-                    case ATTACK -> add(result, "axolotl_2_crawling_attack_once");
-                    case MINING -> add(result, "axolotl_2_crawling_tool_swing");
-                    default -> { }
+                    case IDLE -> add(result, sneak ? "bat_1_sneak_idle" : null);
+                    case JUMP -> add(result, "bat_2_jump");
+                    case FALL, FLYING, FALL_FLYING -> add(result, "bat_2_slow_falling");
+                    case MINING -> add(result, "bat_2_digging");
+                    case ATTACK -> add(result, "bat_2_attack");
+                    case RIDE -> add(result, rideAnimation(player, "bat_2_riding", "bat_1_sneak_idle"));
+                    default -> {
+                    }
                 }
             }
-        } else if (path.equals("axolotl_3")) {
-            switch (state) {
-                case SWIM -> add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
-                case IDLE -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
-                case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
-                case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
-                case JUMP -> add(result, sneak ? "axolotl_2_crawling_jump"
-                        : isRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
-                case FALL -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
-                // The Fabric WithSneak controllers intentionally have no normal
-                // attack/mining animation for Axolotl 3.
-                case ATTACK -> add(result, sneak ? "axolotl_2_crawling_attack_once" : null);
-                case MINING -> add(result, sneak ? "axolotl_2_crawling_tool_swing" : null);
-                case FLYING, FALL_FLYING -> add(result, "axolotl_3_creative_flight");
-                case SLEEP -> add(result, "axolotl_3_sleep");
-                // One-block clearance triggers the same form Geo crawl as a
-                // held Shift.  The source is vanilla pose resolution, not a
-                // synthetic sneak flag or movement override.
-                case CRAWL -> add(result, motionOf(player).moving
-                        ? "axolotl_3_crawling" : "axolotl_3_crawling_idle");
-                default -> { }
+            case "bat_3" -> {
+                switch (state) {
+                    case IDLE -> add(result, sneak ? "bat_1_sneak_idle" : "bat_3_idle");
+                    case WALK -> add(result, sneak ? "bat_3_sneak_walk" : "bat_3_walk");
+                    // The Fabric controller intentionally speeds up the walk cycle for sprinting.
+                    case SPRINT -> add(result, sneak ? "bat_3_sneak_walk" : "bat_3_sprint");
+                    case JUMP -> add(result, "bat_3_jump");
+                    case FALL, FLYING, FALL_FLYING, CRAWL -> add(result, "bat_2_slow_falling");
+                    case MINING -> add(result, "bat_3_digging");
+                    case ATTACK -> add(result, "bat_3_attack");
+                    case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D ? "bat_3_climb" : "bat_3_attach_side");
+                    case RIDE -> add(result, rideAnimation(player, "bat_3_riding", "bat_1_sneak_idle"));
+                    case SLEEP -> add(result, "bat_3_sleep");
+                    default -> {
+                    }
+                }
             }
-        } else if (path.equals("ocelot_2")) {
-            switch (state) {
-                case IDLE -> add(result, sneak ? "ocelot_2_sneak_idle" : null);
-                case WALK, SPRINT -> add(result, canSneakRush(player, sneak) ? "ocelot_2_sneak_rush_2" : null);
-                case JUMP, FALL -> add(result, canSneakRush(player, sneak) ? "ocelot_2_rush_jump" : null);
-                case RIDE -> add(result, rideAnimation(player, "ocelot_2_riding", "ocelot_2_sneak_idle"));
-                default -> { }
+            case "axolotl_1" -> {
+                // Form_Axolotl1 inherits the normal form for every state except water.
+                if (state == State.SWIM) add(result, "axolotl_2_swimming_idle");
             }
-        } else if (path.equals("familiar_fox_2") || path.equals("snow_fox_2")) {
-            if (state == State.IDLE && sneak) add(result, "ocelot_2_sneak_idle");
-            if (state == State.RIDE) add(result, rideAnimation(player, path + "_riding", "ocelot_2_sneak_idle"));
-        } else if (path.equals("spider_1")) {
-            if (state == State.IDLE) add(result, "spider_1_idle");
-            if (state == State.WALK || state == State.SPRINT) add(result, "spider_1_move");
-        } else if (path.equals("spider_2")) {
-            if (state == State.IDLE && sneak) add(result, "spider_2_sneak_idle");
-        } else if (path.equals("spider_3")) {
-            switch (state) {
-                case IDLE -> add(result, sneak ? "spider_3_sneak_idle" : "spider_3_idle");
-                case WALK -> add(result, sneak ? "spider_3_sneak_walk" : "spider_3_walk");
-                case SPRINT -> add(result, sneak ? "spider_3_sneak_walk" : "spider_3_run");
-                case JUMP -> add(result, "spider_3_jump");
-                case FALL -> add(result, "spider_3_fall");
-                // Fabric only defines a float animation for Spider 3.  It is intentionally
-                // used for both surface floating and the missing active-swim variant.
-                case SWIM -> add(result, "spider_3_swim_idle");
-                case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D
-                        ? "spider_3_climb" : "spider_3_climb_idle");
-                case RIDE -> add(result, "spider_3_ride");
-                case SLEEP -> add(result, "spider_3_sleep");
-                case FLYING -> add(result, "spider_3_creative_flight");
-                case BLOCK -> add(result, "spider_3_shielding");
-                default -> { }
+            case "axolotl_2" -> {
+                if (state == State.SWIM)
+                    add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
+                else if (sneak) {
+                    switch (state) {
+                        case IDLE -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
+                        // Form_Axolotl2 only overrides WALK. Sprint, physical crawling and
+                        // falling deliberately inherit the normal-form controller.
+                        case WALK -> add(result, "axolotl_2_crawling_new");
+                        case JUMP -> add(result, "axolotl_2_crawling_jump");
+                        case ATTACK -> add(result, "axolotl_2_crawling_attack_once");
+                        case MINING -> add(result, "axolotl_2_crawling_tool_swing");
+                        default -> {
+                        }
+                    }
+                }
             }
-        } else if (path.equals("allay_sp")) {
-            switch (state) {
-                case IDLE -> add(result, sneak ? "allay_sp_sneaking" : "allay_sp_idle");
-                case WALK -> add(result, sneak ? "allay_sp_sneaking_walk" : "allay_sp_moving");
-                case SPRINT -> add(result, sneak ? "allay_sp_sneaking_walk" : "allay_sp_run");
-                case MINING -> add(result, "allay_sp_digging");
-                case ATTACK -> add(result, "allay_sp_attack");
-                case JUMP, FALL, FLYING, FALL_FLYING -> add(result, "allay_sp_fly");
-                default -> { }
+            case "axolotl_3" -> {
+                switch (state) {
+                    case SWIM ->
+                            add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
+                    case IDLE -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
+                    case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
+                    case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
+                    case JUMP -> add(result, sneak ? "axolotl_2_crawling_jump"
+                            : isRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
+                    case FALL -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
+                    // The Fabric WithSneak controllers intentionally have no normal
+                    // attack/mining animation for Axolotl 3.
+                    case ATTACK -> add(result, sneak ? "axolotl_2_crawling_attack_once" : null);
+                    case MINING -> add(result, sneak ? "axolotl_2_crawling_tool_swing" : null);
+                    case FLYING, FALL_FLYING -> add(result, "axolotl_3_creative_flight");
+                    case SLEEP -> add(result, "axolotl_3_sleep");
+                    // One-block clearance triggers the same form Geo crawl as a
+                    // held Shift.  The source is vanilla pose resolution, not a
+                    // synthetic sneak flag or movement override.
+                    case CRAWL -> add(result, motionOf(player).moving
+                            ? "axolotl_3_crawling" : "axolotl_3_crawling_idle");
+                    default -> {
+                    }
+                }
             }
-        } else if (path.equals("bat_3_sub_avali")) {
-            addAvali(result, state, sneak, player);
-        } else if (path.equals("snow_fox_3_sub_marbled_polecat")) {
-            addWeasel(result, state, sneak, player);
-        } else if (path.equals("feral_cat_sp")) {
-            addFeral(result, state, sneak, player, "feral_cat_sp_riding", "form_feral_common_sneak_idle");
-        } else if (path.equals("snow_fox_3")) {
-            addFeral(result, state, sneak, player, "form_feral_common_sneak_idle", "snow_fox_3_riding");
-            if (state == State.FALL) replaceLast(result, "form_snow_fox_3_fall");
-        } else if (path.equals("ocelot_3")) {
-            addFeral(result, state, sneak, player, "ocelot_3_riding", "form_feral_common_sneak_idle", true);
-        } else if (path.equals("familiar_fox_3")) {
-            addFeral(result, state, sneak, player, "familiar_fox_3_riding", "form_feral_common_sneak_idle");
-        } else if (path.equals("anubis_wolf_3")) {
-            addFeral(result, state, sneak, player, "form_feral_common_sneak_idle", "snow_fox_3_riding");
+            case "ocelot_2" -> {
+                switch (state) {
+                    case IDLE -> add(result, sneak ? "ocelot_2_sneak_idle" : null);
+                    case WALK, SPRINT -> add(result, canSneakRush(player, sneak) ? "ocelot_2_sneak_rush_2" : null);
+                    case JUMP, FALL -> add(result, canSneakRush(player, sneak) ? "ocelot_2_rush_jump" : null);
+                    case RIDE -> add(result, rideAnimation(player, "ocelot_2_riding", "ocelot_2_sneak_idle"));
+                    default -> {
+                    }
+                }
+            }
+            case "familiar_fox_2", "snow_fox_2" -> {
+                if (state == State.IDLE && sneak) add(result, "ocelot_2_sneak_idle");
+                if (state == State.RIDE) add(result, rideAnimation(player, path + "_riding", "ocelot_2_sneak_idle"));
+            }
+            case "spider_1" -> {
+                if (state == State.IDLE) add(result, "spider_1_idle");
+                if (state == State.WALK || state == State.SPRINT) add(result, "spider_1_move");
+            }
+            case "spider_2" -> {
+                if (state == State.IDLE && sneak) add(result, "spider_2_sneak_idle");
+            }
+            case "spider_3" -> {
+                switch (state) {
+                    case IDLE -> add(result, sneak ? "spider_3_sneak_idle" : "spider_3_idle");
+                    case WALK -> add(result, sneak ? "spider_3_sneak_walk" : "spider_3_walk");
+                    case SPRINT -> add(result, sneak ? "spider_3_sneak_walk" : "spider_3_run");
+                    case JUMP -> add(result, "spider_3_jump");
+                    case FALL -> add(result, "spider_3_fall");
+                    // Fabric only defines a float animation for Spider 3.  It is intentionally
+                    // used for both surface floating and the missing active-swim variant.
+                    case SWIM -> add(result, "spider_3_swim_idle");
+                    case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D
+                            ? "spider_3_climb" : "spider_3_climb_idle");
+                    case RIDE -> add(result, "spider_3_ride");
+                    case SLEEP -> add(result, "spider_3_sleep");
+                    case FLYING -> add(result, "spider_3_creative_flight");
+                    case BLOCK -> add(result, "spider_3_shielding");
+                    default -> {
+                    }
+                }
+            }
+            case "allay_sp" -> {
+                switch (state) {
+                    case IDLE -> add(result, sneak ? "allay_sp_sneaking" : "allay_sp_idle");
+                    case WALK -> add(result, sneak ? "allay_sp_sneaking_walk" : "allay_sp_moving");
+                    case SPRINT -> add(result, sneak ? "allay_sp_sneaking_walk" : "allay_sp_run");
+                    case MINING -> add(result, "allay_sp_digging");
+                    case ATTACK -> add(result, "allay_sp_attack");
+                    case JUMP, FALL, FLYING, FALL_FLYING -> add(result, "allay_sp_fly");
+                    default -> {
+                    }
+                }
+            }
+            case "bat_3_sub_avali" -> addAvali(result, state, sneak, player);
+            case "snow_fox_3_sub_marbled_polecat" -> addWeasel(result, state, sneak, player);
+            case "feral_cat_sp" ->
+                    addFeral(result, state, sneak, player, "feral_cat_sp_riding", "form_feral_common_sneak_idle");
+            case "snow_fox_3" -> {
+                addFeral(result, state, sneak, player, "form_feral_common_sneak_idle", "snow_fox_3_riding");
+                if (state == State.FALL) replaceLast(result);
+            }
+            case "ocelot_3" ->
+                    addFeral(result, state, sneak, player, "ocelot_3_riding", "form_feral_common_sneak_idle", true);
+            case "familiar_fox_3" ->
+                    addFeral(result, state, sneak, player, "familiar_fox_3_riding", "form_feral_common_sneak_idle");
+            case "anubis_wolf_3" ->
+                    addFeral(result, state, sneak, player, "form_feral_common_sneak_idle", "snow_fox_3_riding");
         }
         return result;
     }
@@ -347,18 +365,16 @@ public final class FormAnimationSystem {
             case JUMP -> add(result, "form_feral_common_jump");
             case RIDE -> add(result, rideAnimation(player, ride, vehicleRide));
             case SWIM -> add(result, isSwimmingAnimation(player) ? "form_feral_common_swim" : "form_feral_common_float");
-            case USE_ITEM, BLOCK -> add(result, sneak ? "form_feral_common_sneak_idle" : "form_feral_common_idle");
+            case USE_ITEM, BLOCK, CRAWL, IDLE -> add(result, sneak ? "form_feral_common_sneak_idle" : "form_feral_common_idle");
             case WALK -> add(result, canSneakRush(player, sneakRush && sneak)
-                    ? sneakRush ? "ocelot_3_sneak_rush" : "form_feral_common_run"
+                    ? "ocelot_3_sneak_rush"
                     : sneak ? "form_feral_common_sneak_walk" : "form_feral_common_walk");
             case SPRINT -> add(result, canSneakRush(player, sneakRush && sneak)
-                    ? sneakRush ? "ocelot_3_sneak_rush" : "form_feral_common_run"
+                    ? "ocelot_3_sneak_rush"
                     : sneak ? "form_feral_common_sneak_walk" : "form_feral_common_run");
-            case IDLE -> add(result, sneak ? "form_feral_common_sneak_idle" : "form_feral_common_idle");
             case MINING -> add(result, "form_feral_common_dig");
             case ATTACK -> add(result, "form_feral_common_attack");
             case FLYING, FALL_FLYING -> add(result, "form_feral_common_elytra_fly");
-            case CRAWL -> add(result, sneak ? "form_feral_common_sneak_idle" : "form_feral_common_idle");
             default -> { }
         }
     }
@@ -367,7 +383,7 @@ public final class FormAnimationSystem {
         switch (state) {
             case SLEEP -> add(result, "avali_sleep");
             case CLIMB -> add(result, player.getDeltaMovement().y > 0.0D ? "avali_climb" : "avali_attach_side");
-            case FALL -> add(result, "avali_slow_falling");
+            case FALL, CRAWL, FLYING -> add(result, "avali_slow_falling");
             case JUMP -> add(result, "avali_jump");
             case RIDE -> add(result, "avali_ride");
             case SWIM -> add(result, "avali_water_float");
@@ -376,10 +392,8 @@ public final class FormAnimationSystem {
             case IDLE -> add(result, sneak ? "avali_sneak_idle" : "avali_idle");
             case MINING -> add(result, "avali_digging");
             case ATTACK -> add(result, "avali_attack");
-            case FLYING -> add(result, "avali_slow_falling");
             case FALL_FLYING -> add(result, "avali_elytra_fly");
             case BLOCK -> add(result, "avali_shielding");
-            case CRAWL -> add(result, "avali_slow_falling");
             default -> { }
         }
     }
@@ -406,13 +420,13 @@ public final class FormAnimationSystem {
         for (String id : ids) if (id != null) result.add(id);
     }
 
-    private static void addIf(List<String> result, State actual, State expected, String id) {
-        if (actual == expected) add(result, id);
+    private static void addIf(List<String> result, State actual) {
+        if (actual == State.JUMP) add(result, "bat_1_jump");
     }
 
-    private static void replaceLast(List<String> result, String id) {
-        if (!result.isEmpty()) result.set(result.size() - 1, id);
-        else result.add(id);
+    private static void replaceLast(List<String> result) {
+        if (!result.isEmpty()) result.set(result.size() - 1, "form_snow_fox_3_fall");
+        else result.add("form_snow_fox_3_fall");
     }
 
     private static boolean hasAnimation(Selection selection) {
@@ -498,17 +512,14 @@ public final class FormAnimationSystem {
 
     private static float defaultSpeed(String id) {
         return switch (id) {
-            case "form_feral_common_walk" -> 1.2F;
+            case "form_feral_common_walk", "spider_3_walk" -> 1.2F;
             case "form_feral_common_run" -> 2.3F;
             case "bat_3_walk" -> 1.7F;
-            case "bat_3_digging", "bat_3_attack", "bat_3_jump" -> 1.5F;
+            case "bat_3_digging", "bat_3_attack", "bat_3_jump", "avali_jump" -> 1.5F;
             case "bat_3_climb" -> 1.25F;
             case "ocelot_2_sneak_rush_2" -> 3.3F;
-            case "spider_3_walk" -> 1.2F;
-            case "spider_3_run" -> 1.8F;
+            case "spider_3_run", "avali_digging", "avali_attack" -> 1.8F;
             case "avali_walk", "avali_run" -> 3.0F;
-            case "avali_digging", "avali_attack" -> 1.8F;
-            case "avali_jump" -> 1.5F;
             case "weasel_walk" -> 2.6F;
             case "weasel_run" -> 3.5F;
             default -> 1.0F;
@@ -547,16 +558,7 @@ public final class FormAnimationSystem {
         return snapshot;
     }
 
-    private static final class TransitionSnapshot {
-        private final FormBodyType previousBodyType;
-        private final FormBodyType currentBodyType;
-        private final double changedAt;
-
-        private TransitionSnapshot(FormBodyType previousBodyType, FormBodyType currentBodyType, double changedAt) {
-            this.previousBodyType = previousBodyType;
-            this.currentBodyType = currentBodyType;
-            this.changedAt = changedAt;
-        }
+    private record TransitionSnapshot(FormBodyType previousBodyType, FormBodyType currentBodyType, double changedAt) {
     }
 
     private static final class MotionSnapshot {

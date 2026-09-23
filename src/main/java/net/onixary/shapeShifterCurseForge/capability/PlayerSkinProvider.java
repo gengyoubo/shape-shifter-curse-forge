@@ -9,6 +9,7 @@ import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.common.util.LazyOptional;
 
+@SuppressWarnings("deprecation")
 public final class PlayerSkinProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
     private final PlayerSkinData data = new PlayerSkinData();
     private final LazyOptional<IPlayerSkinData> optional = LazyOptional.of(() -> data);

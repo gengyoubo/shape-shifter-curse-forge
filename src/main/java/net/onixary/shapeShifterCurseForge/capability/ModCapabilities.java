@@ -8,13 +8,13 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 
 public final class ModCapabilities {
     /** @deprecated Use {@link SscApi#currentForm(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public static final Capability<IPlayerFormData> PLAYER_FORM = CapabilityManager.get(
             new CapabilityToken<>() {
             }
     );
     /** @deprecated Use {@link SscApi#currentSkin(Player)} instead. */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public static final Capability<IPlayerSkinData> PLAYER_SKIN = CapabilityManager.get(
             new CapabilityToken<>() {
             }

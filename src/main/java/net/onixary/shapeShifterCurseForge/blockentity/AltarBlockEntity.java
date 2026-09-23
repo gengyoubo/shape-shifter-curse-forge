@@ -21,10 +21,7 @@ import net.onixary.shapeShifterCurseForge.recipe.altar.AltarRecipe;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, MenuProvider {
     public static final int MAX_FUEL = 102400;
@@ -89,7 +86,9 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
     @Override public void setItem(int slot, ItemStack stack) { items.set(slot, stack); if (stack.getCount() > getMaxStackSize()) stack.setCount(getMaxStackSize()); needCheckRecipe = true; setChanged(); }
     @Override public boolean stillValid(Player p) { if (level == null || level.getBlockEntity(worldPosition) != this) return false; return p.distanceToSqr(worldPosition.getX()+0.5, worldPosition.getY()+0.5, worldPosition.getZ()+0.5) <= 64; }
     @Override public void clearContent() { items.clear(); needCheckRecipe = true; }
-    @Override public int getMaxStackSize() { return 64; }
+    @Override public int getMaxStackSize() {
+        return WorldlyContainer.super.getMaxStackSize();
+    }
     @Override public boolean canPlaceItem(int slot, ItemStack stack) {
         if (slot < 9) return true;
         if (slot == 9) return canFuel(stack) || (currentRecipe != null && currentRecipe.getCatalyst() != null && currentRecipe.getCatalyst().test(stack));
@@ -133,7 +132,6 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
             if (be.progress >= be.currentRecipe.getRecipeTime()) {
                 if (be.craftRecipe()) {
                     be.progress = 0;
-                    dirty = true;
                 } else {
                     be.progress = 0;
                 }
@@ -167,7 +165,7 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
     private AltarRecipe findMatch(net.minecraft.world.item.crafting.RecipeType<?> type) {
         net.minecraft.world.item.crafting.RecipeType<AltarRecipe> altarType =
                 (net.minecraft.world.item.crafting.RecipeType<AltarRecipe>) type;
-        Optional<AltarRecipe> opt = level.getRecipeManager().getRecipeFor(altarType, this, level);
+        Optional<AltarRecipe> opt = Objects.requireNonNull(level).getRecipeManager().getRecipeFor(altarType, this, level);
         if (opt.isEmpty()) return null;
         AltarRecipe candidate = opt.get();
         if (!candidate.canCraft(getLastPlayer())) return null;
@@ -182,7 +180,7 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
 
     private boolean canOutput(AltarRecipe r) {
         ItemStack outSlot = items.get(10);
-        ItemStack result = r.assemble(this, level.registryAccess());
+        ItemStack result = r.assemble(this, Objects.requireNonNull(level).registryAccess());
         if (result.isEmpty()) return false;
         if (outSlot.isEmpty()) return true;
         if (!ItemStack.isSameItemSameTags(result, outSlot)) return false;

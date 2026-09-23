@@ -3,7 +3,6 @@ package net.onixary.shapeShifterCurseForge.integration.jei;
 import com.google.common.base.Preconditions;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientHelper;
-import mezz.jei.api.ingredients.subtypes.UidContext;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -21,28 +20,14 @@ import java.util.stream.Collectors;
  * One JEI display recipe: a single input item and its chance to raise the Web
  * Composter level. Forge port of Fabric's {@code WebComposterRecipe}.
  */
-public final class WebComposterRecipe {
-    private final List<ItemStack> inputs;
-    private final float chance;
-    private final ResourceLocation uid;
-
-    public WebComposterRecipe(ItemStack input, float chance, ResourceLocation uid) {
+@SuppressWarnings("deprecation")
+public record WebComposterRecipe(List<ItemStack> inputs, float chance, ResourceLocation uid) {
+    public WebComposterRecipe {
         Preconditions.checkArgument(chance > 0.0F, "web_composting chance must be greater than 0");
-        this.inputs = List.of(input);
-        this.chance = chance;
-        this.uid = uid;
     }
 
-    public List<ItemStack> getInputs() {
-        return inputs;
-    }
-
-    public float getChance() {
-        return chance;
-    }
-
-    public ResourceLocation getUid() {
-        return uid;
+    public WebComposterRecipe(ItemStack inputs, float chance, ResourceLocation uid) {
+        this(List.of(inputs), chance, uid);
     }
 
     public static List<WebComposterRecipe> getRecipes(IIngredientManager ingredientManager) {
@@ -59,7 +44,7 @@ public final class WebComposterRecipe {
                             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "jei/web_composting/" + path);
                     return new WebComposterRecipe(stack, chance, uid);
                 })
-                .sorted(Comparator.comparingDouble(WebComposterRecipe::getChance))
+                .sorted(Comparator.comparingDouble(WebComposterRecipe::chance))
                 .collect(Collectors.toList());
     }
 

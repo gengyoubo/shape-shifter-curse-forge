@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** World-side portion of Fabric's FormAttunerBlockEntity. */
+@SuppressWarnings("deprecation")
 public final class FormAttunerBlockEntity extends BlockEntity {
     /** Fabric defaults this to four and lets the Perk registry raise it. */
     private static int maxLevel = 4;
@@ -93,10 +95,7 @@ public final class FormAttunerBlockEntity extends BlockEntity {
             BlockState scanState = level.getBlockState(scanPos);
             if (scanState.getBlock() instanceof BeaconBeamBlock beamBlock) {
                 float[] color = beamBlock.getColor().getTextureDiffuseColors().clone();
-                if (current == null) {
-                    current = new BeamSegment(color, 1);
-                    segments.add(current);
-                } else if (Arrays.equals(current.color(), color)) {
+                if (Arrays.equals(current.color(), color)) {
                     current = current.increaseHeight();
                     segments.set(segments.size() - 1, current);
                 } else {
@@ -110,7 +109,7 @@ public final class FormAttunerBlockEntity extends BlockEntity {
                 }
                 continue;
             }
-            if (current == null || (scanState.getLightBlock(level, scanPos) >= 15 && !scanState.is(Blocks.BEDROCK))) {
+            if (scanState.getLightBlock(level, scanPos) >= 15 && !scanState.is(Blocks.BEDROCK)) {
                 return List.of();
             }
             current = current.increaseHeight();
@@ -158,9 +157,8 @@ public final class FormAttunerBlockEntity extends BlockEntity {
         return saveWithoutMetadata();
     }
 
-    @Nullable
     @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
+    public @NotNull Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 

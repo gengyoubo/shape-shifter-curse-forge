@@ -14,8 +14,6 @@ import net.minecraft.world.item.ItemStack;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
 
-import java.util.List;
-
 /** JEI category for Web Composter input -> Nutrient Sac (Fabric parity). */
 public final class WebComposterCategory extends AbstractRecipeCategory<WebComposterRecipe> {
     public WebComposterCategory(IGuiHelper guiHelper) {
@@ -27,14 +25,14 @@ public final class WebComposterCategory extends AbstractRecipeCategory<WebCompos
 
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, WebComposterRecipe recipe, IFocusGroup focuses) {
-        builder.addInputSlot(1, 1).setStandardSlotBackground().addItemStacks(recipe.getInputs());
+        builder.addInputSlot(1, 1).setStandardSlotBackground().addItemStacks(recipe.inputs());
         builder.addOutputSlot(103, 1).setStandardSlotBackground()
                 .addItemStack(new ItemStack(ModItems.SPIDER_FLUID_COCOON.get(), 1));
     }
 
     @Override
     public void createRecipeExtras(IRecipeExtrasBuilder builder, WebComposterRecipe recipe, IFocusGroup focuses) {
-        int chancePercent = (int) Math.floor(recipe.getChance() * 100.0F);
+        int chancePercent = (int) Math.floor(recipe.chance() * 100.0F);
         Component text = Component.translatable("gui.jei.category.compostable.chance", chancePercent);
         ITextWidget widget = builder.addText(text, getWidth() - 40, getHeight()).setPosition(12, 0);
         widget.setTextAlignment(mezz.jei.api.gui.placement.HorizontalAlignment.CENTER);
@@ -44,7 +42,7 @@ public final class WebComposterCategory extends AbstractRecipeCategory<WebCompos
 
     @Override
     public ResourceLocation getRegistryName(WebComposterRecipe recipe) {
-        return recipe.getUid();
+        return recipe.uid();
     }
 
     @Override

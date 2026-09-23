@@ -1,15 +1,22 @@
 package net.onixary.shapeShifterCurseForge.registry;
 
-import com.mojang.serialization.Codec;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe;
+import net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe;
+import net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapedRecipe;
+import net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe;
 
 /**
  * Fabric 1.10.0 parity: altar/alter/morph-scale upgrade recipe types.
@@ -35,20 +42,50 @@ public final class ModRecipeSerializers {
         };
     }
 
-    private static class DummyRecipe implements Recipe<net.minecraft.world.Container> {
-        private final net.minecraft.resources.ResourceLocation id;
-        private final RecipeSerializer<?> serializer;
-        DummyRecipe(net.minecraft.resources.ResourceLocation id, RecipeSerializer<?> ser) { this.id = id; this.serializer = ser; }
-        DummyRecipe(net.minecraft.resources.ResourceLocation id) { this(id, null); }
-        DummyRecipe() { this.id = ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "dummy"); this.serializer = null; }
-        @Override public boolean matches(net.minecraft.world.Container c, net.minecraft.world.level.Level l) { return false; }
-        @Override public net.minecraft.world.item.ItemStack assemble(net.minecraft.world.Container c, net.minecraft.core.RegistryAccess a) { return net.minecraft.world.item.ItemStack.EMPTY; }
-        @Override public boolean canCraftInDimensions(int w, int h) { return false; }
-        @Override public net.minecraft.world.item.ItemStack getResultItem(net.minecraft.core.RegistryAccess a) { return net.minecraft.world.item.ItemStack.EMPTY; }
-        @Override public net.minecraft.resources.ResourceLocation getId() { return id; }
-        @Override public RecipeSerializer<?> getSerializer() { return serializer != null ? serializer : ALTAR_SHAPELESS.get(); }
-        @Override public RecipeType<?> getType() { return ALTAR_SHAPELESS_TYPE.get(); }
-    }
+    private record DummyRecipe(ResourceLocation id, RecipeSerializer<?> serializer) implements Recipe<Container> {
+        DummyRecipe(ResourceLocation id) {
+            this(id, null);
+        }
+
+        DummyRecipe() {
+            this(ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "dummy"), null);
+        }
+
+        @Override
+        public boolean matches(Container c, Level l) {
+            return false;
+        }
+
+        @Override
+        public ItemStack assemble(Container c, RegistryAccess a) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public boolean canCraftInDimensions(int w, int h) {
+            return false;
+        }
+
+        @Override
+        public ItemStack getResultItem(RegistryAccess a) {
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public ResourceLocation getId() {
+            return id;
+        }
+
+        @Override
+        public RecipeSerializer<?> getSerializer() {
+            return serializer != null ? serializer : ALTAR_SHAPELESS.get();
+        }
+
+        @Override
+        public RecipeType<?> getType() {
+            return ALTAR_SHAPELESS_TYPE.get();
+        }
+        }
 
     public static final RegistryObject<RecipeType<?>> ALTAR_SHAPELESS_TYPE = TYPES.register("altar_shapeless", () -> new DummyRecipeType<>("altar_shapeless"));
     public static final RegistryObject<RecipeType<?>> ALTAR_SHAPED_TYPE = TYPES.register("altar_shaped", () -> new DummyRecipeType<>("altar_shaped"));
@@ -56,10 +93,10 @@ public final class ModRecipeSerializers {
     public static final RegistryObject<RecipeType<?>> ALTER_SHAPED_TYPE = TYPES.register("alter_shaped", () -> new DummyRecipeType<>("alter_shaped"));
     public static final RegistryObject<RecipeType<?>> MORPH_SCALE_UPGRADE_TYPE = TYPES.register("morph_scale_upgrade", () -> new DummyRecipeType<>("morph_scale_upgrade"));
 
-    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPELESS = SERIALIZERS.register("altar_shapeless", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe.Serializer());
-    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe.Serializer());
-    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPELESS = SERIALIZERS.register("alter_shapeless", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe.Serializer());
-    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapedRecipe.Serializer());
+    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPELESS = SERIALIZERS.register("altar_shapeless", AltarShapelessRecipe.Serializer::new);
+    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", AltarShapedRecipe.Serializer::new);
+    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPELESS = SERIALIZERS.register("alter_shapeless", AlterShapelessRecipe.Serializer::new);
+    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", AlterShapedRecipe.Serializer::new);
     public static final RegistryObject<RecipeSerializer<?>> MORPH_SCALE_UPGRADE = SERIALIZERS.register(
             "morph_scale_upgrade", net.onixary.shapeShifterCurseForge.recipe.MorphScaleUpgradeRecipe.Serializer::new);
 

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Forge counterparts for the custom advancement triggers used by the Fabric build. */
+@SuppressWarnings("EmptyMethod")
 public final class SscAdvancementTriggers {
     public static final SscTrigger ON_ENABLE_MOD = register("on_enable_mod");
     public static final SscTrigger ON_END_CURSED_MOON = register("on_end_cursed_moon");
@@ -65,7 +66,7 @@ public final class SscAdvancementTriggers {
         protected SscInstance createInstance(JsonObject json, ContextAwarePredicate playerPredicate,
                                               DeserializationContext context) {
             return new SscInstance(id, playerPredicate,
-                    resourceLocations(json, "form"), integers(json, "form_tier"),
+                    resourceLocations(json, "form"), integers(json),
                     strings(json, "flags"), strings(json, "not_flags"),
                     resourceLocations(json, "entity"));
         }
@@ -131,10 +132,10 @@ public final class SscAdvancementTriggers {
         return List.copyOf(result);
     }
 
-    private static List<Integer> integers(JsonObject json, String key) {
-        if (!json.has(key) || !json.get(key).isJsonArray()) return List.of();
+    private static List<Integer> integers(JsonObject json) {
+        if (!json.has("form_tier") || !json.get("form_tier").isJsonArray()) return List.of();
         List<Integer> result = new ArrayList<>();
-        for (JsonElement element : json.getAsJsonArray(key)) {
+        for (JsonElement element : json.getAsJsonArray("form_tier")) {
             try {
                 if (element.isJsonPrimitive()) result.add(element.getAsInt());
             } catch (RuntimeException ignored) {

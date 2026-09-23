@@ -40,7 +40,7 @@ public class AlterShapelessRecipe implements AltarRecipe {
         var adv = server.getAdvancements().getAdvancement(requireAdvancement);
         if (adv == null) return false;
         var prog = sp.getAdvancements().getOrStartProgress(adv);
-        return prog != null && prog.isDone();
+        return prog.isDone();
     }
     @Override public boolean matches(Container inv, Level level) {
         if (catalyst != null && !catalyst.isEmpty()) {

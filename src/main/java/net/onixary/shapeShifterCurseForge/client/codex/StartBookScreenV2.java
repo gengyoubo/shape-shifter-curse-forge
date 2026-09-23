@@ -84,7 +84,7 @@ public class StartBookScreenV2 extends Screen implements WidgetEXUtils.IWidgetEX
         return null;
     }
 
-    public List<WidgetEXUtils.IWidgetEX> widgetList = new ArrayList<>();
+    public final List<WidgetEXUtils.IWidgetEX> widgetList = new ArrayList<>();
 
     @Override
     public List<WidgetEXUtils.IWidgetEX> getWidgetList() {

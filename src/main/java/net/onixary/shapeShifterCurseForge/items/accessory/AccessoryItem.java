@@ -6,10 +6,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 
+@SuppressWarnings("EmptyMethod")
 public abstract class AccessoryItem extends Item {
-    public static record SlotData(ResourceLocation slot, int index) {}
+    public record SlotData(ResourceLocation slot, int index) {}
 
-    public static enum DropRule {
+    public enum DropRule {
         KEEP, DROP, DESTROY, DEFAULT
     }
 
@@ -19,19 +20,15 @@ public abstract class AccessoryItem extends Item {
     }
 
     public void accessoryInit(Properties properties) {
-        return;
     }
 
     public void accessoryTick(ItemStack stack, LivingEntity accessoryOwner, SlotData slotData) {
-        return;
     }
 
     public void onEquip(ItemStack stack, LivingEntity accessoryOwner, SlotData slotData) {
-        return;
     }
 
     public void onUnequip(ItemStack stack, LivingEntity accessoryOwner, SlotData slotData) {
-        return;
     }
 
     public boolean canEquip(ItemStack stack, LivingEntity entity, SlotData slotData) {
@@ -43,7 +40,6 @@ public abstract class AccessoryItem extends Item {
     }
 
     public void onBreak(ItemStack stack, LivingEntity entity, SlotData slotData) {
-        return;
     }
 
     public DropRule getDropRule(ItemStack stack, LivingEntity entity, SlotData slotData) {

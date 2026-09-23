@@ -45,34 +45,34 @@ public final class FormRegistry {
         }
         bootstrapped = true;
 
-        add("original_before_enable", "base_form", -1, 1, FormBodyType.NORMAL, 1.0F, 1.0F, 1.0F,
+        add("original_before_enable", "base_form", -1, FormBodyType.NORMAL, 1.0F, 1.0F, 1.0F,
                 "no_instinct", "inhibitor_immune", "no_cursed_moon_effect", "no_cursed_moon_target");
-        add("original_shifter", "base_form", 0, 1, FormBodyType.NORMAL, 1.0F, 1.0F, 1.0F,
+        add("original_shifter", "base_form", 0, FormBodyType.NORMAL, 1.0F, 1.0F, 1.0F,
                 "can_have_transform_effect", "transform_effect_can_apply", "no_instinct", "inhibitor_immune", "no_cursed_moon_target");
 
-        addCreatureGroup("bat", new float[]{0.90F, 0.75F, 0.60F, 0.60F}, new float[]{1.0F, 1.0F, 1.0F, 0.70F}, FormBodyType.NORMAL);
-        addCreatureGroup("axolotl", new float[]{1.0F, 1.0F, 0.90F, 0.90F}, null, FormBodyType.NORMAL);
-        addCreatureGroup("ocelot", new float[]{0.95F, 0.85F, 0.65F, 0.75F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F}, FormBodyType.NORMAL);
-        addCreatureGroup("familiar_fox", new float[]{0.80F, 0.65F, 0.55F, 0.55F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F}, FormBodyType.NORMAL);
-        addCreatureGroup("snow_fox", new float[]{0.80F, 0.65F, 0.55F, 0.55F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F}, FormBodyType.NORMAL);
-        addCreatureGroup("anubis_wolf", new float[]{1.0F, 1.0F, 0.90F, 0.80F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F}, FormBodyType.NORMAL);
-        addCreatureGroup("spider", new float[]{1.0F, 0.85F, 0.90F, 0.90F}, null, FormBodyType.NORMAL);
+        addCreatureGroup("bat", new float[]{0.90F, 0.75F, 0.60F, 0.60F}, new float[]{1.0F, 1.0F, 1.0F, 0.70F});
+        addCreatureGroup("axolotl", new float[]{1.0F, 1.0F, 0.90F, 0.90F}, null);
+        addCreatureGroup("ocelot", new float[]{0.95F, 0.85F, 0.65F, 0.75F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F});
+        addCreatureGroup("familiar_fox", new float[]{0.80F, 0.65F, 0.55F, 0.55F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F});
+        addCreatureGroup("snow_fox", new float[]{0.80F, 0.65F, 0.55F, 0.55F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F});
+        addCreatureGroup("anubis_wolf", new float[]{1.0F, 1.0F, 0.90F, 0.80F}, new float[]{1.0F, 1.0F, 1.0F, 0.60F});
+        addCreatureGroup("spider", new float[]{1.0F, 0.85F, 0.90F, 0.90F}, null);
 
-        add("allay_sp", "allay_form", 1, 1, FormBodyType.NORMAL, 0.55F, 0.55F, 1.0F,
+        add("allay_sp", "allay_form", 1, FormBodyType.NORMAL, 0.55F, 0.55F, 1.0F,
                 "no_instinct", "no_cursed_moon_effect", "special_form");
-        add("feral_cat_sp", "feral_cat_form", 1, 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
+        add("feral_cat_sp", "feral_cat_form", 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
                 "no_instinct", "no_cursed_moon_effect", "special_form");
 
         // Sub-forms are cosmetic variants that inherit their master form's Origin powers via lineage.
-        add("snow_fox_3_sub_marbled_polecat", "snow_fox_form", 4, 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
+        add("snow_fox_3_sub_marbled_polecat", "snow_fox_form", 4, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
                 "sub_form");
         SUB_FORM_MASTERS.put(id("snow_fox_3_sub_marbled_polecat"), id("snow_fox_3"));
-        add("bat_3_sub_avali", "bat_form", 4, 1, FormBodyType.NORMAL, 0.65F, 0.65F, 1.0F,
+        add("bat_3_sub_avali", "bat_form", 4, FormBodyType.NORMAL, 0.65F, 0.65F, 1.0F,
                 "sub_form");
         SUB_FORM_MASTERS.put(id("bat_3_sub_avali"), id("bat_3"));
     }
 
-    private static void addCreatureGroup(String path, float[] widths, float[] eyes, FormBodyType finalBodyType) {
+    private static void addCreatureGroup(String path, float[] widths, float[] eyes) {
         String groupPath = path + "_form";
         for (int index = 0; index < widths.length; index++) {
             int tier = index + 1;
@@ -82,13 +82,13 @@ public final class FormRegistry {
                 case 4 -> Set.of("final_form", "inhibitor_immune", "no_instinct", "no_cursed_moon_effect");
                 default -> Set.of("");
             });
-            if (path.equals("bat") && tier >= 1) {
+            if (path.equals("bat")) {
                 flags.add("night_vision");
             }
             if (path.equals("bat") && tier >= 3) {
                 flags.add("slow_fall");
             }
-            if (path.equals("axolotl") && tier >= 1) {
+            if (path.equals("axolotl")) {
                 flags.add("water_breathing");
             }
             if (path.equals("spider") && tier >= 3) {
@@ -102,14 +102,13 @@ public final class FormRegistry {
                 flags.add("poison_immune");
             }
             FormBodyType bodyType = tier == 4 && (path.equals("ocelot") || path.contains("fox") || path.equals("anubis_wolf"))
-                    ? finalBodyType == FormBodyType.NORMAL ? FormBodyType.FERAL : finalBodyType
+                    ? FormBodyType.FERAL
                     : FormBodyType.NORMAL;
             float eyeScale = eyes == null ? 1.0F : eyes[index];
             float fallProtection = switch (path + "_" + tier) {
-                case "bat_2" -> 2.5F;
+                case "bat_2", "snow_fox_4" -> 2.5F;
                 case "axolotl_2", "axolotl_3" -> 6.0F;
                 case "snow_fox_3" -> 1.5F;
-                case "snow_fox_4" -> 2.5F;
                 case "spider_1", "spider_3", "spider_4" -> 4.0F;
                 default -> 0.0F;
             };
@@ -123,9 +122,9 @@ public final class FormRegistry {
         }
     }
 
-    private static void add(String path, String groupPath, int tier, int weight, FormBodyType bodyType,
-                             float widthScale, float heightScale, float eyeScale, String... flags) {
-        add(path, groupPath, tier, weight, bodyType, widthScale, heightScale, eyeScale,
+    private static void add(String path, String groupPath, int tier, FormBodyType bodyType,
+                            float widthScale, float heightScale, float eyeScale, String... flags) {
+        add(path, groupPath, tier, 1, bodyType, widthScale, heightScale, eyeScale,
                 0.0F, 0.0F, flags);
     }
 
@@ -186,7 +185,7 @@ public final class FormRegistry {
                 LOGGER.warn("Ignoring dynamic form {} because it would replace a built-in form", formId);
                 return;
             }
-            ResourceLocation groupId = resourceLocation(data, "group", formId);
+            ResourceLocation groupId = resourceLocation(data, formId);
             if (groupId == null) {
                 LOGGER.warn("Ignoring dynamic form {} with invalid group", formId);
                 return;
@@ -468,9 +467,9 @@ public final class FormRegistry {
     private record DynamicFormIds(ResourceLocation formId, ResourceLocation originId) {
     }
 
-    private static ResourceLocation resourceLocation(JsonObject data, String key, ResourceLocation fallback) {
-        if (!data.has(key) || !data.get(key).isJsonPrimitive()) return fallback;
-        return ResourceLocation.tryParse(data.get(key).getAsString());
+    private static ResourceLocation resourceLocation(JsonObject data, ResourceLocation fallback) {
+        if (!data.has("group") || !data.get("group").isJsonPrimitive()) return fallback;
+        return ResourceLocation.tryParse(data.get("group").getAsString());
     }
 
     private static int integer(JsonObject data, String key, int fallback) {
@@ -549,15 +548,14 @@ public final class FormRegistry {
         int nextStage = current.stage() + 1;
         FormDefinition evolved = evolutionTarget(current, nextStage, true);
         if (evolved != null) return evolved;
-        FormDefinition legacyVariant = childForParent(JAVA_VARIANT_PARENTS, current, nextStage);
+        FormDefinition legacyVariant = childForParent(current, nextStage);
         if (legacyVariant != null) return legacyVariant;
         FormGroup group = GROUPS.get(current.groupId());
         return group == null ? null : group.firstAtStage(nextStage);
     }
 
-    private static FormDefinition childForParent(Map<ResourceLocation, ResourceLocation> parents,
-                                                  FormDefinition current, int expectedStage) {
-        for (Map.Entry<ResourceLocation, ResourceLocation> entry : parents.entrySet()) {
+    private static FormDefinition childForParent(FormDefinition current, int expectedStage) {
+        for (Map.Entry<ResourceLocation, ResourceLocation> entry : FormRegistry.JAVA_VARIANT_PARENTS.entrySet()) {
             if (!current.id().equals(entry.getValue())) continue;
             FormDefinition child = FORMS.get(entry.getKey());
             if (child != null && child.stage() == expectedStage && child.groupId().equals(current.groupId())) {

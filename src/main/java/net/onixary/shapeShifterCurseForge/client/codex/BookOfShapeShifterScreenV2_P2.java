@@ -38,7 +38,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
         // Pros
         // D -> (9, 9), (80, 12)
         // Size -> (83, 181) Pos -> (13, 26)
-        this.addRenderableWidget(this.buildDetailScreenButton(80, 12, 9, 9,
+        this.addRenderableWidget(this.buildDetailScreenButton(80, 12,
                 CodexData.getContentText(CodexData.ContentType.PROS, this.currentPlayer)));
         this.addRenderableWidget(new StringWidget(
                 bookPosX + 26 * bookScale, bookPosY + 10 * bookScale, 53 * bookScale, 11 * bookScale,
@@ -53,7 +53,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
         // Cons
         // D -> (9, 9), (185, 12)
         // Size -> (82, 182) Pos -> (110, 26)
-        this.addRenderableWidget(this.buildDetailScreenButton(185, 12, 9, 9,
+        this.addRenderableWidget(this.buildDetailScreenButton(185, 12,
                 CodexData.getContentText(CodexData.ContentType.CONS, this.currentPlayer)));
         this.addRenderableWidget(new StringWidget(
                 bookPosX + 120 * bookScale, bookPosY + 10 * bookScale, 63 * bookScale, 11 * bookScale,
@@ -68,7 +68,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
         // Instincts
         // D -> (9, 9), (308, 13)
         // Size -> (106, 136) Pos -> (220, 24)
-        this.addRenderableWidget(this.buildDetailScreenButton(308, 13, 9, 9,
+        this.addRenderableWidget(this.buildDetailScreenButton(308, 13,
                 CodexData.getContentText(CodexData.ContentType.INSTINCTS, this.currentPlayer)));
         this.addRenderableWidget(new StringWidget(
                 bookPosX + 242 * bookScale, bookPosY + 10 * bookScale, 63 * bookScale, 12 * bookScale,
@@ -111,7 +111,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
         Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P1(this.currentPlayer));
     }
 
-    private Button buildDetailScreenButton(int inBookPosX, int inBookPosY, int sizeX, int sizeY,
+    private Button buildDetailScreenButton(int inBookPosX, int inBookPosY,
                                            Component detailText) {
         int bookScale = 1;
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
@@ -120,7 +120,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
         int fixedPosY = bookPosY + inBookPosY * bookScale;
         return Button.builder(Component.literal("+"), button ->
                 Minecraft.getInstance().setScreen(new DetailScreen(this, detailText)))
-                .pos(fixedPosX, fixedPosY).size(sizeX * bookScale, sizeY * bookScale).build();
+                .pos(fixedPosX, fixedPosY).size(9 * bookScale, 9 * bookScale).build();
     }
 
     @Override
@@ -139,7 +139,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
         return null;
     }
 
-    public List<WidgetEXUtils.IWidgetEX> widgetList = new ArrayList<>();
+    public final List<WidgetEXUtils.IWidgetEX> widgetList = new ArrayList<>();
 
     @Override
     public List<WidgetEXUtils.IWidgetEX> getWidgetList() {

@@ -5,12 +5,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.util.Tuple;
-import net.onixary.shapeShifterCurseForge.items.accessory.AccessoryItem;
 import top.theillusivec4.curios.api.CuriosApi;
 
 import javax.annotation.Nullable;
 import java.util.*;
 
+@SuppressWarnings("EmptyMethod")
 public class AccessoryUtils {
     public interface AccessoryIO {
         default int priority() { return 1000; }
@@ -32,26 +32,22 @@ public class AccessoryUtils {
         @Override
         public Map<Tuple<String, String>, List<ItemStack>> getEntitySlots(LivingEntity entity) {
             Map<Tuple<String, String>, List<ItemStack>> map = new HashMap<>();
-            CuriosApi.getCuriosInventory(entity).ifPresent(handler -> {
-                handler.getCurios().forEach((id, stacksHandler) -> {
-                    var stacks = stacksHandler.getStacks();
-                    List<ItemStack> list = new ArrayList<>();
-                    for (int i = 0; i < stacksHandler.getSlots(); i++) {
-                        list.add(stacks.getStackInSlot(i));
-                    }
-                    map.put(new Tuple<>(null, id), list);
-                });
-            });
+            CuriosApi.getCuriosInventory(entity).ifPresent(handler -> handler.getCurios().forEach((id, stacksHandler) -> {
+                var stacks = stacksHandler.getStacks();
+                List<ItemStack> list = new ArrayList<>();
+                for (int i = 0; i < stacksHandler.getSlots(); i++) {
+                    list.add(stacks.getStackInSlot(i));
+                }
+                map.put(new Tuple<>(null, id), list);
+            }));
             return map;
         }
         @Override
         public List<ItemStack> getEntitySlot(LivingEntity entity, String slotGroup, String slotName) {
             List<ItemStack> list = new ArrayList<>();
-            CuriosApi.getCuriosInventory(entity).ifPresent(handler -> {
-                handler.getStacksHandler(slotName).ifPresent(h -> {
-                    for (int i = 0; i < h.getSlots(); i++) list.add(h.getStacks().getStackInSlot(i));
-                });
-            });
+            CuriosApi.getCuriosInventory(entity).ifPresent(handler -> handler.getStacksHandler(slotName).ifPresent(h -> {
+                for (int i = 0; i < h.getSlots(); i++) list.add(h.getStacks().getStackInSlot(i));
+            }));
             return list;
         }
         @Override
@@ -62,9 +58,7 @@ public class AccessoryUtils {
         }
         @Override
         public void setEntitySlot(LivingEntity entity, String slotGroup, String slotName, int index, ItemStack stack) {
-            CuriosApi.getCuriosInventory(entity).ifPresent(handler -> {
-                handler.getStacksHandler(slotName).ifPresent(h -> h.getStacks().setStackInSlot(index, stack));
-            });
+            CuriosApi.getCuriosInventory(entity).ifPresent(handler -> handler.getStacksHandler(slotName).ifPresent(h -> h.getStacks().setStackInSlot(index, stack)));
         }
     }
 

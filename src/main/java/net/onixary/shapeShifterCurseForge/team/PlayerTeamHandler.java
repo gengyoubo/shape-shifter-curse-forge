@@ -18,9 +18,6 @@ public final class PlayerTeamHandler {
     }
 
     public static void updatePlayerTeam(ServerPlayer player) {
-        if (player.level() == null) {
-            return;
-        }
         PlayerTeam team = MobTeamManager.registerTeam(player.serverLevel());
         String name = player.getScoreboardName();
         PlayerTeam current = player.getScoreboard().getPlayersTeam(name);

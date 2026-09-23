@@ -3,7 +3,6 @@ package net.onixary.shapeShifterCurseForge.mixin;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.client.render.BedrockAnimationPlayer;
 import net.onixary.shapeShifterCurseForge.client.render.FormClientRenderEvents;
 import net.onixary.shapeShifterCurseForge.client.render.FormGeoAnimatable;
@@ -33,8 +32,7 @@ public abstract class PlayerRendererBodyMixin {
     private void ssc$applyBodyTransform(AbstractClientPlayer entity, PoseStack poseStack,
                                         float animationProgress, float bodyYaw, float partialTick,
                                         CallbackInfo ci) {
-        Player player = entity;
-        FormDefinition form = FormManager.current(player);
+        FormDefinition form = FormManager.current(entity);
         if (!form.hasFlag("special_form") && form.stage() <= 0) {
             return;
         }
@@ -43,7 +41,7 @@ public abstract class PlayerRendererBodyMixin {
             return;
         }
         FormGeoAnimatable animatable = renderer.getAnimatable();
-        if (animatable == null || animatable.isInventoryPreview() || !animatable.hasSafeRenderState()) {
+        if (animatable == null || animatable.isInventoryPreview() || animatable.hasSafeRenderState()) {
             return;
         }
         BedrockAnimationPlayer.BodyTransform transform = animatable.getBodyTransform();

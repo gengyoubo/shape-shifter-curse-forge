@@ -4,6 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraftforge.common.util.INBTSerializable;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 
+@SuppressWarnings("deprecation")
 public final class PlayerSkinData implements IPlayerSkinData, INBTSerializable<CompoundTag> {
     private boolean keepOriginalSkin;
     private boolean enableFormColor;

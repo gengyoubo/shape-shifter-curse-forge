@@ -64,7 +64,7 @@ public class AltarShapedRecipe implements AltarRecipe {
         var adv = server.getAdvancements().getAdvancement(requireAdvancement);
         if (adv == null) return false;
         var progress = sp.getAdvancements().getOrStartProgress(adv);
-        return progress != null && progress.isDone();
+        return progress.isDone();
     }
 
     @Override
@@ -141,7 +141,7 @@ public class AltarShapedRecipe implements AltarRecipe {
             int width = buf.readVarInt();
             int height = buf.readVarInt();
             NonNullList<Ingredient> ings = NonNullList.withSize(width * height, Ingredient.EMPTY);
-            for (int i = 0; i < ings.size(); i++) ings.set(i, Ingredient.fromNetwork(buf));
+            ings.replaceAll(ignored -> Ingredient.fromNetwork(buf));
             boolean hasCat = buf.readBoolean();
             Ingredient cat = hasCat ? Ingredient.fromNetwork(buf) : null;
             boolean hasAdv = buf.readBoolean();
@@ -175,13 +175,13 @@ public class AltarShapedRecipe implements AltarRecipe {
         }
 
         private static String[] readPattern(com.google.gson.JsonArray array) {
-            if (array.size() == 0 || array.size() > 3) {
+            if (array.isEmpty() || array.size() > 3) {
                 throw new JsonParseException("Invalid pattern: must have 1-3 rows");
             }
             String[] rows = new String[array.size()];
             for (int i = 0; i < array.size(); i++) {
                 String row = GsonHelper.convertToString(array.get(i), "pattern[" + i + "]");
-                if (row.length() == 0 || row.length() > 3) {
+                if (row.isEmpty() || row.length() > 3) {
                     throw new JsonParseException("Invalid pattern row length (must be 1-3): \"" + row + "\"");
                 }
                 rows[i] = row;

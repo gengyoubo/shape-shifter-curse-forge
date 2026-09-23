@@ -1,7 +1,6 @@
 package net.onixary.shapeShifterCurseForge.block;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -17,6 +16,7 @@ import net.onixary.shapeShifterCurseForge.blockentity.AltarBlockEntity;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import org.jetbrains.annotations.Nullable;
 
+@SuppressWarnings("deprecation")
 public class AltarBlock extends BaseEntityBlock {
     public AltarBlock(Properties props) { super(props); }
     @Override public RenderShape getRenderShape(BlockState s) { return RenderShape.MODEL; }

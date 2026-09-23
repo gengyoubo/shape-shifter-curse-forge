@@ -16,6 +16,7 @@ import java.util.function.Supplier;
  * Start-book confirm button (client to server, empty). Enables the mod for players
  * still on the pre-enable form, mirroring Fabric's VALIDATE_START_BOOK_BUTTON flow.
  */
+@SuppressWarnings("EmptyMethod")
 public record ValidateStartBookPacket() {
     public static void encode(ValidateStartBookPacket packet, FriendlyByteBuf buffer) {
     }

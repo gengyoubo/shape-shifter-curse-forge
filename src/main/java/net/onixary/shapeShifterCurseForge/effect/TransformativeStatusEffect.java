@@ -4,7 +4,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
-import net.minecraft.world.entity.LivingEntity;
 import net.onixary.shapeShifterCurseForge.power.TransformativeEffectService;
 
 /** Potion-visible equivalent of Fabric's queued transformative status effect. */

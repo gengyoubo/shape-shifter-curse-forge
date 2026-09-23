@@ -9,6 +9,7 @@ import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.common.util.LazyOptional;
 
+@SuppressWarnings("deprecation")
 public final class PlayerFormProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
     private final PlayerFormData data = new PlayerFormData();
     private final LazyOptional<IPlayerFormData> optional = LazyOptional.of(() -> data);

@@ -1,8 +1,6 @@
 package net.onixary.shapeShifterCurseForge.power;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -14,11 +12,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Skeleton;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.PotionItem;
@@ -41,6 +36,7 @@ import java.util.UUID;
 // TODO[PARITY] The Tough As Nails power types tan_form_temperature_modifier and
 //   tan_prevent_dirty_water_thirst_effect (plus the tan_add_thirst action) have no handler at all;
 //   they are only meaningful with the optional TAN dependency.
+@SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class MissingPowerEvents {
     private static final Map<UUID, Set<MobEffect>> OWNED_EFFECTS = new HashMap<>();
@@ -215,7 +211,7 @@ public final class MissingPowerEvents {
     }
 
     private static boolean inverted(JsonObject condition, boolean value) {
-        return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !value : value;
+        return (condition.has("inverted") && condition.get("inverted").getAsBoolean()) != value;
     }
 
     private static void maintainParticles(Player player) {
@@ -266,7 +262,7 @@ public final class MissingPowerEvents {
     }
 
     private static void maintainSimpleMovement(Player player) {
-        if (!hasPowerId(player, "like_water") || !player.isInWater() || player.isShiftKeyDown()) return;
+        if (hasPowerId(player, "like_water") || !player.isInWater() || player.isShiftKeyDown()) return;
         if (player.getDeltaMovement().y < 0.0D) {
             var velocity = player.getDeltaMovement();
             player.setDeltaMovement(velocity.x, Math.max(velocity.y, -0.02D), velocity.z);
@@ -332,7 +328,7 @@ public final class MissingPowerEvents {
     private static void maintainDirtyWaterThirst(Player player) {
         // TODO[PARITY] Tough As Nails integration; only partially emulated (dirty-water thirst) and
         //   the temperature-modifier / add-thirst powers have no handler at all.
-        if (!hasPowerId(player, "form_tan_prevent_dirty_water_thirst")) return;
+        if (hasPowerId(player, "form_tan_prevent_dirty_water_thirst")) return;
         if (!player.isInWater()) return;
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("dehydration", "thirst_effect");
         MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
@@ -521,7 +517,7 @@ public final class MissingPowerEvents {
     }
 
     private static boolean hasPowerId(Player player, String path) {
-        return FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
+        return !FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
                 ShapeShifterCurseForge.RESOURCE_NAMESPACE, path));
     }
 

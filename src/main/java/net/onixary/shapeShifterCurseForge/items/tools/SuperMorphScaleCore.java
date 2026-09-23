@@ -3,7 +3,6 @@ package net.onixary.shapeShifterCurseForge.items.tools;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
@@ -90,7 +89,7 @@ public class SuperMorphScaleCore extends Item implements Vanishable {
             int needRepair = user.isCrouching() ? stack.getMaxDamage() : DAMAGE_PER_ITEM;
             needRepair = Math.min(needRepair, damage);
             float expMultiplier = MENDING_MULTIPLIER;
-            if (EnchantmentHelper.getItemEnchantmentLevel(Enchantments.MENDING, stack) > 0) {
+            if (EnchantmentHelper.getTagEnchantmentLevel(Enchantments.MENDING, stack) > 0) {
                 expMultiplier *= QUICK_CHARGE_COST_MULTIPLIER;
             } else {
                 expMultiplier *= QUICK_CHARGE_COST_MULTIPLIER_NO_MENDING;

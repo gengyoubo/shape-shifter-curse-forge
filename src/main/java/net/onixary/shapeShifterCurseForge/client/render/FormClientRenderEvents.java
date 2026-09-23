@@ -101,7 +101,7 @@ public final class FormClientRenderEvents {
             renderer.prepareVanillaPlayerPose(event.getPartialTick());
             // If data-driven animation state is ever invalid, leave the event alone so
             // the player remains visible.
-            if (!renderer.getAnimatable().hasSafeRenderState()) {
+            if (renderer.getAnimatable().hasSafeRenderState()) {
                 setAllPartsVisible(vanillaModel);
                 logRenderOutcome(player, form, "unsafe-state");
                 reportRenderFailure(player, form, null);
@@ -434,8 +434,6 @@ public final class FormClientRenderEvents {
     private static float sleepDirectionToRotation(Direction direction) {
         return switch (direction) {
             case SOUTH -> 90.0F;
-            case WEST -> 0.0F;
-            case NORTH -> 270.0F;
             case EAST -> 180.0F;
             default -> 0.0F;
         };

@@ -6,7 +6,6 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
-import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.client.PowerAnimationClientHandler;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -154,7 +153,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     /** A malformed data animation must fall back to vanilla rendering, never hide a player. */
     public boolean hasSafeRenderState() {
-        return bodyTransform.isFinite();
+        return !bodyTransform.isFinite();
     }
 
     public void setInventoryPreview(boolean inventoryPreview) {

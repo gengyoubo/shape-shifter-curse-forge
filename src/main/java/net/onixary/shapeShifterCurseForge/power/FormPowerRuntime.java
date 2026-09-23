@@ -24,9 +24,7 @@ import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.item.ArrowItem;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
@@ -38,12 +36,14 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerPlayer;
+import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -54,6 +54,7 @@ import java.util.UUID;
  * is not ported. SSC 1.10.0's base data does not reference it (it is only used by custom/patron
  * form packs), so no base-content power currently depends on it.</p>
  */
+@SuppressWarnings("deprecation")
 public final class FormPowerRuntime {
     private FormPowerRuntime() {
     }
@@ -122,7 +123,7 @@ public final class FormPowerRuntime {
                     < Math.max(0.0F, Math.min(1.0F, floatValue(condition, "chance", 0.0F)));
             case "shape-shifter-curse:can_render_gui" -> canRenderGui();
             case "shape-shifter-curse:enable_random_sound" -> SscApi.currentSkin(actor)
-                    .map(data -> data.isEnableFormRandomSound()).orElse(true);
+                    .map(PlayerSkinData::isEnableFormRandomSound).orElse(true);
             case "shape-shifter-curse:is_item_in_cooldown" -> itemInCooldown(actor, condition);
             case "shape-shifter-curse:last_attack_witch_time" -> compare(
                     lastAttackAge(actor, LastAttackKind.WITCH), condition);
@@ -149,7 +150,7 @@ public final class FormPowerRuntime {
             // them into an always-true condition.
             default -> false;
         };
-        return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
+        return (condition.has("inverted") && condition.get("inverted").getAsBoolean()) != result;
     }
 
     /** Apoli's moving condition honours per-axis flags (both default true). */
@@ -184,7 +185,7 @@ public final class FormPowerRuntime {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "item", ""));
         if (id == null) return false;
         net.minecraft.world.item.Item item = BuiltInRegistries.ITEM.get(id);
-        return item != null && actor.getCooldowns().isOnCooldown(item);
+        return actor.getCooldowns().isOnCooldown(item);
     }
 
     public enum LastAttackKind { WITCH, PILLAGER }
@@ -321,7 +322,6 @@ public final class FormPowerRuntime {
             return;
         }
         switch (type) {
-            case "apoli:and" -> { }
             case "apoli:apply_effect" -> applyEffect(recipient, action.getAsJsonObject("effect"));
             case "apoli:heal" -> recipient.heal(floatValue(action, "amount", 0.0F));
             case "apoli:add_velocity" -> addVelocity(actor, action);
@@ -379,7 +379,7 @@ public final class FormPowerRuntime {
                             .addThirst(actor, floatValue(action, "amount", 0.0F));
             default -> {
                 // Unhandled action types are warned about once and ignored instead of being executed.
-                if (type != null && !type.isBlank() && WARNED_ACTIONS.add(type)) {
+                if (!type.isBlank() && WARNED_ACTIONS.add(type)) {
                     LOGGER.warn("[ssc-power] No handler for action type '{}'; the action is ignored.", type);
                 }
             }
@@ -496,11 +496,6 @@ public final class FormPowerRuntime {
             case "multiply_base_multiplicative", "multiply_total_multiplicative" -> {
                 double value = current;
                 for (double v : values) value *= (1.0D + v);
-                return value;
-            }
-            case "add_base_late" -> {
-                double value = current;
-                for (double v : values) value += v;
                 return value;
             }
             case "min_base", "min_total" -> {
@@ -702,7 +697,7 @@ public final class FormPowerRuntime {
         // test() already observes inversion for its fallback branch.
         return !type.equals("apoli:owner") && !type.equals("apoli:entity_type") && !type.equals("apoli:in_tag")
                 && !type.equals("apoli:status_effect") && !type.equals("apoli:and") && !type.equals("apoli:or")
-                ? result : (condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result);
+                ? result : ((condition.has("inverted") && condition.get("inverted").getAsBoolean()) != result);
     }
 
     private static boolean testEntityAll(Player actor, Entity target, JsonArray conditions) {
@@ -898,13 +893,19 @@ public final class FormPowerRuntime {
             case "apoli:enchantment" -> matchesEnchantment(stack, condition);
             case "apoli:meat" -> stack.getItem().isEdible()
                     && stack.getFoodProperties(null) != null
-                    && stack.getFoodProperties(null).isMeat();
+                    && Objects.requireNonNull(stack.getFoodProperties(null)).isMeat();
             case "shape-shifter-curse:is_vegan_ex" -> isVegan(stack, condition);
             case "shape-shifter-curse:is_weapon" -> isWeapon(stack);
             case "shape-shifter-curse:is_morph_scale_item", "shape-shifter-curse:is_morph_scale_food"
                     -> isMorphScaleItem(stack);
             case "apoli:armor_value" -> stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor
                     && compare(armor.getDefense(), condition);
+            case "apoli:harvest_level" -> {
+                // Apoli: a tool's mining level, 0 for anything that is not a tool.
+                int level = stack.getItem() instanceof net.minecraft.world.item.TieredItem tiered
+                        ? tiered.getTier().getLevel() : 0;
+                yield compare(level, condition);
+            }
             case "apoli:empty" -> stack.isEmpty();
             case "apoli:food" -> stack.isEdible();
             // Item conditions outside the handled subset evaluate false.
@@ -932,7 +933,7 @@ public final class FormPowerRuntime {
         // Custom items may still opt in through NBT.
         if (!stack.hasTag()) return false;
         var tag = stack.getTag();
-        return tag.getBoolean("MorphScale") || tag.getBoolean("morphscale")
+        return Objects.requireNonNull(tag).getBoolean("MorphScale") || tag.getBoolean("morphscale")
                 || tag.getBoolean("shape_shifter_curse_morphscale");
     }
 
@@ -945,14 +946,14 @@ public final class FormPowerRuntime {
     private static boolean isVegan(ItemStack stack, JsonObject condition) {
         boolean fallback = booleanValue(condition, "default", false);
         if (!stack.hasTag()) return fallback;
-        byte v = stack.getTag().getByte("vegandelight:is_vegan");
+        byte v = Objects.requireNonNull(stack.getTag()).getByte("vegandelight:is_vegan");
         // tag present: 1 => vegan, 0 => not vegan, missing => fallback
         if (stack.getTag().contains("vegandelight:is_vegan")) return v == 1;
         return fallback;
     }
 
     private static boolean inverted(JsonObject condition, boolean value) {
-        return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !value : value;
+        return (condition.has("inverted") && condition.get("inverted").getAsBoolean()) != value;
     }
 
     private static boolean matchesBlock(Player actor, JsonObject condition) {
@@ -1011,7 +1012,7 @@ public final class FormPowerRuntime {
     private static boolean matchesEnchantment(ItemStack stack, JsonObject condition) {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "enchantment", ""));
         Enchantment enchantment = id == null ? null : BuiltInRegistries.ENCHANTMENT.get(id);
-        return enchantment != null && compare(EnchantmentHelper.getItemEnchantmentLevel(enchantment, stack), condition);
+        return enchantment != null && compare(EnchantmentHelper.getTagEnchantmentLevel(enchantment, stack), condition);
     }
 
     private static boolean raycast(Player actor, JsonObject condition) {
@@ -1343,7 +1344,7 @@ public final class FormPowerRuntime {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "item", ""));
         if (id == null) return;
         net.minecraft.world.item.Item item = BuiltInRegistries.ITEM.get(id);
-        if (item != null) actor.getCooldowns().addCooldown(item, Math.max(0, intValue(action, "cooldown", 0)));
+        actor.getCooldowns().addCooldown(item, Math.max(0, intValue(action, "cooldown", 0)));
     }
 
     private static void spawnEffectCloud(Player actor, LivingEntity recipient, JsonObject action) {
@@ -1372,25 +1373,25 @@ public final class FormPowerRuntime {
     }
 
     private static void playPowerAnimationWithTime(Player actor, JsonObject action) {
-        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        if (!(actor instanceof ServerPlayer player) || actionAllowsServer(action)) return;
         ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "power_animation_id", ""));
         PowerAnimationService.playWithTime(player, id, intValue(action, "animation_time", 0));
     }
 
     private static void playPowerAnimationWithCount(Player actor, JsonObject action) {
-        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        if (!(actor instanceof ServerPlayer player) || actionAllowsServer(action)) return;
         ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "power_animation_id", ""));
         PowerAnimationService.playWithCount(player, id, intValue(action, "animation_count", 1));
     }
 
     private static void playPowerAnimationLoop(Player actor, JsonObject action) {
-        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        if (!(actor instanceof ServerPlayer player) || actionAllowsServer(action)) return;
         PowerAnimationService.playLoop(player,
                 ResourceLocation.tryParse(stringValue(action, "power_animation_id", "")));
     }
 
     private static void stopPowerAnimation(Player actor, JsonObject action) {
-        if (!(actor instanceof ServerPlayer player) || !actionAllowsServer(action)) return;
+        if (!(actor instanceof ServerPlayer player) || actionAllowsServer(action)) return;
         if (!action.has("anim_id_list") || !action.get("anim_id_list").isJsonArray()) {
             PowerAnimationService.stop(player);
             return;
@@ -1404,7 +1405,7 @@ public final class FormPowerRuntime {
     }
 
     private static boolean actionAllowsServer(JsonObject action) {
-        return !action.has("can_on_server") || action.get("can_on_server").getAsBoolean();
+        return action.has("can_on_server") && !action.get("can_on_server").getAsBoolean();
     }
 
     private static void modifyResource(Player actor, JsonObject action) {

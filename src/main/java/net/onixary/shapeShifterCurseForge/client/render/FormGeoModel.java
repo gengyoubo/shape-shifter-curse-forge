@@ -29,6 +29,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
+@SuppressWarnings("StatementWithEmptyBody")
 public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     private static final ResourceLocation EMPTY_ANIMATION = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "animations/empty.animation.json");
@@ -170,23 +171,23 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         if (vanillaModel != null) {
             // Fabric copies the prepared PlayerModel pose, then inverts its Y/Z axes for
             // GeoBone space. This preserves swimming, crouching, attack and item poses.
-            copyVanillaRotation("bipedHead", vanillaModel.head, true, true);
-            copyVanillaRotation("bipedBody", vanillaModel.body, true, false);
-            copyVanillaRotation("bipedRightArm", vanillaModel.rightArm, true, true);
-            copyVanillaRotation("bipedLeftArm", vanillaModel.leftArm, true, true);
-            copyVanillaRotation("bipedRightLeg", vanillaModel.rightLeg, true, true);
-            copyVanillaRotation("bipedLeftLeg", vanillaModel.leftLeg, true, true);
+            copyVanillaRotation("bipedHead", vanillaModel.head, true);
+            copyVanillaRotation("bipedBody", vanillaModel.body, false);
+            copyVanillaRotation("bipedRightArm", vanillaModel.rightArm, true);
+            copyVanillaRotation("bipedLeftArm", vanillaModel.leftArm, true);
+            copyVanillaRotation("bipedRightLeg", vanillaModel.rightLeg, true);
+            copyVanillaRotation("bipedLeftLeg", vanillaModel.leftLeg, true);
 
             // ModelPart#getTransform().pivot is copied as a negated translation by the
             // Fabric renderer.  Forge 1.20.1 exposes the same pivot as x/y/z.  Keep the
             // vanilla biped offsets for arms and legs so the GeoBone origin matches the
             // PlayerModel origin before form animations are applied.
-            copyVanillaPosition("bipedHead", vanillaModel.head, 0.0F, 0.0F, 0.0F);
-            copyVanillaPosition("bipedBody", vanillaModel.body, 0.0F, 0.0F, 0.0F);
-            copyVanillaPosition("bipedRightArm", vanillaModel.rightArm, -5.0F, 2.0F, 0.0F);
-            copyVanillaPosition("bipedLeftArm", vanillaModel.leftArm, 5.0F, 2.0F, 0.0F);
-            copyVanillaPosition("bipedRightLeg", vanillaModel.rightLeg, -2.0F, 12.0F, 0.0F);
-            copyVanillaPosition("bipedLeftLeg", vanillaModel.leftLeg, 2.0F, 12.0F, 0.0F);
+            copyVanillaPosition("bipedHead", vanillaModel.head, 0.0F, 0.0F);
+            copyVanillaPosition("bipedBody", vanillaModel.body, 0.0F, 0.0F);
+            copyVanillaPosition("bipedRightArm", vanillaModel.rightArm, -5.0F, 2.0F);
+            copyVanillaPosition("bipedLeftArm", vanillaModel.leftArm, 5.0F, 2.0F);
+            copyVanillaPosition("bipedRightLeg", vanillaModel.rightLeg, -2.0F, 12.0F);
+            copyVanillaPosition("bipedLeftLeg", vanillaModel.leftLeg, 2.0F, 12.0F);
         } else {
             // Safe fallback for non-player preview callers that do not provide a renderer model.
             setRotation("bipedHead", headPitch * DEG_TO_RAD,
@@ -247,14 +248,14 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         });
     }
 
-    private void copyVanillaRotation(String boneName, ModelPart part, boolean invertGeoY, boolean invertGeoZ) {
-        float y = invertGeoY ? -part.yRot : part.yRot;
+    private void copyVanillaRotation(String boneName, ModelPart part, boolean invertGeoZ) {
+        float y = true ? -part.yRot : part.yRot;
         float z = invertGeoZ ? -part.zRot : part.zRot;
         setRotation(boneName, part.xRot, y, z);
     }
 
-    private void copyVanillaPosition(String boneName, ModelPart part, float offsetX, float offsetY, float offsetZ) {
-        setPosition(boneName, -part.x + offsetX, -part.y + offsetY, -part.z + offsetZ);
+    private void copyVanillaPosition(String boneName, ModelPart part, float offsetX, float offsetY) {
+        setPosition(boneName, -part.x + offsetX, -part.y + offsetY, -part.z + (float) 0.0);
     }
 
     private void setPosition(String boneName, float x, float y, float z) {
@@ -287,9 +288,6 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         animationConfigLoaded = true;
         animationConfig = ModelAnimationConfig.EMPTY;
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft == null) {
-            return animationConfig;
-        }
         try {
             var resource = minecraft.getResourceManager().getResource(animationConfigResource);
             if (resource.isEmpty()) {
@@ -352,7 +350,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         // Fabric's head-tail controller uses the smoothed neck yaw when a neck exists.
         // Axolotl does not have a long-neck configuration, so the prepared head yaw is its exact input.
         float headAngle = Mth.wrapDegrees(player.getYHeadRot() - player.yBodyRot) * DEG_TO_RAD;
-        float[] neckAngles = null;
+        float[] neckAngles;
         if (config.neck != null) {
             neckAngles = smoothedNeckAngles(config.neck, player, partialTick, inventoryPreview,
                     headYawDeg, headPitchDeg);
@@ -421,7 +419,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         if (deltaTicks > 0.0F) {
             float yawLerp = Mth.clamp(deltaTicks * 0.45F, 0.0F, 1.0F);
             float pitchLerp = Mth.clamp(deltaTicks * 0.35F, 0.0F, 1.0F);
-            state.headYaw = lerpAngleAwayFrom(yawLerp, state.headYaw, targetYaw, 180.0F);
+            state.headYaw = lerpAngleAwayFrom(yawLerp, state.headYaw, targetYaw);
             state.headPitch = Mth.lerp(pitchLerp, state.headPitch, targetPitch);
             if (!Float.isFinite(state.headYaw)) {
                 state.headYaw = fallbackYawDeg;
@@ -468,14 +466,14 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     }
 
     /** Verbatim port of Fabric LongNeckRenderUtils#lerpAngleAwayFrom. */
-    private static float lerpAngleAwayFrom(float delta, float start, float end, float avoidAngle) {
-        if (Math.abs(Mth.wrapDegrees(avoidAngle - end)) < 0.0001F) {
+    private static float lerpAngleAwayFrom(float delta, float start, float end) {
+        if (Math.abs(Mth.wrapDegrees((float) 180.0 - end)) < 0.0001F) {
             return lerpAngle(delta, start, end);
         }
         start = Mth.wrapDegrees(start);
         end = Mth.wrapDegrees(end);
         float diff = Mth.wrapDegrees(end - start);
-        float avoidDiff = Mth.wrapDegrees(avoidAngle - start);
+        float avoidDiff = Mth.wrapDegrees((float) 180.0 - start);
         boolean flipDir = Math.signum(diff) == Math.signum(avoidDiff)
                 && Math.abs(diff) > Math.abs(avoidDiff);
         if (flipDir) {
@@ -532,12 +530,10 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         float sway = Mth.cos((player.tickCount + partialTick) * 0.20F) * 1.5F;
         float segmentPitch = axolotlTailFlightPitch + sway;
 
-        getBone("tail_0").ifPresent(bone -> {
-            bone.setRotX(
-                    bone.getRotX()
-                            + segmentPitch * DEG_TO_RAD
-            );
-        });
+        getBone("tail_0").ifPresent(bone -> bone.setRotX(
+                bone.getRotX()
+                        + segmentPitch * DEG_TO_RAD
+        ));
     }
 
     private void applyTailChain(List<String> chain, boolean feral, float age, float limbAngle, float limbDistance,
@@ -709,7 +705,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     }
 
     /** Exposes the parsed form config to the first-person arm renderer. */
-    public ModelAnimationConfig renderConfig() {
+    private ModelAnimationConfig renderConfig() {
         return animationConfig();
     }
 
@@ -876,7 +872,6 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
                 try {
                     neck = NeckConfig.of(config.getAsJsonObject("neck_config"));
                 } catch (RuntimeException ignored) {
-                    neck = null;
                 }
             }
             return new ModelAnimationConfig(chains(object(config, "tail")), chains(object(config, "head_tail")),

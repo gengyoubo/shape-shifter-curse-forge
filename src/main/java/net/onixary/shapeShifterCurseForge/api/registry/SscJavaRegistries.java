@@ -126,7 +126,7 @@ public final class SscJavaRegistries {
      * @deprecated Declare all form progression, including variants, through one family-owned
      * {@link Evolution}; Stage classes must not own progression edges themselves.
      */
-    @Deprecated(forRemoval = false)
+    @Deprecated()
     public static void registerVariant(SscForm variant) {
         SscForm checked = Objects.requireNonNull(variant, "variant");
         if (checked.variantParentId() == null) {

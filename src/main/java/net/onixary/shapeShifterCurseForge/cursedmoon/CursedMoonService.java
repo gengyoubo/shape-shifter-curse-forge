@@ -15,10 +15,11 @@ import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
-import net.onixary.shapeShifterCurseForge.form.FormGroup;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+
+import java.util.Objects;
 
 /** Server-side Cursed Moon state machine, ported from Fabric's world tick flow. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -90,7 +91,7 @@ public final class CursedMoonService {
     }
 
     public static void sendDaySync(ServerPlayer player) {
-        ModNetwork.sendCursedMoonSync(player, isCursedMoonDay(player.getServer().overworld()));
+        ModNetwork.sendCursedMoonSync(player, isCursedMoonDay(Objects.requireNonNull(player.getServer()).overworld()));
     }
 
     public static void applyStartCursedMoonEffect(ServerPlayer player) {

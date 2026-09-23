@@ -13,6 +13,7 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /** Codex page one: title, equipment, appearance, entity preview. */
 public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUtils.IWidgetEX {
@@ -45,7 +46,7 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         // Title
         // D -> (9, 9), (19, 95)
         // Size -> (108, 48) Pos -> (17, 92)
-        this.addRenderableWidget(this.buildDetailScreenButton(19, 95, 9, 9,
+        this.addRenderableWidget(this.buildDetailScreenButton(19, 95,
                 CodexData.getContentText(CodexData.ContentType.TITLE, this.currentPlayer)));
         ScaleScrollTextWidget titleLabel = new ScaleScrollTextWidget(
                 bookPosX + 17 * bookScale, bookPosY + 105 * bookScale, 108 * bookScale, 5 * bookScale,
@@ -57,7 +58,7 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         // Equip
         // D -> (9, 9), (116, 143)
         // Size -> (107, 56) Pos -> (17, 153)
-        this.addRenderableWidget(this.buildDetailScreenButton(116, 143, 9, 9,
+        this.addRenderableWidget(this.buildDetailScreenButton(116, 143,
                 CodexData.getContentText(CodexData.ContentType.EQUIP, this.currentPlayer)));
         this.addRenderableWidget(new StringWidget(
                 bookPosX + 17 * bookScale, bookPosY + 143 * bookScale, 107 * bookScale, 6 * bookScale,
@@ -73,14 +74,14 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         // 21,194,98,11
         this.addRenderableWidget(Button.builder(OPEN_FCS_MENU_BUTTON_LABEL, button -> {
             if (FormColorSelectMenuV2.instance == null) {
-                this.minecraft.setScreen(new FormColorSelectMenuV2(
+                Objects.requireNonNull(this.minecraft).setScreen(new FormColorSelectMenuV2(
                         Component.literal("text.shape-shifter-curse.config.form_color_select_menu_v2"), this));
             }
         }).pos(bookPosX + 31 * bookScale, bookPosY + 194 * bookScale).size(78 * bookScale, 14 * bookScale).build());
         // Appearance
         // D -> (9, 9), (311, 13)
         // Size -> (176, 184) Pos -> (142, 23)
-        this.addRenderableWidget(this.buildDetailScreenButton(311, 13, 9, 9,
+        this.addRenderableWidget(this.buildDetailScreenButton(311, 13,
                 CodexData.getContentText(CodexData.ContentType.APPEARANCE, this.currentPlayer)));
         this.addRenderableWidget(new StringWidget(
                 bookPosX + 142 * bookScale, bookPosY + 11 * bookScale, 176 * bookScale, 8 * bookScale,
@@ -115,7 +116,7 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         Minecraft.getInstance().setScreen(new BookOfShapeShifterScreenV2_P2(this.currentPlayer));
     }
 
-    private Button buildDetailScreenButton(int inBookPosX, int inBookPosY, int sizeX, int sizeY,
+    private Button buildDetailScreenButton(int inBookPosX, int inBookPosY,
                                            Component detailText) {
         int bookScale = 1;
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
@@ -124,16 +125,14 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         int fixedPosY = bookPosY + inBookPosY * bookScale;
         return Button.builder(Component.literal("+"), button ->
                 Minecraft.getInstance().setScreen(new DetailScreen(this, detailText)))
-                .pos(fixedPosX, fixedPosY).size(sizeX * bookScale, sizeY * bookScale).build();
+                .pos(fixedPosX, fixedPosY).size(9 * bookScale, 9 * bookScale).build();
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int bookScale = 1;
-        int finalBookSizeX = BOOK_SIZE_X;
-        int finalBookSizeY = BOOK_SIZE_Y;
-        int bookPosX = this.width / 2 - finalBookSizeX / 2;
-        int bookPosY = this.height / 2 - finalBookSizeY / 2;
+        int bookPosX = this.width / 2 - BOOK_SIZE_X / 2;
+        int bookPosY = this.height / 2 - BOOK_SIZE_Y / 2;
         this.renderBook(graphics);
         // Entity preview, origin at the entity's feet center.
         // Size -> (70, 66) Pos -> (35, 15)
@@ -158,7 +157,7 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         return null;
     }
 
-    public List<WidgetEXUtils.IWidgetEX> widgetList = new ArrayList<>();
+    public final List<WidgetEXUtils.IWidgetEX> widgetList = new ArrayList<>();
 
     @Override
     public List<WidgetEXUtils.IWidgetEX> getWidgetList() {

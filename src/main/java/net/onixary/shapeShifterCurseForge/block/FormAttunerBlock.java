@@ -15,13 +15,16 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /** World-side Form Attuner; the Perk-tree UI is implemented separately. */
+@SuppressWarnings("deprecation")
 public final class FormAttunerBlock extends BaseEntityBlock implements BeaconBeamBlock {
     public FormAttunerBlock(Properties properties) {
         super(properties);
@@ -37,9 +40,8 @@ public final class FormAttunerBlock extends BaseEntityBlock implements BeaconBea
         return DyeColor.PURPLE;
     }
 
-    @Nullable
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+    public @NotNull BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new FormAttunerBlockEntity(pos, state);
     }
 
@@ -61,7 +63,7 @@ public final class FormAttunerBlock extends BaseEntityBlock implements BeaconBea
             FormAttunerBlockEntity.rememberUser(serverPlayer, pos);
             ModNetwork.sendOpenFormAttuner(serverPlayer, attuner.getAttunementLevel(),
                     FormAttunerBlockEntity.getMaxLevel(),
-                    SscApi.currentForm(serverPlayer).map(data -> data.getFormGroupId()).orElse(""));
+                    SscApi.currentForm(serverPlayer).map(PlayerFormData::getFormGroupId).orElse(""));
         }
         return InteractionResult.CONSUME;
     }

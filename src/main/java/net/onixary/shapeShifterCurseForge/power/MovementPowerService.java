@@ -7,7 +7,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -125,7 +124,7 @@ public final class MovementPowerService {
                 force[0] = true;
             }
         });
-        return force[0];
+        return !force[0];
     }
 
     private static final ThreadLocal<Boolean> FORCE_SNEAK_GUARD = ThreadLocal.withInitial(() -> false);
