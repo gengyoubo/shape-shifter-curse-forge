@@ -195,7 +195,9 @@ public final class FormAnimationSystem {
             if (player.isUsingItem()) return player.isBlocking() ? State.BLOCK : State.USE_ITEM;
             return motion.swingTicks >= 10 ? State.MINING : State.ATTACK;
         }
-        if (isVanillaCrawlingForAnimation(player)) return State.CRAWL;
+        // Keep the real vanilla crawling pose distinct from a regular crouch,
+        // but map both paths to the axolotl's dedicated crawl clips below.
+        if (player.isVisuallyCrawling()) return State.CRAWL;
         if (motion.moving) return player.isSprinting() ? State.SPRINT : State.WALK;
         return State.IDLE;
     }
@@ -261,10 +263,9 @@ public final class FormAnimationSystem {
                 case MINING -> add(result, sneak ? "axolotl_2_crawling_tool_swing" : null);
                 case FLYING, FALL_FLYING -> add(result, "axolotl_3_creative_flight");
                 case SLEEP -> add(result, "axolotl_3_sleep");
-                // A one-block-high ceiling makes vanilla put the player in its
-                // real crawling pose.  That pose must drive the axolotl crawl
-                // clips too; it is visual-only here and does not synthesize
-                // crouching, swimming, or a sneak key press.
+                // One-block clearance triggers the same form Geo crawl as a
+                // held Shift.  The source is vanilla pose resolution, not a
+                // synthetic sneak flag or movement override.
                 case CRAWL -> add(result, motionOf(player).moving
                         ? "axolotl_3_crawling" : "axolotl_3_crawling_idle");
                 default -> { }
@@ -475,18 +476,6 @@ public final class FormAnimationSystem {
      */
     private static boolean isSwimmingAnimation(Player player) {
         return player.isSwimming();
-    }
-
-    /**
-     * Vanilla ordinarily exposes a one-block crawl as {@code isVisuallyCrawling()},
-     * which is the SWIMMING pose outside water.  A scaled axolotl can instead fit in
-     * the same gap while vanilla has only fallen back to CROUCHING.  It is still the
-     * automatic low-clearance pose shown in-game, but is neither a real sneak-key
-     * press nor a reason to alter movement.  Treat it as crawl for Geo selection.
-     */
-    private static boolean isVanillaCrawlingForAnimation(Player player) {
-        return player.isVisuallyCrawling()
-                || (!player.isInWater() && player.isCrouching() && !player.isShiftKeyDown());
     }
 
     /** Fabric's RushJumpAnimController selects rush from horizontal velocity alone. */

@@ -171,9 +171,9 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     }
 
     /**
-     * These clips contain their own 90-degree {@code body} transform.  Applying
-     * Minecraft's visual-swimming transform as well would rotate the rendered Geo
-     * body a second time when a low ceiling puts the player in the crawling pose.
+     * The axolotl crawl clips contain their own 90-degree {@code body} transform.
+     * A visually-crawling player must not receive Minecraft's swim rotation on top
+     * of that same root transform.
      */
     public boolean usesAxolotlCrawlBodyTransform() {
         return extraPrimary != null

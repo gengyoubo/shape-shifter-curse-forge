@@ -109,6 +109,15 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
     @Inject(method = "updatePlayerPose", at = @At("HEAD"), cancellable = true)
     private void ssc$forceFeralPose(CallbackInfo ci) {
         Player player = (Player) (Object) this;
+        // Axolotl crawling is deliberately the vanilla SWIMMING pose on dry land,
+        // not Forge's CROUCHING pose.  A low ceiling reaches it through vanilla
+        // pose resolution; a held Shift reaches the same pose here.  The renderer
+        // then replaces that single pose with the axolotl Geo crawl animation.
+        if (ssc$shouldForceVanillaCrawl(player)) {
+            this.setPose(Pose.SWIMMING);
+            ci.cancel();
+            return;
+        }
         boolean isFeral = FormManager.current(player).bodyType() == FormBodyType.FERAL;
         // Fabric only replaces this method for FERAL forms.  In particular,
         // axolotl crouching remains vanilla crouching: SSC adjusts its bounds
@@ -141,5 +150,20 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
         }
         this.setPose(resolved);
         ci.cancel();
+    }
+
+    @Unique
+    private static boolean ssc$shouldForceVanillaCrawl(Player player) {
+        if (!player.isShiftKeyDown() || player.isInWaterOrBubble() || player.isPassenger()
+                || player.isFallFlying() || player.isSleeping() || player.isAutoSpinAttack()) {
+            return false;
+        }
+        final boolean[] hasCrawlingPower = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:crawling".equals(FormPowerRegistry.typeOf(power))) {
+                hasCrawlingPower[0] = true;
+            }
+        });
+        return hasCrawlingPower[0];
     }
 }
