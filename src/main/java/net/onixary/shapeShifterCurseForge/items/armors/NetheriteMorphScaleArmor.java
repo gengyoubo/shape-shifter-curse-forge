@@ -21,7 +21,7 @@ public class NetheriteMorphScaleArmor extends ArmorItem implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
     public NetheriteMorphScaleArmor(ArmorItem.Type type, Properties properties) {
-        super(NetheriteMorphscaleArmorMaterial.INSTANCE, type, properties.fireproof());
+        super(NetheriteMorphscaleArmorMaterial.INSTANCE, type, properties.fireResistant());
     }
 
     @Override

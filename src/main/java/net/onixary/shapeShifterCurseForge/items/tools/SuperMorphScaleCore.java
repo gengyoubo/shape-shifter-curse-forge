@@ -3,7 +3,6 @@ package net.onixary.shapeShifterCurseForge.items.tools;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -104,7 +103,7 @@ public class SuperMorphScaleCore extends Item implements Vanishable {
             if (needRepair > 0) {
                 stack.setDamageValue(Math.max(0, damage - needRepair));
                 player.giveExperiencePoints(-expCost);
-                player.playSound(SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS, 1.0F, 1.0F);
+                player.playSound(SoundEvents.ENCHANTMENT_TABLE_USE, 1.0F, 1.0F);
             }
         }
         return stack;

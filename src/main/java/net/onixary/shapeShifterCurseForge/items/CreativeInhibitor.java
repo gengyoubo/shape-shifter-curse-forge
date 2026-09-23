@@ -26,7 +26,7 @@ public class CreativeInhibitor extends Item {
         super(properties.stacksTo(16).food(new FoodProperties.Builder()
                 .nutrition(2)
                 .saturationMod(0.3F)
-                .alwaysEdible()
+                .alwaysEat()
                 .build()));
     }
 
