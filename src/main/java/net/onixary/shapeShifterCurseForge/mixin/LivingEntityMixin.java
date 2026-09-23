@@ -261,6 +261,32 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     }
 
     /**
+     * Apoli's {@code apoli:climbing} power (Fabric {@code ClimbingPower}): the entity is
+     * treated as being on a ladder while the power's {@code condition} or
+     * {@code hold_condition} matches. This is how the spider form climbs cobwebs.
+     */
+    @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
+    private void ssc$powerClimbing(CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player)) {
+            return;
+        }
+        final boolean[] climbing = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (climbing[0] || !"apoli:climbing".equals(FormPowerRegistry.typeOf(power))) return;
+            JsonObject start = power.getAsJsonObject("condition");
+            JsonObject hold = power.getAsJsonObject("hold_condition");
+            if (FormPowerRuntime.test(player, player, start)
+                    || (hold != null && FormPowerRuntime.test(player, player, hold))) {
+                climbing[0] = true;
+            }
+        });
+        if (climbing[0]) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    /**
      * Mirrors SSC Fabric's water-flexibility hook at the point where vanilla applies
      * X/Z water damping. Replacing the damping value here makes it the final value
      * after Dolphin's Grace, rather than multiplying already-completed travel again

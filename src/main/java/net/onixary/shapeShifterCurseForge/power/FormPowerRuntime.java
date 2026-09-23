@@ -73,7 +73,7 @@ public final class FormPowerRuntime {
                     || actor.isVisuallyCrawling() && !actor.isInWaterOrBubble();
             case "apoli:sprinting" -> actor.isSprinting();
             case "apoli:on_ground" -> actor.onGround();
-            case "apoli:moving" -> actor.getDeltaMovement().horizontalDistanceSqr() > 0.0004D;
+            case "apoli:moving" -> moving(actor, condition);
             case "apoli:food_level" -> compare(actor.getFoodData().getFoodLevel(), condition);
             case "apoli:fluid_height" -> compare(fluidHeight(actor, condition), condition);
             case "apoli:submerged_in" -> submergedIn(actor, condition);
@@ -145,8 +145,17 @@ public final class FormPowerRuntime {
         return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
     }
 
-    private static boolean barehandDigging(Player actor) {
-        ItemStack stack = actor.getMainHandItem();
+    /** Apoli's moving condition honours per-axis flags (both default true). */
+    private static boolean moving(Player actor, JsonObject condition) {
+        boolean horizontally = !condition.has("horizontally") || condition.get("horizontally").getAsBoolean();
+        boolean vertically = !condition.has("vertically") || condition.get("vertically").getAsBoolean();
+        net.minecraft.world.phys.Vec3 velocity = actor.getDeltaMovement();
+        boolean movingHorizontally = velocity.x * velocity.x + velocity.z * velocity.z > 0.0004D;
+        boolean movingVertically = Math.abs(velocity.y) > 0.0004D;
+        return (horizontally && movingHorizontally) || (vertically && movingVertically);
+    }
+
+    private static boolean barehandDigging(Player actor) {        ItemStack stack = actor.getMainHandItem();
         if (stack.isEmpty()) return true;
         return stack.getItem() instanceof net.minecraft.world.item.TieredItem tiered
                 && tiered.getTier().getLevel() <= 0;
@@ -298,7 +307,7 @@ public final class FormPowerRuntime {
             case "apoli:heal" -> recipient.heal(floatValue(action, "amount", 0.0F));
             case "apoli:add_velocity" -> addVelocity(actor, action);
             case "apoli:set_on_fire" -> recipient.setSecondsOnFire(intValue(action, "duration", 1));
-            case "apoli:damage" -> recipient.hurt(actor.damageSources().playerAttack(actor), floatValue(action, "amount", 0.0F));
+            case "apoli:damage" -> dealActionDamage(actor, recipient, action);
             case "apoli:play_sound" -> playSound(actor, action);
             case "apoli:feed" -> feed(actor, action);
             case "apoli:gain_air" -> actor.setAirSupply(actor.getAirSupply() + intValue(action, "value", 0));
@@ -359,6 +368,8 @@ public final class FormPowerRuntime {
         }
         double amount = doubleValue(modifier, "value", 0.0D);
         return switch (stringValue(modifier, "operation", "addition")) {
+            // SSC's data uses set_total to replace the value outright (e.g. zeroing non-meat food).
+            case "set_total", "set" -> amount;
             case "multiply_base", "multiply_total" -> value * (1.0D + amount);
             default -> value + amount;
         };
@@ -373,6 +384,11 @@ public final class FormPowerRuntime {
             case "apoli:or" -> damageConditions(source, condition.getAsJsonArray("conditions"), false);
             case "apoli:name" -> stringValue(condition, "name", "").equals(source.getMsgId());
             case "apoli:fire" -> source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE);
+            case "apoli:in_tag" -> {
+                ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
+                yield source != null && id != null
+                        && source.is(TagKey.create(Registries.DAMAGE_TYPE, id));
+            }
             default -> false;
         };
         return inverted(condition, result);
@@ -384,19 +400,38 @@ public final class FormPowerRuntime {
                                               float amount, JsonObject condition) {
         if (condition == null) return true;
         String type = FormPowerRegistry.typeOf(condition);
-        boolean result = switch (type) {
-            case "apoli:and" -> damageConditionList(actor, victim, source, amount,
-                    condition.getAsJsonArray("conditions"), true);
-            case "apoli:or" -> damageConditionList(actor, victim, source, amount,
-                    condition.getAsJsonArray("conditions"), false);
-            case "apoli:amount" -> compare(amount, condition);
-            case "apoli:attacker" -> source != null && source.getEntity() != null
+        if ("apoli:and".equals(type)) {
+            return inverted(condition, damageConditionList(actor, victim, source, amount,
+                    condition.getAsJsonArray("conditions"), true));
+        }
+        if ("apoli:or".equals(type)) {
+            return inverted(condition, damageConditionList(actor, victim, source, amount,
+                    condition.getAsJsonArray("conditions"), false));
+        }
+        if ("apoli:amount".equals(type)) {
+            return inverted(condition, compare(amount, condition));
+        }
+        if ("apoli:attacker".equals(type)) {
+            return inverted(condition, source != null && source.getEntity() != null
                     && (!condition.has("entity_condition")
-                    || testEntity(actor, source.getEntity(), condition.getAsJsonObject("entity_condition")));
-            case "apoli:projectile" -> source != null && source.getDirectEntity() instanceof Projectile;
-            default -> test(actor, victim, condition);
-        };
-        return inverted(condition, result);
+                    || testEntity(actor, source.getEntity(), condition.getAsJsonObject("entity_condition"))));
+        }
+        if ("apoli:projectile".equals(type)) {
+            return inverted(condition, source != null && source.getDirectEntity() instanceof Projectile);
+        }
+        if ("apoli:fire".equals(type)) {
+            return inverted(condition, source != null && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE));
+        }
+        if ("apoli:name".equals(type)) {
+            return inverted(condition, source != null && stringValue(condition, "name", "").equals(source.getMsgId()));
+        }
+        if ("apoli:in_tag".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
+            return inverted(condition, source != null && id != null
+                    && source.is(TagKey.create(Registries.DAMAGE_TYPE, id)));
+        }
+        // Unknown damage condition: delegate to the generic interpreter, which applies inversion itself.
+        return test(actor, victim, condition);
     }
 
     private static boolean damageConditionList(Player actor, Entity victim,
@@ -511,17 +546,21 @@ public final class FormPowerRuntime {
     private static boolean matchesBiomeCondition(Player actor, net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome,
                                                   JsonObject condition) {
         String type = FormPowerRegistry.typeOf(condition);
-        boolean result = switch (type) {
-            case "apoli:and" -> testBiomeConditions(actor, biome, condition.getAsJsonArray("conditions"), true);
-            case "apoli:or" -> testBiomeConditions(actor, biome, condition.getAsJsonArray("conditions"), false);
-            case "apoli:temperature" -> compare(biome.value().getBaseTemperature(), condition);
-            case "apoli:in_tag" -> {
-                ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
-                yield id != null && biome.is(TagKey.create(Registries.BIOME, id));
-            }
-            default -> test(actor, actor, condition);
-        };
-        return inverted(condition, result);
+        if ("apoli:and".equals(type)) {
+            return inverted(condition, testBiomeConditions(actor, biome, condition.getAsJsonArray("conditions"), true));
+        }
+        if ("apoli:or".equals(type)) {
+            return inverted(condition, testBiomeConditions(actor, biome, condition.getAsJsonArray("conditions"), false));
+        }
+        if ("apoli:temperature".equals(type)) {
+            return inverted(condition, compare(biome.value().getBaseTemperature(), condition));
+        }
+        if ("apoli:in_tag".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
+            return inverted(condition, id != null && biome.is(TagKey.create(Registries.BIOME, id)));
+        }
+        // Unknown biome condition: delegate to the generic interpreter, which applies inversion itself.
+        return test(actor, actor, condition);
     }
 
     private static boolean testBiomeConditions(Player actor, net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome,
@@ -710,8 +749,13 @@ public final class FormPowerRuntime {
         Vec3 end = start.add(actor.getLookAngle().scale(distance));
         boolean checkBlock = booleanValue(condition, "block", true);
         boolean checkEntity = booleanValue(condition, "entity", true);
+        ClipContext.Fluid fluid = switch (stringValue(condition, "fluid_handling", "none")) {
+            case "any" -> ClipContext.Fluid.ANY;
+            case "source_only" -> ClipContext.Fluid.SOURCE_ONLY;
+            default -> ClipContext.Fluid.NONE;
+        };
         BlockHitResult blockHit = actor.level().clip(new ClipContext(start, end,
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, actor));
+                ClipContext.Block.OUTLINE, fluid, actor));
         double maxDistance = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
                 ? distance : start.distanceTo(blockHit.getLocation());
         if (checkBlock && blockHit.getType() != net.minecraft.world.phys.HitResult.Type.MISS
@@ -837,11 +881,26 @@ public final class FormPowerRuntime {
         }
     }
 
+    private static void dealActionDamage(Player actor, LivingEntity recipient, JsonObject action) {
+        String damageType = stringValue(action, "damage_type", "minecraft:player_attack");
+        var sources = actor.damageSources();
+        net.minecraft.world.damagesource.DamageSource source = switch (damageType) {
+            case "minecraft:on_fire" -> sources.onFire();
+            case "minecraft:starve" -> sources.starve();
+            case "minecraft:magic" -> sources.magic();
+            case "minecraft:generic" -> sources.generic();
+            default -> sources.playerAttack(actor);
+        };
+        recipient.hurt(source, floatValue(action, "amount", 0.0F));
+    }
+
     private static void addVelocity(Player actor, JsonObject action) {
         double x = doubleValue(action, "x", 0.0D);
         double y = doubleValue(action, "y", 0.0D);
         double z = doubleValue(action, "z", 0.0D);
         String space = stringValue(action, "space", "");
+        double dx = x;
+        double dz = z;
         if ("local".equals(space) || "local_horizontal_normalized".equals(space)) {
             Vec3 forward = actor.getLookAngle();
             if ("local_horizontal_normalized".equals(space)) {
@@ -852,9 +911,15 @@ public final class FormPowerRuntime {
             Vec3 side = new Vec3(forward.z, 0.0D, -forward.x);
             double sideLen2 = side.x*side.x + side.z*side.z;
             if (sideLen2 > 1e-8) side = side.normalize(); else side = new Vec3(1,0,0);
-            actor.push(side.x * x + forward.x * z, y, side.z * x + forward.z * z);
+            dx = side.x * x + forward.x * z;
+            dz = side.z * x + forward.z * z;
+        }
+        // Apoli's add_velocity "set" flag replaces the velocity instead of adding to it.
+        if (action.has("set") && action.get("set").getAsBoolean()) {
+            actor.setDeltaMovement(dx, y, dz);
+            if (!actor.level().isClientSide) actor.hurtMarked = true;
         } else {
-            actor.push(x, y, z);
+            actor.push(dx, y, dz);
         }
     }
 

@@ -462,7 +462,7 @@ public final class FormPowerEvents {
                 event.setCanceled(true);
                 return;
             }
-            runInteraction(event.getEntity(), null, "apoli:action_on_item_use");
+            runItemUseInteraction(event.getEntity(), event.getItemStack(), false);
         }
     }
 
@@ -470,6 +470,8 @@ public final class FormPowerEvents {
     public static void finishUsingItem(LivingEntityUseItemEvent.Finish event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) return;
         ItemStack used = event.getItem();
+        // Apoli action_on_item_use with trigger=finish fires after the use duration completes.
+        runItemUseInteraction(player, used, true);
         if (used.is(Items.GOLDEN_APPLE) || used.is(Items.ENCHANTED_GOLDEN_APPLE)) {
             if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 FormDefinition current = FormManager.current(player);
@@ -485,15 +487,35 @@ public final class FormPowerEvents {
             if (!"apoli:modify_food".equals(FormPowerRegistry.typeOf(power))
                     || !FormPowerRuntime.matchesItem(used, power.getAsJsonObject("item_condition"))) return;
             int before = food.getNutrition();
-            int after = (int) Math.round(FormPowerRuntime.applyModifier(before, power.getAsJsonObject("food_modifier")));
+            float nutrition = applyFoodModifiers(before, power, "food_modifier", "food_modifiers");
+            int after = Math.round(nutrition);
             float saturationBefore = food.getSaturationModifier();
-            float saturationAfter = (float) FormPowerRuntime.applyModifier(saturationBefore,
-                    power.getAsJsonObject("saturation_modifier"));
+            float saturationAfter = applyFoodModifiers(saturationBefore,
+                    power, "saturation_modifier", "saturation_modifiers");
             player.getFoodData().setFoodLevel(Math.max(0, Math.min(20,
                     player.getFoodData().getFoodLevel() + after - before)));
             player.getFoodData().setSaturation(Math.max(0.0F, Math.min(player.getFoodData().getFoodLevel(),
                     player.getFoodData().getSaturationLevel() + (after * saturationAfter) - (before * saturationBefore))));
         });
+    }
+
+    /**
+     * Apoli's modify_food accepts either a single modifier ("food_modifier") or an ordered
+     * list ("food_modifiers"). SSC's data uses both forms, so both must be applied.
+     */
+    private static float applyFoodModifiers(float value, JsonObject power, String singleKey, String pluralKey) {
+        float result = value;
+        if (power.has(singleKey) && power.get(singleKey).isJsonObject()) {
+            result = (float) FormPowerRuntime.applyModifier(result, power.getAsJsonObject(singleKey));
+        }
+        if (power.has(pluralKey) && power.get(pluralKey).isJsonArray()) {
+            for (var modifier : power.getAsJsonArray(pluralKey)) {
+                if (modifier.isJsonObject()) {
+                    result = (float) FormPowerRuntime.applyModifier(result, modifier.getAsJsonObject());
+                }
+            }
+        }
+        return result;
     }
 
     @SubscribeEvent
@@ -536,7 +558,9 @@ public final class FormPowerEvents {
         final float[] speed = {event.getOriginalSpeed()};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("apoli:modify_break_speed".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    && (!power.has("block_condition") || FormPowerRuntime.matchesBlockState(player.level(),
+                    event.getPosition().orElse(player.blockPosition()), power.getAsJsonObject("block_condition")))) {
                 speed[0] = (float) FormPowerRuntime.applyModifier(speed[0], power.getAsJsonObject("modifier"));
             }
         });
@@ -544,6 +568,17 @@ public final class FormPowerEvents {
     }
 
     private static void tickPower(Player player, ResourceLocation powerId, JsonObject power) {
+        if ("apoli:exhaust".equals(FormPowerRegistry.typeOf(power))) {
+            // Apoli's exhaust power drains hunger every "interval" ticks while its condition holds.
+            int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
+            if (player.tickCount % interval == 0
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                float exhaustion = FormPowerRuntime.floatValue(power, "exhaustion", 0.0F);
+                if (exhaustion != 0.0F) {
+                    player.causeFoodExhaustion(exhaustion);
+                }
+            }
+        }
         if ("apoli:action_over_time".equals(FormPowerRegistry.typeOf(power))) {
             int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
             if (player.tickCount % interval == 0
@@ -582,7 +617,15 @@ public final class FormPowerEvents {
                 String damageType = FormPowerRuntime.stringValue(power, "damage_type", "minecraft:generic");
                 var source = "minecraft:on_fire".equals(damageType) ? player.damageSources().onFire()
                         : player.damageSources().generic();
-                player.hurt(source, FormPowerRuntime.floatValue(power, "damage", 0.0F));
+                // Apoli uses damage_easy on EASY and deals nothing on PEACEFUL.
+                var difficulty = player.level().getDifficulty();
+                if (difficulty != net.minecraft.world.Difficulty.PEACEFUL) {
+                    float amount = difficulty == net.minecraft.world.Difficulty.EASY
+                            ? FormPowerRuntime.floatValue(power, "damage_easy",
+                                    FormPowerRuntime.floatValue(power, "damage", 0.0F))
+                            : FormPowerRuntime.floatValue(power, "damage", 0.0F);
+                    player.hurt(source, amount);
+                }
             }
         }
     }
@@ -601,6 +644,26 @@ public final class FormPowerEvents {
         });
     }
 
+    /**
+     * Apoli's action_on_item_use fires on a per-power {@code trigger}: "instant" on the
+     * initial right-click, "finish" after the use duration completes (or a custom edible
+     * is consumed). The stack to match is passed explicitly so finished stacks still match.
+     */
+    private static void runItemUseInteraction(Player player, ItemStack stack, boolean finish) {
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"apoli:action_on_item_use".equals(FormPowerRegistry.typeOf(power))) return;
+            boolean powerFinish = "finish".equals(FormPowerRuntime.stringValue(power, "trigger", "instant"));
+            if (powerFinish != finish) return;
+            if (power.has("item_condition")
+                    && !FormPowerRuntime.matchesItem(stack, power.getAsJsonObject("item_condition"))) return;
+            JsonObject condition = power.has("bientity_condition") ? power.getAsJsonObject("bientity_condition")
+                    : power.getAsJsonObject("condition");
+            if (!FormPowerRuntime.test(player, player, condition)) return;
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+            FormPowerRuntime.executeHeldItemAction(player, power.getAsJsonObject("item_action"));
+        });
+    }
+
     private static boolean preventsItemUse(Player player) {
         final boolean[] prevents = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
@@ -614,6 +677,8 @@ public final class FormPowerEvents {
 
     private static boolean handleCustomEdible(Player player) {
         ItemStack stack = player.getMainHandItem();
+        if (stack.isEmpty()) return false;
+        ItemStack eaten = stack.copy();
         final boolean[] consumed = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape-shifter-curse:custom_edible".equals(FormPowerRegistry.typeOf(power))
@@ -624,6 +689,10 @@ public final class FormPowerEvents {
             FormPowerRuntime.consumeHeldItem(player, 1);
             consumed[0] = true;
         });
+        if (consumed[0]) {
+            // Custom edibles consume without a vanilla use duration; fire finish-triggered item-use powers here.
+            runItemUseInteraction(player, eaten, true);
+        }
         return consumed[0];
     }
 

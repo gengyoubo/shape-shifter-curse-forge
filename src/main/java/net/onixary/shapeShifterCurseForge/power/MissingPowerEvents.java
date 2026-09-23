@@ -173,14 +173,9 @@ public final class MissingPowerEvents {
             }
             return inverted(condition, result);
         }
-        boolean result;
-        if ("apoli:armor_value".equals(type)) {
-            result = stack.getItem() instanceof ArmorItem armor
-                    && compare(armor.getDefense(), condition);
-        } else {
-            result = FormPowerRuntime.matchesItem(stack, condition);
-        }
-        return inverted(condition, result);
+        // Leaf conditions (apoli:ingredient, is_morph_scale_item, apoli:armor_value, ...).
+        // matchesItem already applies the "inverted" flag internally, so do not invert here again.
+        return FormPowerRuntime.matchesItem(stack, condition);
     }
 
     private static boolean compare(double value, JsonObject condition) {
