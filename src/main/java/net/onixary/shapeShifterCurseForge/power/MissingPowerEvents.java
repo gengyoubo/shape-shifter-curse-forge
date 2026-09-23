@@ -261,6 +261,7 @@ public final class MissingPowerEvents {
         previous.addAll(wanted);
     }
 
+    //这里绝对不能删除，不然会造成有限制的游泳速度
     private static void maintainSimpleMovement(Player player) {
         if (hasPowerId(player, "like_water") || !player.isInWater() || player.isShiftKeyDown()) return;
         var velocity = player.getDeltaMovement();
