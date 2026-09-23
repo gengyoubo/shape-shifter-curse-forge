@@ -51,7 +51,6 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
-            ModNetwork.sendPerkSync(player);
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
         }
@@ -61,7 +60,6 @@ public final class PlayerCapabilityEvents {
     public static void playerRespawned(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
-            ModNetwork.sendPerkSync(player);
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
         }
@@ -71,7 +69,6 @@ public final class PlayerCapabilityEvents {
     public static void playerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
-            ModNetwork.sendPerkSync(player);
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
         }

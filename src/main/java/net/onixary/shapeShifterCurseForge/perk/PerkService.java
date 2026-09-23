@@ -7,7 +7,6 @@ import net.onixary.shapeShifterCurseForge.api.registry.Perk;
 import net.onixary.shapeShifterCurseForge.api.registry.PerkTree;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
-import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 
 import java.util.Objects;
 
@@ -54,7 +53,6 @@ public final class PerkService {
         }
         data.unlockPerk(perkId);
         perk.onUnlocked(player);
-        ModNetwork.sendPerkSync(player);
         return UnlockResult.SUCCESS;
     }
 

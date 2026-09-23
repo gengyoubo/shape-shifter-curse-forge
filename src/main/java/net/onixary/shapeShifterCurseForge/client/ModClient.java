@@ -21,6 +21,7 @@ import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 
+@SuppressWarnings("removal")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ModClient {
     @SubscribeEvent

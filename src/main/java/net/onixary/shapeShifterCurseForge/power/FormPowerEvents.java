@@ -41,7 +41,6 @@ import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
-import net.onixary.shapeShifterCurseForge.perk.PerkPowerService;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -93,14 +92,12 @@ public final class FormPowerEvents {
             enforceSprinting(player);
             applyClimbing(player);
             tickCustomWaterBreathing(player);
-            PerkPowerService.tick(player);
             return;
         }
 
         refreshAttributes(player);
         logAxolotlMovementState(player);
         FormActivePowerService.tick(player);
-        PerkPowerService.tick(player);
         InstinctService.tick((net.minecraft.server.level.ServerPlayer) player);
         BatAttachService.tick(player);
         PowerAnimationService.tick((net.minecraft.server.level.ServerPlayer) player);

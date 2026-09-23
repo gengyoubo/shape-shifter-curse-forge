@@ -132,14 +132,6 @@ public final class ModNetwork {
                 UnlockPerkPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
         );
-        CHANNEL.registerMessage(
-                13,
-                SyncPerksPacket.class,
-                SyncPerksPacket::encode,
-                SyncPerksPacket::decode,
-                SyncPerksPacket::handle,
-                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
-        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -219,10 +211,6 @@ public final class ModNetwork {
                 SscApi.currentForm(player).map(data -> data.getFormGroupId()).orElse(""), statusKey);
     }
 
-    public static void sendPerkSync(ServerPlayer player) {
-        Set<ResourceLocation> unlocked = SscApi.currentForm(player).map(PlayerFormData::getUnlockedPerks).orElse(Set.of());
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SyncPerksPacket(unlocked));
-    }
 
     private static SyncFormPacket packetFor(ServerPlayer player,
                                             PlayerFormData data,
