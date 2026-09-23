@@ -355,46 +355,153 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:play_power_animation_with_count" -> playPowerAnimationWithCount(actor, action);
             case "shape-shifter-curse:play_power_animation_loop" -> playPowerAnimationLoop(actor, action);
             case "shape-shifter-curse:stop_power_animation" -> stopPowerAnimation(actor, action);
+            case "shape-shifter-curse:tan_add_thirst" -> {
+                // Tough As Nails integration point; intentionally inert without the optional TAN mod.
+            }
             default -> {
-                // More specialised actions (projectiles, block placement, mana, and custom entities)
-                // are intentionally retained in the registry and gain handlers incrementally.
+                if (type != null && !type.isBlank() && WARNED_ACTIONS.add(type)) {
+                    LOGGER.warn("[ssc-power] No handler for action type '{}'; the action is ignored.", type);
+                }
             }
         }
+    }
+
+    /** Unknown action types already reported, so the warning is emitted at most once per type. */
+    private static final java.util.Set<String> WARNED_ACTIONS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(FormPowerRuntime.class);
+
+    /** Apoli modifier operations in application order ((base phase, order) then (total phase, order)). */
+    private static final java.util.List<String> MODIFIER_ORDER = java.util.List.of(
+            "add_base_early", "multiply_base_additive", "multiply_base_multiplicative", "add_base_late",
+            "min_base", "max_base", "set_base",
+            "multiply_total_additive", "multiply_total_multiplicative", "add_total_late",
+            "min_total", "max_total", "set_total");
+    private static final java.util.Set<String> BASE_PHASE_OPS = java.util.Set.of(
+            "add_base_early", "multiply_base_additive", "multiply_base_multiplicative", "add_base_late",
+            "min_base", "max_base", "set_base");
+
+    /** Legacy Apoli aliases for the three vanilla attribute operations. */
+    private static String normalizeOperation(String operation) {
+        return switch (operation) {
+            case "addition" -> "add_base_early";
+            case "multiply_base" -> "multiply_base_additive";
+            case "multiply_total" -> "multiply_total_multiplicative";
+            default -> operation;
+        };
     }
 
     public static double applyModifier(double value, JsonObject modifier) {
         if (modifier == null) {
             return value;
         }
-        double amount = doubleValue(modifier, "value", 0.0D);
-        // SSC's data uses the extended Apoli modifier operations, not just the three
-        // vanilla ones. Without an explicit base/total model, every multiply variant
-        // folds to value * (1 + amount) and every add variant to value + amount.
-        return switch (stringValue(modifier, "operation", "addition")) {
-            case "addition", "add_base_early", "add_base_late" -> value + amount;
-            case "multiply_base", "multiply_base_additive", "multiply_base_multiplicative",
-                    "multiply_total", "multiply_total_additive", "multiply_total_multiplicative"
-                    -> value * (1.0D + amount);
-            case "set_total", "set" -> amount;
-            case "min_base", "min_total" -> Math.max(value, amount);
-            case "max_base", "max_total" -> Math.min(value, amount);
-            default -> value + amount;
-        };
+        return applyModifierList(value, java.util.List.of(modifier));
     }
 
-    /** Small damage-condition subset used by the retained invulnerability powers. */
+    /**
+     * Apoli's full modifier pipeline (ModifierUtil.applyModifiers): modifiers are grouped by
+     * operation, then applied in (phase, order) order with the base reset between the BASE and
+     * TOTAL phases. This differs from naively folding every modifier in list order.
+     */
+    public static double applyModifierList(double baseValue, java.util.List<JsonObject> modifiers) {
+        if (modifiers == null || modifiers.isEmpty()) {
+            return baseValue;
+        }
+        java.util.Map<String, java.util.List<Double>> buckets = new java.util.LinkedHashMap<>();
+        for (JsonObject modifier : modifiers) {
+            if (modifier == null) continue;
+            String op = normalizeOperation(stringValue(modifier, "operation", "addition"));
+            buckets.computeIfAbsent(op, ignored -> new java.util.ArrayList<>())
+                    .add(doubleValue(modifier, "value", 0.0D));
+        }
+        double currentBase = baseValue;
+        double currentValue = baseValue;
+        boolean basePhase = true;
+        for (String op : MODIFIER_ORDER) {
+            java.util.List<Double> values = buckets.get(op);
+            if (values == null) continue;
+            boolean opIsBase = BASE_PHASE_OPS.contains(op);
+            if (opIsBase != basePhase) {
+                currentBase = currentValue;
+                basePhase = opIsBase;
+            }
+            currentValue = applyOperation(op, values, currentBase, currentValue);
+        }
+        for (java.util.Map.Entry<String, java.util.List<Double>> entry : buckets.entrySet()) {
+            if (MODIFIER_ORDER.contains(entry.getKey())) continue;
+            for (double value : entry.getValue()) currentValue += value;
+        }
+        return currentValue;
+    }
+
+    private static double applyOperation(String operation, java.util.List<Double> values, double base, double current) {
+        switch (operation) {
+            case "add_base_early" -> {
+                double value = base;
+                for (double v : values) value += v;
+                return value;
+            }
+            case "multiply_base_additive", "multiply_total_additive" -> {
+                double value = current;
+                for (double v : values) value += base * v;
+                return value;
+            }
+            case "multiply_base_multiplicative", "multiply_total_multiplicative" -> {
+                double value = current;
+                for (double v : values) value *= (1.0D + v);
+                return value;
+            }
+            case "add_base_late" -> {
+                double value = current;
+                for (double v : values) value += v;
+                return value;
+            }
+            case "min_base", "min_total" -> {
+                double value = current;
+                for (double v : values) value = Math.max(v, value);
+                return value;
+            }
+            case "max_base", "max_total" -> {
+                double value = current;
+                for (double v : values) value = Math.min(v, value);
+                return value;
+            }
+            case "set_base", "set_total", "add_total_late" -> {
+                double value = current;
+                for (double v : values) value = v;
+                return value;
+            }
+            default -> {
+                double value = current;
+                for (double v : values) value += v;
+                return value;
+            }
+        }
+    }
+
+    /** Apoli's full damage-condition set. */
     public static boolean matchesDamageSource(net.minecraft.world.damagesource.DamageSource source, JsonObject condition) {
         if (condition == null) return true;
+        if (source == null) return false;
         String type = FormPowerRegistry.typeOf(condition);
         boolean result = switch (type) {
             case "apoli:and" -> damageConditions(source, condition.getAsJsonArray("conditions"), true);
             case "apoli:or" -> damageConditions(source, condition.getAsJsonArray("conditions"), false);
             case "apoli:name" -> stringValue(condition, "name", "").equals(source.getMsgId());
             case "apoli:fire" -> source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE);
+            case "apoli:projectile" -> source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE);
+            case "apoli:bypasses_armor" -> source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR);
+            case "apoli:explosive" -> source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION);
+            case "apoli:from_falling" -> source.is(net.minecraft.tags.DamageTypeTags.IS_FALL);
+            case "apoli:unblockable" -> source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD);
+            case "apoli:out_of_world" -> source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY);
             case "apoli:in_tag" -> {
                 ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "tag", ""));
-                yield source != null && id != null
-                        && source.is(TagKey.create(Registries.DAMAGE_TYPE, id));
+                yield id != null && source.is(TagKey.create(Registries.DAMAGE_TYPE, id));
+            }
+            case "apoli:type" -> {
+                ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "damage_type", ""));
+                yield id != null && source.is(net.minecraft.resources.ResourceKey.create(
+                        Registries.DAMAGE_TYPE, id));
             }
             default -> false;
         };
@@ -424,10 +531,26 @@ public final class FormPowerRuntime {
                     || testEntity(actor, source.getEntity(), condition.getAsJsonObject("entity_condition"))));
         }
         if ("apoli:projectile".equals(type)) {
-            return inverted(condition, source != null && source.getDirectEntity() instanceof Projectile);
+            return inverted(condition, testProjectileDamageCondition(source, condition));
         }
         if ("apoli:fire".equals(type)) {
             return inverted(condition, source != null && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE));
+        }
+        if ("apoli:bypasses_armor".equals(type)) {
+            return inverted(condition, source != null && source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR));
+        }
+        if ("apoli:explosive".equals(type)) {
+            return inverted(condition, source != null && source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION));
+        }
+        if ("apoli:from_falling".equals(type)) {
+            return inverted(condition, source != null && source.is(net.minecraft.tags.DamageTypeTags.IS_FALL));
+        }
+        if ("apoli:unblockable".equals(type)) {
+            return inverted(condition, source != null && source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_SHIELD));
+        }
+        if ("apoli:out_of_world".equals(type)) {
+            return inverted(condition, source != null
+                    && source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY));
         }
         if ("apoli:name".equals(type)) {
             return inverted(condition, source != null && stringValue(condition, "name", "").equals(source.getMsgId()));
@@ -437,8 +560,32 @@ public final class FormPowerRuntime {
             return inverted(condition, source != null && id != null
                     && source.is(TagKey.create(Registries.DAMAGE_TYPE, id)));
         }
+        if ("apoli:type".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "damage_type", ""));
+            return inverted(condition, source != null && id != null
+                    && source.is(net.minecraft.resources.ResourceKey.create(Registries.DAMAGE_TYPE, id)));
+        }
         // Unknown damage condition: delegate to the generic interpreter, which applies inversion itself.
         return test(actor, victim, condition);
+    }
+
+    private static boolean testProjectileDamageCondition(net.minecraft.world.damagesource.DamageSource source,
+                                                         JsonObject condition) {
+        if (source == null || !source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) {
+            return false;
+        }
+        Entity projectile = source.getDirectEntity();
+        if (projectile == null) {
+            return false;
+        }
+        if (condition.has("projectile")) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "projectile", ""));
+            if (id == null || !BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()).equals(id)) {
+                return false;
+            }
+        }
+        return !condition.has("projectile_condition")
+                || test(null, projectile, condition.getAsJsonObject("projectile_condition"));
     }
 
     private static boolean damageConditionList(Player actor, Entity victim,

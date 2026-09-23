@@ -501,21 +501,19 @@ public final class FormPowerEvents {
 
     /**
      * Apoli's modify_food accepts either a single modifier ("food_modifier") or an ordered
-     * list ("food_modifiers"). SSC's data uses both forms, so both must be applied.
+     * list ("food_modifiers"); both are applied through the Apoli modifier pipeline.
      */
     private static float applyFoodModifiers(float value, JsonObject power, String singleKey, String pluralKey) {
-        float result = value;
+        java.util.List<JsonObject> modifiers = new java.util.ArrayList<>();
         if (power.has(singleKey) && power.get(singleKey).isJsonObject()) {
-            result = (float) FormPowerRuntime.applyModifier(result, power.getAsJsonObject(singleKey));
+            modifiers.add(power.getAsJsonObject(singleKey));
         }
         if (power.has(pluralKey) && power.get(pluralKey).isJsonArray()) {
             for (var modifier : power.getAsJsonArray(pluralKey)) {
-                if (modifier.isJsonObject()) {
-                    result = (float) FormPowerRuntime.applyModifier(result, modifier.getAsJsonObject());
-                }
+                if (modifier.isJsonObject()) modifiers.add(modifier.getAsJsonObject());
             }
         }
-        return result;
+        return (float) FormPowerRuntime.applyModifierList(value, modifiers);
     }
 
     @SubscribeEvent
