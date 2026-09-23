@@ -356,9 +356,9 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:play_power_animation_with_count" -> playPowerAnimationWithCount(actor, action);
             case "shape-shifter-curse:play_power_animation_loop" -> playPowerAnimationLoop(actor, action);
             case "shape-shifter-curse:stop_power_animation" -> stopPowerAnimation(actor, action);
-            case "shape-shifter-curse:tan_add_thirst" -> {
-                // TODO[PARITY] Tough As Nails integration; inert until TAN is optionally supported.
-            }
+            case "shape-shifter-curse:tan_add_thirst" ->
+                    net.onixary.shapeShifterCurseForge.integration.toughasnails.ToughAsNailsIntegration
+                            .addThirst(actor, floatValue(action, "amount", 0.0F));
             default -> {
                 // TODO[APOLI] Only a fixed subset of Apoli's action registry is ported. Unhandled
                 //   actions are warned about and ignored instead of being executed.
@@ -406,6 +406,10 @@ public final class FormPowerRuntime {
      * TOTAL phases. This differs from naively folding every modifier in list order.
      */
     public static double applyModifierList(double baseValue, java.util.List<JsonObject> modifiers) {
+        return applyModifierList(null, baseValue, modifiers);
+    }
+
+    public static double applyModifierList(Player entity, double baseValue, java.util.List<JsonObject> modifiers) {
         // TODO[TEST] Mirrors Apoli's ModifierUtil phase/order pipeline; not yet verified in-game
         //   against mixed-operation modifier lists.
         if (modifiers == null || modifiers.isEmpty()) {
@@ -416,7 +420,7 @@ public final class FormPowerRuntime {
             if (modifier == null) continue;
             String op = normalizeOperation(stringValue(modifier, "operation", "addition"));
             buckets.computeIfAbsent(op, ignored -> new java.util.ArrayList<>())
-                    .add(doubleValue(modifier, "value", 0.0D));
+                    .add(resolveModifierValue(entity, modifier));
         }
         double currentBase = baseValue;
         double currentValue = baseValue;
@@ -436,6 +440,28 @@ public final class FormPowerRuntime {
             for (double value : entry.getValue()) currentValue += value;
         }
         return currentValue;
+    }
+
+    /**
+     * Apoli resolves a modifier's value from a referenced power "resource" (variable/cooldown power)
+     * and then applies any nested "modifier" list to that value.
+     */
+    private static double resolveModifierValue(Player entity, JsonObject modifier) {
+        double value = doubleValue(modifier, "value", 0.0D);
+        if (modifier.has("resource")) {
+            ResourceLocation id = ResourceLocation.tryParse(stringValue(modifier, "resource", ""));
+            if (id != null && entity != null && FormPowerRegistry.has(entity, id)) {
+                value = FormActivePowerService.resource(entity, id);
+            }
+        }
+        if (modifier.has("modifier") && modifier.get("modifier").isJsonArray()) {
+            java.util.List<JsonObject> nested = new java.util.ArrayList<>();
+            for (JsonElement entry : modifier.getAsJsonArray("modifier")) {
+                if (entry.isJsonObject()) nested.add(entry.getAsJsonObject());
+            }
+            value = applyModifierList(entity, value, nested);
+        }
+        return value;
     }
 
     private static double applyOperation(String operation, java.util.List<Double> values, double base, double current) {
@@ -536,7 +562,7 @@ public final class FormPowerRuntime {
                     || testEntity(actor, source.getEntity(), condition.getAsJsonObject("entity_condition"))));
         }
         if ("apoli:projectile".equals(type)) {
-            return inverted(condition, testProjectileDamageCondition(source, condition));
+            return inverted(condition, testProjectileDamageCondition(actor, source, condition));
         }
         if ("apoli:fire".equals(type)) {
             return inverted(condition, source != null && source.is(net.minecraft.tags.DamageTypeTags.IS_FIRE));
@@ -574,7 +600,8 @@ public final class FormPowerRuntime {
         return test(actor, victim, condition);
     }
 
-    private static boolean testProjectileDamageCondition(net.minecraft.world.damagesource.DamageSource source,
+    private static boolean testProjectileDamageCondition(Player actor,
+                                                         net.minecraft.world.damagesource.DamageSource source,
                                                          JsonObject condition) {
         if (source == null || !source.is(net.minecraft.tags.DamageTypeTags.IS_PROJECTILE)) {
             return false;
@@ -590,7 +617,7 @@ public final class FormPowerRuntime {
             }
         }
         return !condition.has("projectile_condition")
-                || test(null, projectile, condition.getAsJsonObject("projectile_condition"));
+                || test(actor, projectile, condition.getAsJsonObject("projectile_condition"));
     }
 
     private static boolean damageConditionList(Player actor, Entity victim,
@@ -793,11 +820,44 @@ public final class FormPowerRuntime {
     }
 
     private static boolean matchesInventory(Player actor, JsonObject condition) {
-        // TODO[APOLI] Simplified: only the main hand is inspected and only its presence (0/1),
-        //   ignoring Apoli's "slots" (inventory type) and "process_mode" (items vs stacks) semantics.
-        ItemStack stack = actor.getMainHandItem();
-        int matching = stack.isEmpty() ? 0 : (matchesItem(stack, condition.getAsJsonObject("item_condition")) ? 1 : 0);
+        JsonObject itemCondition = condition.getAsJsonObject("item_condition");
+        // TODO[APOLI] Inventory-type "slots" supports mainhand/offhand/hotbar/inventory; ender chest
+        //   and other Apoli inventory types are not handled.
+        boolean countItems = !"stacks".equals(stringValue(condition, "process_mode", "items"));
+        int matching = 0;
+        for (ItemStack stack : inventoryStacks(actor, condition)) {
+            if (stack.isEmpty()) continue;
+            if (itemCondition != null && !matchesItem(stack, itemCondition)) continue;
+            matching += countItems ? stack.getCount() : 1;
+        }
         return condition.has("comparison") ? compare(matching, condition) : matching > 0;
+    }
+
+    /** Apoli inventory "slots" (inventory type) selection, subset. */
+    private static java.util.List<ItemStack> inventoryStacks(Player actor, JsonObject condition) {
+        java.util.List<String> slots = new java.util.ArrayList<>();
+        if (condition.has("slots") && condition.get("slots").isJsonArray()) {
+            for (JsonElement entry : condition.getAsJsonArray("slots")) {
+                if (entry.isJsonPrimitive()) slots.add(entry.getAsString());
+            }
+        }
+        if (slots.isEmpty()) slots.add("inventory");
+        java.util.List<ItemStack> result = new java.util.ArrayList<>();
+        for (String slot : slots) {
+            switch (slot) {
+                case "weapon.mainhand" -> result.add(actor.getMainHandItem());
+                case "weapon.offhand" -> result.add(actor.getOffhandItem());
+                case "inventory.hotbar" -> {
+                    for (int i = 0; i < 9; i++) result.add(actor.getInventory().getItem(i));
+                }
+                default -> {
+                    for (int i = 0; i < actor.getInventory().getContainerSize(); i++) {
+                        result.add(actor.getInventory().getItem(i));
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     public static boolean matchesItem(ItemStack stack, JsonObject condition) {
@@ -822,7 +882,7 @@ public final class FormPowerRuntime {
                     && stack.getFoodProperties(null) != null
                     && stack.getFoodProperties(null).isMeat();
             case "shape-shifter-curse:is_vegan_ex" -> isVegan(stack, condition);
-            case "shape-shifter-curse:is_weapon" -> stack.getItem() instanceof SwordItem || stack.getItem() instanceof AxeItem;
+            case "shape-shifter-curse:is_weapon" -> isWeapon(stack);
             case "shape-shifter-curse:is_morph_scale_item", "shape-shifter-curse:is_morph_scale_food"
                     -> isMorphScaleItem(stack);
             case "apoli:armor_value" -> stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor
@@ -846,10 +906,22 @@ public final class FormPowerRuntime {
     }
 
     private static boolean isMorphScaleItem(ItemStack stack) {
+        // Fabric marks morphscale items with the shape-shifter-curse:morph_scale_item tag.
+        if (stack.is(TagKey.create(Registries.ITEM,
+                ResourceLocation.fromNamespaceAndPath("shape-shifter-curse", "morph_scale_item")))) {
+            return true;
+        }
+        // Custom items may still opt in through NBT.
         if (!stack.hasTag()) return false;
         var tag = stack.getTag();
         return tag.getBoolean("MorphScale") || tag.getBoolean("morphscale")
                 || tag.getBoolean("shape_shifter_curse_morphscale");
+    }
+
+    /** Fabric's is_weapon checks for an attack-damage modifier rather than a specific item class. */
+    private static boolean isWeapon(ItemStack stack) {
+        return stack.getAttributeModifiers(net.minecraft.world.entity.EquipmentSlot.MAINHAND)
+                .containsKey(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE);
     }
 
     private static boolean isVegan(ItemStack stack, JsonObject condition) {

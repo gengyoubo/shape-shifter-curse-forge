@@ -44,4 +44,11 @@ public final class ClientPacketHandlers {
         Minecraft.getInstance().setScreen(new FormAttunerScreen(
                 level, maxLevel, formGroupId, unlockedPerks, statusKey));
     }
+
+    /** Plays the vanilla totem activation animation for a virtual totem stack. */
+    public static void displayTotem(net.minecraft.world.item.ItemStack stack) {
+        if (!stack.isEmpty()) {
+            Minecraft.getInstance().gameRenderer.displayItemActivation(stack);
+        }
+    }
 }

@@ -24,39 +24,62 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 public final class SpecialPowerEvents {
     private SpecialPowerEvents() { }
 
+    /** One usable virtual_totem power, ordered by priority like Fabric's comparator. */
+    private record TotemCandidate(net.minecraft.resources.ResourceLocation id, JsonObject power, double priority) { }
+
     @SubscribeEvent
     public static void death(LivingDeathEvent event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
                 || event.getSource().is(DamageTypeTags.BYPASSES_INVULNERABILITY)) return;
-        final boolean[] used = {false};
+        java.util.List<TotemCandidate> candidates = new java.util.ArrayList<>();
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (used[0] || !"shape-shifter-curse:virtual_totem".equals(FormPowerRegistry.typeOf(power))
+            if (!"shape-shifter-curse:virtual_totem".equals(FormPowerRegistry.typeOf(power))
                     || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
                     || FormActivePowerService.resource(player, id) >= 1.0D) return;
-            event.setCanceled(true);
-            player.setHealth(Math.max(1.0F, FormPowerRuntime.floatValue(power, "totem_health", 1.0F)));
-            player.clearFire();
-            if (power.has("totem_status_effects") && power.get("totem_status_effects").isJsonArray()) {
-                for (JsonElement effect : power.getAsJsonArray("totem_status_effects")) {
-                    if (!effect.isJsonObject()) continue;
-                    JsonObject apply = new JsonObject();
-                    apply.addProperty("type", "apoli:apply_effect");
-                    apply.add("effect", effect.getAsJsonObject());
-                    FormPowerRuntime.execute(player, player, apply);
-                }
-            }
-            if (power.has("entity_actions") && power.get("entity_actions").isJsonArray()) {
-                for (JsonElement action : power.getAsJsonArray("entity_actions")) {
-                    if (action.isJsonObject()) FormPowerRuntime.execute(player, player, action.getAsJsonObject());
-                }
-            }
-            FormActivePowerService.triggerCooldown(player, id);
-            player.level().broadcastEntityEvent(player, (byte) 35);
-            player.playSound("shape-shifter-curse:form_anubis_wolf_3_undying".equals(
-                    FormPowerRuntime.stringValue(power, "virtual_totem_type", ""))
-                    ? SoundEvents.WITHER_DEATH : SoundEvents.TOTEM_USE, 1.0F, 1.0F);
-            used[0] = true;
+            candidates.add(new TotemCandidate(id, power, FormPowerRuntime.doubleValue(power, "priority", 0.0D)));
         });
+        if (candidates.isEmpty()) return;
+        // Highest "priority" wins (Fabric sorts the usable VirtualTotemPowers).
+        candidates.sort(java.util.Comparator.comparingDouble(TotemCandidate::priority).reversed());
+        TotemCandidate chosen = candidates.get(0);
+        JsonObject power = chosen.power();
+
+        event.setCanceled(true);
+        player.setHealth(Math.max(1.0F, FormPowerRuntime.floatValue(power, "totem_health", 1.0F)));
+        player.clearFire();
+        if (power.has("totem_status_effects") && power.get("totem_status_effects").isJsonArray()) {
+            for (JsonElement effect : power.getAsJsonArray("totem_status_effects")) {
+                if (!effect.isJsonObject()) continue;
+                JsonObject apply = new JsonObject();
+                apply.addProperty("type", "apoli:apply_effect");
+                apply.add("effect", effect.getAsJsonObject());
+                FormPowerRuntime.execute(player, player, apply);
+            }
+        }
+        if (power.has("entity_actions") && power.get("entity_actions").isJsonArray()) {
+            for (JsonElement action : power.getAsJsonArray("entity_actions")) {
+                if (action.isJsonObject()) FormPowerRuntime.execute(player, player, action.getAsJsonObject());
+            }
+        }
+        FormActivePowerService.triggerCooldown(player, chosen.id());
+        // Custom totem_stack drives the client activation animation (falls back to the map's default).
+        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendVirtualTotem(serverPlayer,
+                    itemStackFromJson(power.getAsJsonObject("totem_stack")));
+        }
+        player.playSound("shape-shifter-curse:form_anubis_wolf_3_undying".equals(
+                FormPowerRuntime.stringValue(power, "virtual_totem_type", ""))
+                ? SoundEvents.WITHER_DEATH : SoundEvents.TOTEM_USE, 1.0F, 1.0F);
+    }
+
+    private static net.minecraft.world.item.ItemStack itemStackFromJson(JsonObject data) {
+        if (data == null || !data.has("item")) return net.minecraft.world.item.ItemStack.EMPTY;
+        net.minecraft.resources.ResourceLocation id = net.minecraft.resources.ResourceLocation.tryParse(
+                FormPowerRuntime.stringValue(data, "item", ""));
+        net.minecraft.world.item.Item item = id == null ? null
+                : net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+        return item == null ? net.minecraft.world.item.ItemStack.EMPTY
+                : new net.minecraft.world.item.ItemStack(item, FormPowerRuntime.intValue(data, "count", 1));
     }
 
     @SubscribeEvent

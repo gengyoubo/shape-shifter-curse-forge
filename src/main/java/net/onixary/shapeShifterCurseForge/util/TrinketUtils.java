@@ -118,16 +118,39 @@ public class TrinketUtils {
         public void onPlayerEquip(Player player, ResourceLocation itemID) {}
         public void onPlayerUnEquip(Player player, ResourceLocation itemID) {}
         public void onPlayerFormChangeReApply(Player player) {}
+
+        /** Merges another data block for the same item (multi-source registrations). */
+        public void mergeFrom(TrinketPowerData other) {
+            accessoryPowers.addAll(other.accessoryPowers);
+            allFormPowerAdd.addAll(other.allFormPowerAdd);
+            allFormPowerRemove.addAll(other.allFormPowerRemove);
+            other.formPowerAdd.forEach((key, value) ->
+                    formPowerAdd.computeIfAbsent(key, ignored -> new ArrayList<>()).addAll(value));
+            other.formPowerRemove.forEach((key, value) ->
+                    formPowerRemove.computeIfAbsent(key, ignored -> new ArrayList<>()).addAll(value));
+            other.layerPowerAddMap.forEach((key, inner) -> {
+                var target = layerPowerAddMap.computeIfAbsent(key, ignored -> new HashMap<>());
+                inner.forEach((layerId, value) ->
+                        target.computeIfAbsent(layerId, ignored -> new ArrayList<>()).addAll(value));
+            });
+            other.layerPowerRemoveMap.forEach((key, inner) -> {
+                var target = layerPowerRemoveMap.computeIfAbsent(key, ignored -> new HashMap<>());
+                inner.forEach((layerId, value) ->
+                        target.computeIfAbsent(layerId, ignored -> new ArrayList<>()).addAll(value));
+            });
+        }
     }
 
     public static final HashMap<ResourceLocation, TrinketPowerData> accessoryPowerRegistry = new HashMap<>();
     private static final HashMap<ResourceLocation, Boolean> accessoryMixinAutoRegistry = new HashMap<>();
 
     public static void registerAccessoryPower(ResourceLocation itemIdentifier, TrinketPowerData powerData) {
-        if (accessoryPowerRegistry.containsKey(itemIdentifier)) {
-            // merge omitted for brevity
-        } else {
+        TrinketPowerData existing = accessoryPowerRegistry.get(itemIdentifier);
+        if (existing == null) {
             accessoryPowerRegistry.put(itemIdentifier, powerData);
+        } else {
+            // Multiple sources may declare powers for the same accessory; merge them.
+            existing.mergeFrom(powerData);
         }
     }
 

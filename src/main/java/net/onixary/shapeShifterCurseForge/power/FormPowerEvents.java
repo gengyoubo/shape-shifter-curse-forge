@@ -489,10 +489,10 @@ public final class FormPowerEvents {
             if (!"apoli:modify_food".equals(FormPowerRegistry.typeOf(power))
                     || !FormPowerRuntime.matchesItem(used, power.getAsJsonObject("item_condition"))) return;
             int before = food.getNutrition();
-            float nutrition = applyFoodModifiers(before, power, "food_modifier", "food_modifiers");
+            float nutrition = applyFoodModifiers(before, player, power, "food_modifier", "food_modifiers");
             int after = Math.round(nutrition);
             float saturationBefore = food.getSaturationModifier();
-            float saturationAfter = applyFoodModifiers(saturationBefore,
+            float saturationAfter = applyFoodModifiers(saturationBefore, player,
                     power, "saturation_modifier", "saturation_modifiers");
             player.getFoodData().setFoodLevel(Math.max(0, Math.min(20,
                     player.getFoodData().getFoodLevel() + after - before)));
@@ -505,7 +505,7 @@ public final class FormPowerEvents {
      * Apoli's modify_food accepts either a single modifier ("food_modifier") or an ordered
      * list ("food_modifiers"); both are applied through the Apoli modifier pipeline.
      */
-    private static float applyFoodModifiers(float value, JsonObject power, String singleKey, String pluralKey) {
+    private static float applyFoodModifiers(float value, Player player, JsonObject power, String singleKey, String pluralKey) {
         java.util.List<JsonObject> modifiers = new java.util.ArrayList<>();
         if (power.has(singleKey) && power.get(singleKey).isJsonObject()) {
             modifiers.add(power.getAsJsonObject(singleKey));
@@ -515,7 +515,7 @@ public final class FormPowerEvents {
                 if (modifier.isJsonObject()) modifiers.add(modifier.getAsJsonObject());
             }
         }
-        return (float) FormPowerRuntime.applyModifierList(value, modifiers);
+        return (float) FormPowerRuntime.applyModifierList(player, value, modifiers);
     }
 
     @SubscribeEvent

@@ -44,8 +44,12 @@ import java.util.UUID;
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class MissingPowerEvents {
     private static final Map<UUID, Set<MobEffect>> OWNED_EFFECTS = new HashMap<>();
+    /** Pre-power MobEffectInstance per (player, effect), restored when the power stops applying it. */
+    private static final Map<UUID, Map<MobEffect, MobEffectInstance>> OWNED_EFFECT_SNAPSHOTS = new HashMap<>();
     private static final Map<UUID, Set<UUID>> OWNED_LOOT_MODIFIERS = new HashMap<>();
     private static final Map<UUID, Set<UUID>> OWNED_GLOW_TARGETS = new HashMap<>();
+    /** Glow flag of an entity before the first power-driven glow, so other sources are not cleared. */
+    private static final Map<UUID, Boolean> GLOW_PREVIOUS_STATE = new HashMap<>();
     private static final Map<UUID, Integer> CLASH_COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Boolean> MAY_FLY_BEFORE_POWER = new HashMap<>();
 
@@ -95,21 +99,36 @@ public final class MissingPowerEvents {
                 ResourceLocation effectId = ResourceLocation.fromNamespaceAndPath("minecraft", "night_vision");
                 MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(effectId);
                 if (effect != null) {
+                    snapshotEffect(player, effect);
                     wanted.add(effect);
                     player.addEffect(new MobEffectInstance(effect, 50, 0, true, false, false));
                 }
             }
         });
         Set<MobEffect> previous = OWNED_EFFECTS.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>());
-        for (MobEffect old : previous) if (!wanted.contains(old)) player.removeEffect(old);
+        for (MobEffect old : previous) {
+            if (wanted.contains(old)) continue;
+            // Restore any effect instance that existed before the power was applied.
+            MobEffectInstance snapshot = OWNED_EFFECT_SNAPSHOTS
+                    .getOrDefault(player.getUUID(), java.util.Collections.emptyMap()).remove(old);
+            player.removeEffect(old);
+            if (snapshot != null) player.addEffect(snapshot);
+        }
         previous.clear();
         previous.addAll(wanted);
+    }
+
+    /** Records the pre-power instance of an effect once, so cleanup can restore it. */
+    private static void snapshotEffect(Player player, MobEffect effect) {
+        OWNED_EFFECT_SNAPSHOTS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+                .putIfAbsent(effect, player.getEffect(effect));
     }
 
     private static MobEffect applyEffect(Player player, JsonObject data) {
         ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(data, "effect", ""));
         MobEffect effect = id == null ? null : BuiltInRegistries.MOB_EFFECT.get(id);
         if (effect == null) return null;
+        snapshotEffect(player, effect);
         player.addEffect(new MobEffectInstance(effect,
                 Math.max(20, FormPowerRuntime.intValue(data, "duration", 40)),
                 FormPowerRuntime.intValue(data, "amplifier", 0), false,
@@ -125,10 +144,16 @@ public final class MissingPowerEvents {
             MAY_FLY_BEFORE_POWER.putIfAbsent(player.getUUID(), player.getAbilities().mayfly);
             player.getAbilities().mayfly = true;
             player.onUpdateAbilities();
-        } else if (!player.isCreative() && MAY_FLY_BEFORE_POWER.remove(player.getUUID()) != null) {
-            player.getAbilities().mayfly = false;
-            player.getAbilities().flying = false;
-            player.onUpdateAbilities();
+        } else if (!player.isCreative()) {
+            // Restore the mayfly flag captured before the power was granted (it may have been true).
+            Boolean previous = MAY_FLY_BEFORE_POWER.remove(player.getUUID());
+            if (previous != null) {
+                player.getAbilities().mayfly = previous;
+                if (!previous) {
+                    player.getAbilities().flying = false;
+                }
+                player.onUpdateAbilities();
+            }
         }
         if (elytraFlight && !player.onGround() && player.isSprinting() && !player.isFallFlying()) {
             player.startFallFlying();
@@ -229,6 +254,8 @@ public final class MissingPowerEvents {
             for (Entity target : player.level().getEntities(player, player.getBoundingBox().inflate(radius),
                     entity -> entity.isAlive() && FormPowerRuntime.test(player, entity,
                             power.getAsJsonObject("bientity_condition")))) {
+                // Record the pre-power glow flag once, so removing our glow restores other sources.
+                GLOW_PREVIOUS_STATE.putIfAbsent(target.getUUID(), target.hasGlowingTag());
                 target.setGlowingTag(true);
                 wanted.add(target.getUUID());
             }
@@ -238,7 +265,8 @@ public final class MissingPowerEvents {
             if (wanted.contains(old)) continue;
             Entity target = player.level().getEntities(player, player.getBoundingBox().inflate(32.0D),
                     entity -> entity.getUUID().equals(old)).stream().findFirst().orElse(null);
-            if (target != null) target.setGlowingTag(false);
+            Boolean priorState = GLOW_PREVIOUS_STATE.remove(old);
+            if (target != null) target.setGlowingTag(priorState != null && priorState);
         }
         previous.clear();
         previous.addAll(wanted);

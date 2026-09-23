@@ -144,6 +144,14 @@ public final class ModNetwork {
                 ManaSyncPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                14,
+                VirtualTotemPacket.class,
+                VirtualTotemPacket::encode,
+                VirtualTotemPacket::decode,
+                VirtualTotemPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -193,6 +201,11 @@ public final class ModNetwork {
 
     public static void sendManaSync(ServerPlayer player, String manaType, float mana, float maximum) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ManaSyncPacket(manaType, mana, maximum));
+    }
+
+    /** Plays the totem activation animation for a virtual totem's (possibly custom) stack. */
+    public static void sendVirtualTotem(ServerPlayer player, net.minecraft.world.item.ItemStack stack) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new VirtualTotemPacket(stack));
     }
 
     /** Opens the form select menu for {@code player}, acting on {@code target}. */
