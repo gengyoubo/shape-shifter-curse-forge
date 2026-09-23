@@ -66,7 +66,8 @@ public final class FormAttunerBlockEntity extends BlockEntity {
     }
 
     public List<BeamSegment> getBeamSegments() {
-        return beamSegments;
+        // Fabric hides the beam while the attuner is inactive (no valid base / not cursed moon).
+        return level == 0 ? List.of() : beamSegments;
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, FormAttunerBlockEntity attuner) {
