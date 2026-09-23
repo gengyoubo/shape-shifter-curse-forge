@@ -27,12 +27,16 @@ public final class ModBlocks {
     // --- 1.10.0 fabric parity: blocks that existed in fabric jar but were missing in forge port ---
     public static final RegistryObject<Block> DEW_COVERED_COBWEB = BLOCKS.register(
             "dew_covered_cobweb",
-            () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.WOOL).strength(0.4F).noCollission().sound(net.minecraft.world.level.block.SoundType.WOOL))
+            () -> new net.onixary.shapeShifterCurseForge.block.DewCoveredCobwebBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.WOOL).strength(0.4F)
+                            .noCollission().sound(net.minecraft.world.level.block.SoundType.WOOL))
     );
 
     public static final RegistryObject<Block> WEB_COMPOSTER = BLOCKS.register(
             "web_composter",
-            () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(1.5F).sound(net.minecraft.world.level.block.SoundType.WOOD))
+            () -> new net.onixary.shapeShifterCurseForge.block.WebComposterBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(1.5F)
+                            .sound(net.minecraft.world.level.block.SoundType.WOOD))
     );
 
     public static final RegistryObject<Block> ALTAR = BLOCKS.register(
@@ -47,7 +51,9 @@ public final class ModBlocks {
 
     public static final RegistryObject<Block> FORM_ATTUNER = BLOCKS.register(
             "form_attuner",
-            () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.5F).sound(net.minecraft.world.level.block.SoundType.METAL).noOcclusion())
+            () -> new net.onixary.shapeShifterCurseForge.block.FormAttunerBlock(
+                    BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.5F)
+                            .sound(net.minecraft.world.level.block.SoundType.METAL).noOcclusion())
     );
 
     private ModBlocks() {

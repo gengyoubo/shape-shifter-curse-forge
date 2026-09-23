@@ -7,6 +7,7 @@ import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.blockentity.AltarBlockEntity;
 import net.onixary.shapeShifterCurseForge.blockentity.AlterBlockEntity;
+import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
 
 public final class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, ShapeShifterCurseForge.RESOURCE_NAMESPACE);
@@ -15,6 +16,8 @@ public final class ModBlockEntities {
             () -> BlockEntityType.Builder.of(AltarBlockEntity::new, ModBlocks.ALTAR.get()).build(null));
     public static final RegistryObject<BlockEntityType<AlterBlockEntity>> ALTER = BLOCK_ENTITIES.register("alter",
             () -> BlockEntityType.Builder.of(AlterBlockEntity::new, ModBlocks.ALTER.get()).build(null));
+    public static final RegistryObject<BlockEntityType<FormAttunerBlockEntity>> FORM_ATTUNER = BLOCK_ENTITIES.register("form_attuner",
+            () -> BlockEntityType.Builder.of(FormAttunerBlockEntity::new, ModBlocks.FORM_ATTUNER.get()).build(null));
 
     private ModBlockEntities() {}
 }

@@ -13,6 +13,8 @@ import net.minecraft.client.renderer.entity.WolfRenderer;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.client.screen.AltarScreen;
+import net.onixary.shapeShifterCurseForge.client.render.FormAttunerBeamRenderer;
+import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
 
@@ -33,5 +35,6 @@ public final class ModClient {
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_OCELOT.get(), OcelotRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_SPIDER.get(), SpiderRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_WOLF.get(), WolfRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.FORM_ATTUNER.get(), FormAttunerBeamRenderer::new);
     }
 }
