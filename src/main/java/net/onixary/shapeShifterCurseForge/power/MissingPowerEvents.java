@@ -93,7 +93,7 @@ public final class MissingPowerEvents {
                     }
                 }
             }
-            // TODO[APOLI] Apoli's night_vision "strength" (0..1) is ignored; always full night vision.
+            // Apoli's night_vision "strength" is applied client-side via NightVisionStrengthMixin.
             if ("apoli:night_vision".equals(type)
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 ResourceLocation effectId = ResourceLocation.fromNamespaceAndPath("minecraft", "night_vision");
@@ -210,15 +210,8 @@ public final class MissingPowerEvents {
     }
 
     private static boolean compare(double value, JsonObject condition) {
-        double compared = FormPowerRuntime.doubleValue(condition, "compare_to", 0.0D);
-        return switch (FormPowerRuntime.stringValue(condition, "comparison", "==")) {
-            case ">" -> value > compared;
-            case ">=" -> value >= compared;
-            case "<" -> value < compared;
-            case "<=" -> value <= compared;
-            case "!=" -> value != compared;
-            default -> value == compared;
-        };
+        // Delegates to the shared interpreter so both entry points use the same tolerance.
+        return FormPowerRuntime.compare(value, condition);
     }
 
     private static boolean inverted(JsonObject condition, boolean value) {

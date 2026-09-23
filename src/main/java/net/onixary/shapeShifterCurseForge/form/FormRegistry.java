@@ -22,6 +22,8 @@ public final class FormRegistry {
 
     private static final Map<ResourceLocation, FormDefinition> FORMS = new LinkedHashMap<>();
     private static final Map<ResourceLocation, FormGroup> GROUPS = new LinkedHashMap<>();
+    /** Cosmetic sub-forms to the master form whose Origin powers they inherit. */
+    private static final Map<ResourceLocation, ResourceLocation> SUB_FORM_MASTERS = new LinkedHashMap<>();
     private static final Set<ResourceLocation> DYNAMIC_FORMS = new LinkedHashSet<>();
     private static final Set<ResourceLocation> DYNAMIC_GROUPS = new LinkedHashSet<>();
     private static final Map<ResourceLocation, ResourceLocation> DYNAMIC_ORIGIN_IDS = new LinkedHashMap<>();
@@ -61,13 +63,13 @@ public final class FormRegistry {
         add("feral_cat_sp", "feral_cat_form", 1, 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
                 "no_instinct", "no_cursed_moon_effect", "special_form");
 
-        // TODO[PARITY] Sub-forms are cosmetic only: they have no Origin data file and no Java power
-        //   registration, so they inherit no abilities. Fabric registers powers for them in
-        //   Form_Bat3_Sub_Avali / Form_SnowFox3_Sub_MarbledPolecat.
+        // Sub-forms are cosmetic variants that inherit their master form's Origin powers via lineage.
         add("snow_fox_3_sub_marbled_polecat", "snow_fox_form", 4, 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
                 "sub_form");
+        SUB_FORM_MASTERS.put(id("snow_fox_3_sub_marbled_polecat"), id("snow_fox_3"));
         add("bat_3_sub_avali", "bat_form", 4, 1, FormBodyType.NORMAL, 0.65F, 0.65F, 1.0F,
                 "sub_form");
+        SUB_FORM_MASTERS.put(id("bat_3_sub_avali"), id("bat_3"));
     }
 
     private static void addCreatureGroup(String path, float[] widths, float[] eyes, FormBodyType finalBodyType) {
@@ -630,9 +632,20 @@ public final class FormRegistry {
             }
             result.add(current);
             SscForm form = JAVA_FORMS.get(current);
-            current = form == null ? null : form.inheritanceParentId();
+            if (form != null && form.inheritanceParentId() != null) {
+                current = form.inheritanceParentId();
+            } else {
+                // A cosmetic sub-form falls through to its master form's lineage.
+                current = SUB_FORM_MASTERS.get(current);
+            }
         }
         return List.copyOf(result);
+    }
+
+    /** Master form of a cosmetic sub-form, or {@code null} for an ordinary form. */
+    public static ResourceLocation masterFormOf(ResourceLocation formId) {
+        bootstrap();
+        return SUB_FORM_MASTERS.get(formId);
     }
 
     /** Whether an id was successfully loaded from an external {@code ssc_form} data directory. */

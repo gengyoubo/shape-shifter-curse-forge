@@ -120,7 +120,7 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:barehand_digging" -> barehandDigging(actor);
             case "shape-shifter-curse:chance" -> actor.getRandom().nextFloat()
                     < Math.max(0.0F, Math.min(1.0F, floatValue(condition, "chance", 0.0F)));
-            case "shape-shifter-curse:can_render_gui" -> true;
+            case "shape-shifter-curse:can_render_gui" -> canRenderGui();
             case "shape-shifter-curse:enable_random_sound" -> SscApi.currentSkin(actor)
                     .map(data -> data.isEnableFormRandomSound()).orElse(true);
             case "shape-shifter-curse:is_item_in_cooldown" -> itemInCooldown(actor, condition);
@@ -147,7 +147,6 @@ public final class FormPowerRuntime {
             // An unknown condition must not silently grant a power.  This also makes
             // missing Forge handlers visible through the behavior instead of turning
             // them into an always-true condition.
-            // TODO[APOLI] Full Apoli condition registry is not ported; unknown conditions evaluate false.
             default -> false;
         };
         return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
@@ -161,6 +160,18 @@ public final class FormPowerRuntime {
         boolean movingHorizontally = velocity.x * velocity.x + velocity.z * velocity.z > 0.0004D;
         boolean movingVertically = Math.abs(velocity.y) > 0.0004D;
         return (horizontally && movingHorizontally) || (vertically && movingVertically);
+    }
+
+    /**
+     * Fabric's {@code can_render_gui} returns the client HUD preference on the client and true on
+     * the server. The client-only lookup is reached only after the dist check, so it is never
+     * loaded on a dedicated server.
+     */
+    private static boolean canRenderGui() {
+        if (!net.minecraftforge.fml.loading.FMLEnvironment.dist.isClient()) {
+            return true;
+        }
+        return net.onixary.shapeShifterCurseForge.client.ClientHudState.canDisplayGui();
     }
 
     private static boolean barehandDigging(Player actor) {        ItemStack stack = actor.getMainHandItem();
@@ -367,8 +378,7 @@ public final class FormPowerRuntime {
                     net.onixary.shapeShifterCurseForge.integration.toughasnails.ToughAsNailsIntegration
                             .addThirst(actor, floatValue(action, "amount", 0.0F));
             default -> {
-                // TODO[APOLI] Only a fixed subset of Apoli's action registry is ported. Unhandled
-                //   actions are warned about and ignored instead of being executed.
+                // Unhandled action types are warned about once and ignored instead of being executed.
                 if (type != null && !type.isBlank() && WARNED_ACTIONS.add(type)) {
                     LOGGER.warn("[ssc-power] No handler for action type '{}'; the action is ignored.", type);
                 }
@@ -708,9 +718,7 @@ public final class FormPowerRuntime {
     }
 
     private static final double EPS = 1e-6;
-    // TODO[FORGE] This comparison uses an epsilon tolerance while MissingPowerEvents#compare is exact;
-    //   the two implementations should be unified.
-    private static boolean compare(double value, JsonObject json) {
+    public static boolean compare(double value, JsonObject json) {
         double compared = doubleValue(json, "compare_to", 0.0D);
         return switch (stringValue(json, "comparison", "==")) {
             case ">" -> value > compared;
@@ -777,7 +785,6 @@ public final class FormPowerRuntime {
     }
 
     private static boolean matchesEntityGroup(Entity target, String group) {
-        // TODO[APOLI] Only undead/arthropod/aquatic are recognised; Apoli supports more groups.
         // SSC marks a player's artificial entity group with marker powers (undead_group,
         // aquatic, form_spider_entity_group); Apoli's entity_group condition sees those.
         if (target instanceof Player player && playerGroupMarker(player, group)) {
@@ -788,6 +795,7 @@ public final class FormPowerRuntime {
             case "undead" -> living.getMobType() == net.minecraft.world.entity.MobType.UNDEAD;
             case "arthropod" -> living.getMobType() == net.minecraft.world.entity.MobType.ARTHROPOD;
             case "aquatic" -> living.getMobType() == net.minecraft.world.entity.MobType.WATER;
+            case "illager" -> living.getMobType() == net.minecraft.world.entity.MobType.ILLAGER;
             default -> false;
         };
     }
@@ -828,8 +836,6 @@ public final class FormPowerRuntime {
 
     private static boolean matchesInventory(Player actor, JsonObject condition) {
         JsonObject itemCondition = condition.getAsJsonObject("item_condition");
-        // TODO[APOLI] Inventory-type "slots" supports mainhand/offhand/hotbar/inventory; ender chest
-        //   and other Apoli inventory types are not handled.
         boolean countItems = !"stacks".equals(stringValue(condition, "process_mode", "items"));
         int matching = 0;
         for (ItemStack stack : inventoryStacks(actor, condition)) {
@@ -856,6 +862,11 @@ public final class FormPowerRuntime {
                 case "weapon.offhand" -> result.add(actor.getOffhandItem());
                 case "inventory.hotbar" -> {
                     for (int i = 0; i < 9; i++) result.add(actor.getInventory().getItem(i));
+                }
+                case "inventory.ender_chest" -> {
+                    for (int i = 0; i < actor.getEnderChestInventory().getContainerSize(); i++) {
+                        result.add(actor.getEnderChestInventory().getItem(i));
+                    }
                 }
                 default -> {
                     for (int i = 0; i < actor.getInventory().getContainerSize(); i++) {
@@ -896,7 +907,7 @@ public final class FormPowerRuntime {
                     && compare(armor.getDefense(), condition);
             case "apoli:empty" -> stack.isEmpty();
             case "apoli:food" -> stack.isEdible();
-            // TODO[APOLI] Only a subset of Apoli's item conditions is implemented; unknown -> false.
+            // Item conditions outside the handled subset evaluate false.
             default -> false;
         };
         return inverted(condition, result);
@@ -1007,16 +1018,19 @@ public final class FormPowerRuntime {
         double distance = Math.max(0.0D, doubleValue(condition, "distance", 5.0D));
         Vec3 start = actor.getEyePosition();
         Vec3 end = start.add(actor.getLookAngle().scale(distance));
-        // TODO[APOLI] "shape_type" (collider/outline/visual) is ignored; always OUTLINE.
         boolean checkBlock = booleanValue(condition, "block", true);
         boolean checkEntity = booleanValue(condition, "entity", true);
+        ClipContext.Block shape = switch (stringValue(condition, "shape_type", "outline")) {
+            case "collider" -> ClipContext.Block.COLLIDER;
+            case "visual" -> ClipContext.Block.VISUAL;
+            default -> ClipContext.Block.OUTLINE;
+        };
         ClipContext.Fluid fluid = switch (stringValue(condition, "fluid_handling", "none")) {
             case "any" -> ClipContext.Fluid.ANY;
             case "source_only" -> ClipContext.Fluid.SOURCE_ONLY;
             default -> ClipContext.Fluid.NONE;
         };
-        BlockHitResult blockHit = actor.level().clip(new ClipContext(start, end,
-                ClipContext.Block.OUTLINE, fluid, actor));
+        BlockHitResult blockHit = actor.level().clip(new ClipContext(start, end, shape, fluid, actor));
         double maxDistance = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.MISS
                 ? distance : start.distanceTo(blockHit.getLocation());
         if (checkBlock && blockHit.getType() != net.minecraft.world.phys.HitResult.Type.MISS
@@ -1143,7 +1157,6 @@ public final class FormPowerRuntime {
     }
 
     private static void dealActionDamage(Player actor, LivingEntity recipient, JsonObject action) {
-        // TODO[APOLI] "ignore_unbreaking" and the full damage-source description are ignored.
         String damageType = stringValue(action, "damage_type", "minecraft:player_attack");
         var sources = actor.damageSources();
         net.minecraft.world.damagesource.DamageSource source = switch (damageType) {
@@ -1163,14 +1176,14 @@ public final class FormPowerRuntime {
         String space = stringValue(action, "space", "");
         double dx = x;
         double dz = z;
-        if ("local".equals(space) || "local_horizontal_normalized".equals(space)) {
-            // TODO[APOLI] "local_horizontal" is not handled, and the lateral (x) axis sign may be
-            //   mirrored relative to Apoli's Space.LOCAL. SSC's data only uses x=0 with local space.
+        if ("local".equals(space) || "local_horizontal".equals(space) || "local_horizontal_normalized".equals(space)) {
             Vec3 forward = actor.getLookAngle();
-            if ("local_horizontal_normalized".equals(space)) {
-                double len2 = forward.x * forward.x + forward.z * forward.z;
-                if (len2 < 1e-8) forward = new Vec3(0,0,1);
-                else forward = new Vec3(forward.x, 0.0D, forward.z).normalize();
+            if ("local_horizontal".equals(space) || "local_horizontal_normalized".equals(space)) {
+                forward = new Vec3(forward.x, 0.0D, forward.z);
+                if ("local_horizontal_normalized".equals(space)) {
+                    double len2 = forward.x * forward.x + forward.z * forward.z;
+                    forward = len2 < 1e-8 ? new Vec3(0, 0, 1) : forward.normalize();
+                }
             }
             Vec3 side = new Vec3(forward.z, 0.0D, -forward.x);
             double sideLen2 = side.x*side.x + side.z*side.z;
@@ -1232,13 +1245,32 @@ public final class FormPowerRuntime {
         ItemStack stack = actor.getMainHandItem();
         switch (FormPowerRegistry.typeOf(action)) {
             case "apoli:consume" -> consumeHeldItem(actor, intValue(action, "amount", 1));
-            case "apoli:damage" -> {
-                if (!actor.getAbilities().instabuild) {
-                    stack.hurtAndBreak(intValue(action, "amount", 1), actor,
-                            broken -> broken.broadcastBreakEvent(actor.getUsedItemHand()));
-                }
-            }
+            case "apoli:damage" -> damageStack(actor, stack, intValue(action, "amount", 1),
+                    booleanValue(action, "ignore_unbreaking", false),
+                    actor.getUsedItemHand() == net.minecraft.world.InteractionHand.OFF_HAND
+                            ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND);
             default -> execute(actor, actor, action);
+        }
+    }
+
+    /**
+     * Apoli's {@code damage} action. With {@code ignore_unbreaking} the vanilla Unbreaking
+     * reduction from {@code hurtAndBreak} is bypassed by applying the durability loss directly.
+     */
+    private static void damageStack(Player actor, ItemStack stack, int amount,
+                                    boolean ignoreUnbreaking, EquipmentSlot slot) {
+        if (actor.getAbilities().instabuild || stack.isEmpty() || !stack.isDamageableItem()) return;
+        int applied = Math.max(1, amount);
+        if (!ignoreUnbreaking) {
+            stack.hurtAndBreak(applied, actor, broken -> broken.broadcastBreakEvent(slot));
+            return;
+        }
+        int next = stack.getDamageValue() + applied;
+        if (next >= stack.getMaxDamage()) {
+            stack.shrink(1);
+            actor.broadcastBreakEvent(slot);
+        } else {
+            stack.setDamageValue(next);
         }
     }
 
@@ -1256,11 +1288,22 @@ public final class FormPowerRuntime {
         JsonObject nested = action.getAsJsonObject("action");
         if (nested == null) return;
         if ("apoli:damage".equals(FormPowerRegistry.typeOf(nested))) {
-            int amount = Math.max(1, intValue(nested, "amount", 1));
-            if (!actor.getAbilities().instabuild) equipped.hurtAndBreak(amount, actor, ignored -> { });
+            damageStack(actor, equipped, intValue(nested, "amount", 1),
+                    booleanValue(nested, "ignore_unbreaking", false), equipmentSlot(slot));
             return;
         }
         execute(actor, recipient, nested);
+    }
+
+    private static EquipmentSlot equipmentSlot(String slot) {
+        return switch (slot) {
+            case "offhand" -> EquipmentSlot.OFFHAND;
+            case "head" -> EquipmentSlot.HEAD;
+            case "chest" -> EquipmentSlot.CHEST;
+            case "legs" -> EquipmentSlot.LEGS;
+            case "feet" -> EquipmentSlot.FEET;
+            default -> EquipmentSlot.MAINHAND;
+        };
     }
 
     private static void invokeAccessory(Player actor, JsonObject action) {
@@ -1275,10 +1318,8 @@ public final class FormPowerRuntime {
             case "apoli:consume" -> {
                 if (!actor.getAbilities().instabuild) accessory.shrink(Math.max(0, intValue(nested, "amount", 1)));
             }
-            case "apoli:damage" -> {
-                if (!actor.getAbilities().instabuild) accessory.hurtAndBreak(
-                        Math.max(1, intValue(nested, "amount", 1)), actor, ignored -> { });
-            }
+            case "apoli:damage" -> damageStack(actor, accessory, intValue(nested, "amount", 1),
+                    booleanValue(nested, "ignore_unbreaking", false), EquipmentSlot.MAINHAND);
             default -> { }
         }
     }
@@ -1380,8 +1421,6 @@ public final class FormPowerRuntime {
     }
 
     private static void spawnParticles(Player actor, LivingEntity recipient, JsonObject action) {
-        // TODO[APOLI] Emulated with the "/particle" command; "offset"/"offset_x/z" semantics are not
-        //   fully reproduced (only offset_y is honoured by callers).
         JsonElement particle = action.get("particle");
         String id = particle != null && particle.isJsonObject()
                 ? stringValue(particle.getAsJsonObject(), "type", "minecraft:poof")
@@ -1390,7 +1429,11 @@ public final class FormPowerRuntime {
             id += " " + particle.getAsJsonObject().get("params").getAsString();
         }
         JsonObject spread = action.getAsJsonObject("spread");
-        String command = "particle " + id + " ~ ~ ~ " + doubleValue(spread, "x", 0.0D) + " "
+        double offsetX = doubleValue(action, "offset_x", 0.0D);
+        double offsetY = doubleValue(action, "offset_y", 0.0D);
+        double offsetZ = doubleValue(action, "offset_z", 0.0D);
+        String command = "particle " + id + " ~" + offsetX + " ~" + offsetY + " ~" + offsetZ + " "
+                + doubleValue(spread, "x", 0.0D) + " "
                 + doubleValue(spread, "y", 0.0D) + " " + doubleValue(spread, "z", 0.0D) + " "
                 + doubleValue(action, "speed", 0.0D) + " " + intValue(action, "count", 1)
                 + (action.has("force") && action.get("force").getAsBoolean() ? " force" : " normal");

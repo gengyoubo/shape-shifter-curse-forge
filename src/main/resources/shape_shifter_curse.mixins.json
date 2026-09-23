@@ -20,7 +20,8 @@
     "client": [
         "client.InventoryScreenMixin",
         "client.PlayerEdgeClipMixin",
-        "client.GameRendererBlockSelectionMixin"
+        "client.GameRendererBlockSelectionMixin",
+        "client.NightVisionStrengthMixin"
     ],
     "injectors": {
         "defaultRequire": 1
