@@ -46,7 +46,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Shared condition and action interpreter for the common Origins JSON building blocks. */
+/**
+ * Shared condition and action interpreter for the common Origins JSON building blocks.
+ *
+ * <p>TODO[PARITY] Fabric's persisted {@code item_store} subsystem (item_store / check_stored_item /
+ * gain_store_power_item / drop_store_power_item / swap_store_power_item / invoke_store_power_item)
+ * is not ported. SSC 1.10.0's base data does not reference it (it is only used by custom/patron
+ * form packs), so no base-content power currently depends on it.</p>
+ */
 public final class FormPowerRuntime {
     private FormPowerRuntime() {
     }

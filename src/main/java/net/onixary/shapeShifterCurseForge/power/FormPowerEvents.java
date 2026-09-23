@@ -291,6 +291,8 @@ public final class FormPowerEvents {
 
     @SubscribeEvent
     public static void heal(LivingHealEvent event) {
+        // TODO[PARITY] Fabric scales instant health at the potion mixin; this LivingHealEvent
+        //   approximation also catches any non-potion heal above 1.0 that reaches this path.
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
                 || event.getAmount() <= 1.0F) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {
@@ -599,6 +601,10 @@ public final class FormPowerEvents {
                         target -> target != player && FormPowerRuntime.test(player, target, power.getAsJsonObject("entity_condition")))) {
                     FormPowerRuntime.execute(player, target, power.getAsJsonObject("entity_action"));
                 }
+                // Fabric also runs the optional self_action on the owner once per detection interval.
+                if (power.has("self_action")) {
+                    FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action"));
+                }
             }
         }
         if ("apoli:damage_over_time".equals(FormPowerRegistry.typeOf(power))) {
@@ -804,12 +810,38 @@ public final class FormPowerEvents {
     }
 
     private static boolean effectIsListed(net.minecraft.world.effect.MobEffect effect, JsonObject power) {
-        if (!power.has("effects") || !power.get("effects").isJsonArray()) return false;
         ResourceLocation effectId = BuiltInRegistries.MOB_EFFECT.getKey(effect);
-        for (var entry : power.getAsJsonArray("effects")) {
-            if (effectId.toString().equals(entry.getAsString())) return true;
+        boolean listed = false;
+        // Apoli (and SSC's optional variant) accept a single "effect" and/or an "effects" list.
+        if (power.has("effect") && power.get("effect").isJsonPrimitive()) {
+            listed = effectId.toString().equals(power.get("effect").getAsString());
         }
-        return false;
+        if (!listed && power.has("effects") && power.get("effects").isJsonArray()) {
+            for (var entry : power.getAsJsonArray("effects")) {
+                if (effectId.toString().equals(entry.getAsString())) {
+                    listed = true;
+                    break;
+                }
+            }
+        }
+        // "inverted" means immune to everything EXCEPT the listed effects.
+        return power.has("inverted") && power.get("inverted").getAsBoolean() ? !listed : listed;
+    }
+
+    /** Collects the "effect" and "effects" ids declared by an effect filter. */
+    private static java.util.List<ResourceLocation> collectedEffectIds(JsonObject power) {
+        java.util.List<ResourceLocation> ids = new java.util.ArrayList<>();
+        if (power.has("effect") && power.get("effect").isJsonPrimitive()) {
+            ResourceLocation id = ResourceLocation.tryParse(power.get("effect").getAsString());
+            if (id != null) ids.add(id);
+        }
+        if (power.has("effects") && power.get("effects").isJsonArray()) {
+            for (var entry : power.getAsJsonArray("effects")) {
+                ResourceLocation id = ResourceLocation.tryParse(entry.getAsString());
+                if (id != null) ids.add(id);
+            }
+        }
+        return ids;
     }
 
     private static void enforceSprinting(Player player) {
@@ -829,6 +861,8 @@ public final class FormPowerEvents {
     }
 
     private static boolean isInstantMagic(net.minecraft.world.damagesource.DamageSource source) {
+        // TODO[PARITY] Fabric scales instant damage at the potion mixin; this magic/indirectMagic
+        //   source check is an approximation that may also match other magic damage.
         String id = source.getMsgId();
         return "magic".equals(id) || "indirectMagic".equals(id);
     }
@@ -926,13 +960,19 @@ public final class FormPowerEvents {
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 player.setAirSupply(player.getMaxAirSupply());
             }
-            if ("shape-shifter-curse:optional_effect_immunity".equals(type)
-                    && power.has("effects") && power.get("effects").isJsonArray()) {
-                for (var effectId : power.getAsJsonArray("effects")) {
-                    ResourceLocation idToRemove = ResourceLocation.tryParse(effectId.getAsString());
-                    if (idToRemove == null) continue;
-                    var effect = BuiltInRegistries.MOB_EFFECT.get(idToRemove);
-                    if (effect != null) player.removeEffect(effect);
+            if ("shape-shifter-curse:optional_effect_immunity".equals(type)) {
+                if (power.has("inverted") && power.get("inverted").getAsBoolean()) {
+                    // Immune to everything except the listed effects.
+                    for (var instance : new java.util.ArrayList<>(player.getActiveEffects())) {
+                        if (!effectIsListed(instance.getEffect(), power)) {
+                            player.removeEffect(instance.getEffect());
+                        }
+                    }
+                } else {
+                    for (ResourceLocation effectId : collectedEffectIds(power)) {
+                        var effect = BuiltInRegistries.MOB_EFFECT.get(effectId);
+                        if (effect != null) player.removeEffect(effect);
+                    }
                 }
             }
         });

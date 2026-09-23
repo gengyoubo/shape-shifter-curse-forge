@@ -301,6 +301,9 @@ public final class MissingPowerEvents {
     }
 
     private static void maintainPotionStacks(Player player) {
+        // TODO[PARITY] Fabric raises the maximum stack size via an inventory-aware
+        //   ItemStack#getMaxItemCount hook; the Forge port can only merge carried potions up to
+        //   the power's count, so a single stack still cannot exceed the vanilla limit of 1.
         final int[] limits = {0, 0};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape-shifter-curse:modify_potion_stack".equals(FormPowerRegistry.typeOf(power))
