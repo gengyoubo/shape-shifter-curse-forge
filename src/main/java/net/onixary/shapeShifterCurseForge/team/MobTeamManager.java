@@ -9,6 +9,8 @@ import net.minecraft.world.scores.Scoreboard;
  * players who are friendly to pillagers (sorcery allies). Friendly fire is
  * disabled so allies cannot hurt each other.
  */
+// TODO[PARITY] Fabric deprecated this mechanic ("replaced with other logic") because it conflicts
+//   with team features; the Forge port keeps a minimal equivalent for pillager-neutrality.
 public final class MobTeamManager {
     public static final String SORCERY_TEAM_NAME = "sorcery_team";
 

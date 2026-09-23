@@ -265,6 +265,9 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
      * treated as being on a ladder while the power's {@code condition} or
      * {@code hold_condition} matches. This is how the spider form climbs cobwebs.
      */
+    // TODO[TEST] Newly added mapping of Apoli's apoli:climbing power onto LivingEntity#onClimbable;
+    //   verify the spider form can climb cobwebs and that the condition/hold_condition window matches
+    //   Fabric's ClimbingPower.
     @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
     private void ssc$powerClimbing(CallbackInfoReturnable<Boolean> cir) {
         LivingEntity self = (LivingEntity) (Object) this;

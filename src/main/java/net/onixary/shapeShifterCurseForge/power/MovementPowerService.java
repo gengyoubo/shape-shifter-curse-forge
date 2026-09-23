@@ -136,6 +136,8 @@ public final class MovementPowerService {
      * player is not in water), the player is treated as holding sneak for pose and
      * {@code apoli:sneaking} checks. Fabric explicitly returns false in water.
      */
+    // TODO[TEST] Newly wired into pose + apoli:sneaking; verify the axolotl no-air / head-collide
+    //   forced crawl behaves like Fabric.
     public static boolean shouldForceSneaking(Player player) {
         if (Boolean.TRUE.equals(FORCE_SNEAK_GUARD.get())) return false;
         if (player.isInWaterOrBubble() || player.isPassenger()) return false;

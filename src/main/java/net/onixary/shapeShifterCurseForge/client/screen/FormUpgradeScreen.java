@@ -27,6 +27,9 @@ import java.util.Set;
  * Supports camera pan (drag) and zoom (scroll), node selection and a GET button that
  * requests the unlock through {@link UnlockPerkPacket}; the server stays authoritative.
  */
+// TODO[TEST] Forge re-implementation (pan/zoom/icons/info panel) that opens from FormAttunerScreen;
+//   no perks are registered yet, so it currently only renders the "no skills" state. Verify once
+//   perk data exists.
 public final class FormUpgradeScreen extends Screen {
     private static final String KEY = "screen." + ShapeShifterCurseForge.RESOURCE_NAMESPACE + ".form_attuner.";
     private static final String PERK_TEX = "textures/perk/";

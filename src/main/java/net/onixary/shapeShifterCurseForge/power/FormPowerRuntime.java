@@ -140,6 +140,7 @@ public final class FormPowerRuntime {
             // An unknown condition must not silently grant a power.  This also makes
             // missing Forge handlers visible through the behavior instead of turning
             // them into an always-true condition.
+            // TODO[APOLI] Full Apoli condition registry is not ported; unknown conditions evaluate false.
             default -> false;
         };
         return condition.has("inverted") && condition.get("inverted").getAsBoolean() ? !result : result;
@@ -356,9 +357,11 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:play_power_animation_loop" -> playPowerAnimationLoop(actor, action);
             case "shape-shifter-curse:stop_power_animation" -> stopPowerAnimation(actor, action);
             case "shape-shifter-curse:tan_add_thirst" -> {
-                // Tough As Nails integration point; intentionally inert without the optional TAN mod.
+                // TODO[PARITY] Tough As Nails integration; inert until TAN is optionally supported.
             }
             default -> {
+                // TODO[APOLI] Only a fixed subset of Apoli's action registry is ported. Unhandled
+                //   actions are warned about and ignored instead of being executed.
                 if (type != null && !type.isBlank() && WARNED_ACTIONS.add(type)) {
                     LOGGER.warn("[ssc-power] No handler for action type '{}'; the action is ignored.", type);
                 }
@@ -403,6 +406,8 @@ public final class FormPowerRuntime {
      * TOTAL phases. This differs from naively folding every modifier in list order.
      */
     public static double applyModifierList(double baseValue, java.util.List<JsonObject> modifiers) {
+        // TODO[TEST] Mirrors Apoli's ModifierUtil phase/order pipeline; not yet verified in-game
+        //   against mixed-operation modifier lists.
         if (modifiers == null || modifiers.isEmpty()) {
             return baseValue;
         }
@@ -669,6 +674,8 @@ public final class FormPowerRuntime {
     }
 
     private static final double EPS = 1e-6;
+    // TODO[FORGE] This comparison uses an epsilon tolerance while MissingPowerEvents#compare is exact;
+    //   the two implementations should be unified.
     private static boolean compare(double value, JsonObject json) {
         double compared = doubleValue(json, "compare_to", 0.0D);
         return switch (stringValue(json, "comparison", "==")) {
@@ -736,6 +743,7 @@ public final class FormPowerRuntime {
     }
 
     private static boolean matchesEntityGroup(Entity target, String group) {
+        // TODO[APOLI] Only undead/arthropod/aquatic are recognised; Apoli supports more groups.
         // SSC marks a player's artificial entity group with marker powers (undead_group,
         // aquatic, form_spider_entity_group); Apoli's entity_group condition sees those.
         if (target instanceof Player player && playerGroupMarker(player, group)) {
@@ -785,6 +793,8 @@ public final class FormPowerRuntime {
     }
 
     private static boolean matchesInventory(Player actor, JsonObject condition) {
+        // TODO[APOLI] Simplified: only the main hand is inspected and only its presence (0/1),
+        //   ignoring Apoli's "slots" (inventory type) and "process_mode" (items vs stacks) semantics.
         ItemStack stack = actor.getMainHandItem();
         int matching = stack.isEmpty() ? 0 : (matchesItem(stack, condition.getAsJsonObject("item_condition")) ? 1 : 0);
         return condition.has("comparison") ? compare(matching, condition) : matching > 0;
@@ -819,6 +829,7 @@ public final class FormPowerRuntime {
                     && compare(armor.getDefense(), condition);
             case "apoli:empty" -> stack.isEmpty();
             case "apoli:food" -> stack.isEdible();
+            // TODO[APOLI] Only a subset of Apoli's item conditions is implemented; unknown -> false.
             default -> false;
         };
         return inverted(condition, result);
@@ -917,6 +928,7 @@ public final class FormPowerRuntime {
         double distance = Math.max(0.0D, doubleValue(condition, "distance", 5.0D));
         Vec3 start = actor.getEyePosition();
         Vec3 end = start.add(actor.getLookAngle().scale(distance));
+        // TODO[APOLI] "shape_type" (collider/outline/visual) is ignored; always OUTLINE.
         boolean checkBlock = booleanValue(condition, "block", true);
         boolean checkEntity = booleanValue(condition, "entity", true);
         ClipContext.Fluid fluid = switch (stringValue(condition, "fluid_handling", "none")) {
@@ -1052,6 +1064,7 @@ public final class FormPowerRuntime {
     }
 
     private static void dealActionDamage(Player actor, LivingEntity recipient, JsonObject action) {
+        // TODO[APOLI] "ignore_unbreaking" and the full damage-source description are ignored.
         String damageType = stringValue(action, "damage_type", "minecraft:player_attack");
         var sources = actor.damageSources();
         net.minecraft.world.damagesource.DamageSource source = switch (damageType) {
@@ -1072,6 +1085,8 @@ public final class FormPowerRuntime {
         double dx = x;
         double dz = z;
         if ("local".equals(space) || "local_horizontal_normalized".equals(space)) {
+            // TODO[APOLI] "local_horizontal" is not handled, and the lateral (x) axis sign may be
+            //   mirrored relative to Apoli's Space.LOCAL. SSC's data only uses x=0 with local space.
             Vec3 forward = actor.getLookAngle();
             if ("local_horizontal_normalized".equals(space)) {
                 double len2 = forward.x * forward.x + forward.z * forward.z;
@@ -1286,6 +1301,8 @@ public final class FormPowerRuntime {
     }
 
     private static void spawnParticles(Player actor, LivingEntity recipient, JsonObject action) {
+        // TODO[APOLI] Emulated with the "/particle" command; "offset"/"offset_x/z" semantics are not
+        //   fully reproduced (only offset_y is honoured by callers).
         JsonElement particle = action.get("particle");
         String id = particle != null && particle.isJsonObject()
                 ? stringValue(particle.getAsJsonObject(), "type", "minecraft:poof")

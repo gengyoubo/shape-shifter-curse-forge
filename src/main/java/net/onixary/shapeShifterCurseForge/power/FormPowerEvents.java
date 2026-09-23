@@ -484,6 +484,8 @@ public final class FormPowerEvents {
         FoodProperties food = used.getFoodProperties(player);
         if (food == null) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {
+            // TODO[APOLI] modify_food "prevent_effects" is ignored, and food effects are applied by
+            //   vanilla before this Finish event can suppress them.
             if (!"apoli:modify_food".equals(FormPowerRegistry.typeOf(power))
                     || !FormPowerRuntime.matchesItem(used, power.getAsJsonObject("item_condition"))) return;
             int before = food.getNutrition();
@@ -1111,6 +1113,9 @@ public final class FormPowerEvents {
             operation = AttributeModifier.Operation.MULTIPLY_TOTAL;
             amount = FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D;
         } else {
+            // TODO[FORGE] Apoli's extended attribute operations are collapsed to the three vanilla
+            //   AttributeModifier operations. SSC's data only uses addition/multiply_base/multiply_total,
+            //   so this is currently equivalent, but it is not a general Apoli attribute pipeline.
             operation = switch (FormPowerRuntime.stringValue(modifier, "operation", "addition")) {
                 case "multiply_base" -> AttributeModifier.Operation.MULTIPLY_BASE;
                 case "multiply_total" -> AttributeModifier.Operation.MULTIPLY_TOTAL;

@@ -27,6 +27,10 @@ public final class ModNetwork {
     private ModNetwork() {
     }
 
+    // TODO[C-S] Packets are registered on both dists during mod construction. Client-bound handlers
+    //   must not reference client-only classes (Screens/Minecraft) directly, or the dedicated server
+    //   throws "invalid dist DEDICATED_SERVER" while registering them. Route client work through
+    //   net.onixary.shapeShifterCurseForge.client.ClientPacketHandlers.
     public static void initialize() {
         CHANNEL.registerMessage(
                 0,

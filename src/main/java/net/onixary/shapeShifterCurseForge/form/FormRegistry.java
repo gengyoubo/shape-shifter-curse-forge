@@ -61,6 +61,9 @@ public final class FormRegistry {
         add("feral_cat_sp", "feral_cat_form", 1, 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
                 "no_instinct", "no_cursed_moon_effect", "special_form");
 
+        // TODO[PARITY] Sub-forms are cosmetic only: they have no Origin data file and no Java power
+        //   registration, so they inherit no abilities. Fabric registers powers for them in
+        //   Form_Bat3_Sub_Avali / Form_SnowFox3_Sub_MarbledPolecat.
         add("snow_fox_3_sub_marbled_polecat", "snow_fox_form", 4, 1, FormBodyType.FERAL, 0.55F, 0.55F, 0.60F,
                 "sub_form");
         add("bat_3_sub_avali", "bat_form", 4, 1, FormBodyType.NORMAL, 0.65F, 0.65F, 1.0F,

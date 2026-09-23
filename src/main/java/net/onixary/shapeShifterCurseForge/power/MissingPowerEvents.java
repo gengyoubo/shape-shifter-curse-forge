@@ -38,6 +38,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /** Forge event bridge for the retained power types that do not have a vanilla event of their own. */
+// TODO[PARITY] The Tough As Nails power types tan_form_temperature_modifier and
+//   tan_prevent_dirty_water_thirst_effect (plus the tan_add_thirst action) have no handler at all;
+//   they are only meaningful with the optional TAN dependency.
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class MissingPowerEvents {
     private static final Map<UUID, Set<MobEffect>> OWNED_EFFECTS = new HashMap<>();
@@ -86,6 +89,7 @@ public final class MissingPowerEvents {
                     }
                 }
             }
+            // TODO[APOLI] Apoli's night_vision "strength" (0..1) is ignored; always full night vision.
             if ("apoli:night_vision".equals(type)
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 ResourceLocation effectId = ResourceLocation.fromNamespaceAndPath("minecraft", "night_vision");
@@ -132,6 +136,8 @@ public final class MissingPowerEvents {
     }
 
     private static void maintainArmor(Player player) {
+        // TODO[TEST] restrict_armor previously suffered a double "inverted" bug; verify helmet/armor
+        //   stripping in-game for every form that uses it.
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"apoli:restrict_armor".equals(FormPowerRegistry.typeOf(power))) return;
             for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
@@ -300,6 +306,8 @@ public final class MissingPowerEvents {
     }
 
     private static void maintainDirtyWaterThirst(Player player) {
+        // TODO[PARITY] Tough As Nails integration; only partially emulated (dirty-water thirst) and
+        //   the temperature-modifier / add-thirst powers have no handler at all.
         if (!hasPowerId(player, "form_tan_prevent_dirty_water_thirst")) return;
         if (!player.isInWater()) return;
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("dehydration", "thirst_effect");
@@ -308,6 +316,8 @@ public final class MissingPowerEvents {
     }
 
     private static void tickJumpClash(Player player) {
+        // TODO[TEST] Reimplemented from Fabric SneakingJumpClashPower (edge trigger + box raycast);
+        //   needs in-game verification of the trigger window and damage.
         if (CLASH_COOLDOWNS.containsKey(player.getUUID())) return;
         final java.util.List<JsonObject> clashPowers = new java.util.ArrayList<>();
         FormPowerRegistry.visitActive(player, (id, power) -> {

@@ -62,6 +62,8 @@ public final class WebEntanglementService {
         state.expiresIn--;
         if (state.fullTicks > 0) {
             state.fullTicks--;
+            // TODO[TEST] Cocooning is applied here (entangled_full effect) but was previously never
+            //   applied at all; verify the immobilisation, the tier effect and the cocoon loot.
             // Fully entangled ("cocooned"): immobilize by (re)applying the full effect.
             if (state.fullTicks % 10 == 0) {
                 target.addEffect(new MobEffectInstance(

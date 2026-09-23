@@ -53,6 +53,8 @@ public final class MobRelationEvents {
     }
 
     /** SSC's hostile_iron_golem marker (spider forms): village iron golems actively attack the player. */
+    // TODO[TEST] Forced targeting via IronGolem#setTarget; verify vanilla iron-golem attack goals
+    //   actually engage the player and that the power's own condition is honoured.
     @SubscribeEvent
     public static void ironGolemHostile(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide

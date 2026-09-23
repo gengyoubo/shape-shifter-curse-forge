@@ -7,6 +7,8 @@ import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.player.Player;
 
 /** Forge-native fallback for the Fabric wolf-minion entity: tamed wolves with the same owner/target policy. */
+// TODO[PARITY] Uses vanilla tamed Wolves instead of Fabric's dedicated AnubisWolfMinionEntity
+//   (custom geo model/animations, FollowOwnerGoalNoTP and the minion/PlayerMinionComponent system).
 public final class AnubisMinionService {
     private AnubisMinionService() { }
 

@@ -26,6 +26,8 @@ public final class BrewingRecipeUtils {
      * recipes cannot be removed on reload. We instead remember every recipe signature
      * ever registered this JVM session and only add a recipe the first time it is seen.
      */
+    // TODO[FORGE] A changed/removed datapack recipe cannot be un-registered; only additions take
+    //   effect after the first load. TODO[TEST] Verify /reload behaviour with dynamic_brewing_recipes.
     private static final java.util.Set<String> REGISTERED_SIGNATURES = new java.util.HashSet<>();
     private static final List<DynamicPotionInfo> DYNAMIC_POTION_INFO = new ArrayList<>();
 

@@ -14,6 +14,9 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 /**
  * Fabric 1.10.0 parity: altar/alter/morph-scale upgrade recipe types.
  */
+// TODO[TEST] The shaped altar/alter serializers (AltarShapedRecipe/AlterShapedRecipe) and the
+//   Altar/Alter block entities' dual type lookup are newly implemented; verify shaped and shapeless
+//   crafting plus reload behaviour in-game.
 public final class ModRecipeSerializers {
     public static final DeferredRegister<RecipeSerializer<?>> SERIALIZERS = DeferredRegister.create(
             Registries.RECIPE_SERIALIZER, ShapeShifterCurseForge.RESOURCE_NAMESPACE);

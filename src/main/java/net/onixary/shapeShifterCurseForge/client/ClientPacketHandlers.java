@@ -20,6 +20,8 @@ import java.util.UUID;
  * packets only contain a deferred {@code invokestatic} into this class, which is never
  * loaded on the server.</p>
  */
+// TODO[C-S] Any new server->client packet must route its client-only work through this helper
+//   (never reference Minecraft/Screen subclasses directly), or the dedicated server crashes on load.
 public final class ClientPacketHandlers {
     private ClientPacketHandlers() {
     }
