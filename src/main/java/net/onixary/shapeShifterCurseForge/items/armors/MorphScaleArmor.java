@@ -16,6 +16,8 @@ import java.util.List;
 /**
  * Forge port of Fabric's {@code MorphScaleArmor}: GeckoLib-rendered moondust armor.
  */
+// TODO[TEST] GeckoLib armor rendering was only wired up recently; verify the in-world model and the
+//   texture path (DefaultedItemGeoModel -> geo/item + textures/item) for all four armor pieces.
 public class MorphScaleArmor extends ArmorItem implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
