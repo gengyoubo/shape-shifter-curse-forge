@@ -1,6 +1,9 @@
 package net.onixary.shapeShifterCurseForge.api;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+
+import java.util.Set;
 
 /**
  * Stable public access contract for one player's mutable form runtime state.
@@ -67,6 +70,17 @@ public interface PlayerFormData {
     int getTransformativeEffectTicks();
 
     void setTransformativeEffectTicks(int ticks);
+
+    /** Immutable ids of all perks this player has purchased, independent of their current form. */
+    Set<ResourceLocation> getUnlockedPerks();
+
+    boolean hasUnlockedPerk(ResourceLocation perkId);
+
+    /** Server-side only; UI clients must request purchases through the server. */
+    void unlockPerk(ResourceLocation perkId);
+
+    /** Server-side administrative/data-repair operation. */
+    void revokePerk(ResourceLocation perkId);
 
     void copyFrom(PlayerFormData other);
 

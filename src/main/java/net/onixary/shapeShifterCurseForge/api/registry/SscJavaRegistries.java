@@ -7,6 +7,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
 
 import java.util.Map;
 import java.util.LinkedHashSet;
@@ -42,6 +43,9 @@ public final class SscJavaRegistries {
     private static final Map<ResourceLocation, SscCondition> CONDITIONS = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, SscAction> ACTIONS = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, SscPower> POWERS = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, Perk> PERKS = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, PerkTree> PERK_TREES = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, ResourceLocation> PERK_TREE_IDS = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, Set<ResourceLocation>> FORM_POWERS = new ConcurrentHashMap<>();
 
     private SscJavaRegistries() {
@@ -62,6 +66,35 @@ public final class SscJavaRegistries {
 
     public static void registerPower(ResourceLocation id, SscPower power) {
         register(POWERS, id, power, "power");
+    }
+
+    /** Registers one immutable Perk definition. Tree layout is declared separately through {@link #registerPerkTree}. */
+    public static void registerPerk(ResourceLocation id, Perk perk) {
+        register(PERKS, id, perk, "perk");
+        FormAttunerBlockEntity.allocateMaxLevel(perk.requiredAttunerLevel());
+    }
+
+    /**
+     * Registers one Form-group-owned perk graph. Every referenced perk must already be registered,
+     * and one perk may appear in only one tree so UI and ownership queries remain unambiguous.
+     */
+    public static synchronized void registerPerkTree(ResourceLocation id, PerkTree tree) {
+        Objects.requireNonNull(id, "perk tree id");
+        Objects.requireNonNull(tree, "perk tree");
+        if (PERK_TREES.containsKey(id)) {
+            throw new IllegalStateException("Duplicate SSC Java perk tree registration: '" + id + "'");
+        }
+        for (ResourceLocation perkId : tree.perks()) {
+            if (!PERKS.containsKey(perkId)) {
+                throw new IllegalArgumentException("Perk tree '" + id + "' references unknown perk '" + perkId + "'");
+            }
+            ResourceLocation existing = PERK_TREE_IDS.get(perkId);
+            if (existing != null) {
+                throw new IllegalStateException("SSC perk '" + perkId + "' is already owned by perk tree '" + existing + "'");
+            }
+        }
+        PERK_TREES.put(id, tree);
+        tree.perks().forEach(perkId -> PERK_TREE_IDS.put(perkId, id));
     }
 
     /**
@@ -131,6 +164,25 @@ public final class SscJavaRegistries {
 
     public static Optional<SscPower> power(ResourceLocation id) {
         return Optional.ofNullable(POWERS.get(id));
+    }
+
+    public static Optional<Perk> perk(ResourceLocation id) {
+        return Optional.ofNullable(PERKS.get(id));
+    }
+
+    public static Optional<PerkTree> perkTree(ResourceLocation id) {
+        return Optional.ofNullable(PERK_TREES.get(id));
+    }
+
+    /** Returns the sole tree which owns this perk, when registered. */
+    public static Optional<PerkTree> perkTreeFor(ResourceLocation perkId) {
+        ResourceLocation treeId = PERK_TREE_IDS.get(perkId);
+        return treeId == null ? Optional.empty() : perkTree(treeId);
+    }
+
+    /** Direct prerequisite ids for a perk, derived exclusively from its tree edges. */
+    public static Set<ResourceLocation> requiredPerks(ResourceLocation perkId) {
+        return perkTreeFor(perkId).map(tree -> tree.previous(perkId)).orElseGet(Set::of);
     }
 
     /** Immutable snapshot of Java powers attached to one form. */

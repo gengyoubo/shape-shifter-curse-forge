@@ -1,6 +1,13 @@
 package net.onixary.shapeShifterCurseForge.capability;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
+
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public final class PlayerFormData implements IPlayerFormData {
     public static final String ORIGINAL_BEFORE_ENABLE_FORM = "shape-shifter-curse:original_before_enable";
@@ -19,6 +26,7 @@ public final class PlayerFormData implements IPlayerFormData {
     private static final String AFTER_CURSED_MOON_FORM_KEY = "AfterCursedMoonAppliedForm";
     private static final String TRANSFORMATIVE_EFFECT_FORM_KEY = "TransformativeEffectForm";
     private static final String TRANSFORMATIVE_EFFECT_TICKS_KEY = "TransformativeEffectTicks";
+    private static final String UNLOCKED_PERKS_KEY = "UnlockedPerks";
 
     private String formId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String previousFormId = ORIGINAL_BEFORE_ENABLE_FORM;
@@ -34,6 +42,7 @@ public final class PlayerFormData implements IPlayerFormData {
     private String afterCursedMoonAppliedForm;
     private String transformativeEffectFormId;
     private int transformativeEffectTicks;
+    private final Set<ResourceLocation> unlockedPerks = new LinkedHashSet<>();
 
     @Override
     public String getFormId() {
@@ -120,6 +129,26 @@ public final class PlayerFormData implements IPlayerFormData {
     @Override public void setTransformativeEffectTicks(int ticks) { transformativeEffectTicks = Math.max(0, ticks); }
 
     @Override
+    public Set<ResourceLocation> getUnlockedPerks() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(unlockedPerks));
+    }
+
+    @Override
+    public boolean hasUnlockedPerk(ResourceLocation perkId) {
+        return perkId != null && unlockedPerks.contains(perkId);
+    }
+
+    @Override
+    public void unlockPerk(ResourceLocation perkId) {
+        unlockedPerks.add(java.util.Objects.requireNonNull(perkId, "perkId"));
+    }
+
+    @Override
+    public void revokePerk(ResourceLocation perkId) {
+        if (perkId != null) unlockedPerks.remove(perkId);
+    }
+
+    @Override
     public void copyFrom(IPlayerFormData other) {
         setFormId(other.getFormId());
         setPreviousFormId(other.getPreviousFormId());
@@ -135,6 +164,8 @@ public final class PlayerFormData implements IPlayerFormData {
         setAfterCursedMoonAppliedForm(other.getAfterCursedMoonAppliedForm());
         setTransformativeEffectFormId(other.getTransformativeEffectFormId());
         setTransformativeEffectTicks(other.getTransformativeEffectTicks());
+        unlockedPerks.clear();
+        unlockedPerks.addAll(other.getUnlockedPerks());
     }
 
     @Override
@@ -160,6 +191,9 @@ public final class PlayerFormData implements IPlayerFormData {
             tag.putString(TRANSFORMATIVE_EFFECT_FORM_KEY, transformativeEffectFormId);
             tag.putInt(TRANSFORMATIVE_EFFECT_TICKS_KEY, transformativeEffectTicks);
         }
+        ListTag perks = new ListTag();
+        unlockedPerks.forEach(perkId -> perks.add(net.minecraft.nbt.StringTag.valueOf(perkId.toString())));
+        tag.put(UNLOCKED_PERKS_KEY, perks);
         return tag;
     }
 
@@ -193,5 +227,12 @@ public final class PlayerFormData implements IPlayerFormData {
                 ? tag.getString(TRANSFORMATIVE_EFFECT_FORM_KEY) : null;
         transformativeEffectTicks = tag.contains(TRANSFORMATIVE_EFFECT_TICKS_KEY)
                 ? Math.max(0, tag.getInt(TRANSFORMATIVE_EFFECT_TICKS_KEY)) : 0;
+        unlockedPerks.clear();
+        if (tag.contains(UNLOCKED_PERKS_KEY, Tag.TAG_LIST)) {
+            for (Tag perkTag : tag.getList(UNLOCKED_PERKS_KEY, Tag.TAG_STRING)) {
+                ResourceLocation perkId = ResourceLocation.tryParse(perkTag.getAsString());
+                if (perkId != null) unlockedPerks.add(perkId);
+            }
+        }
     }
 }

@@ -55,6 +55,16 @@ public final class SscRegistrar {
         return keyed(path, factory, SscJavaRegistries::registerPower);
     }
 
+    /** Defers registration of one Perk definition under this registrar's namespace. */
+    public synchronized SscRegistryObject<Perk> perk(String path, Supplier<Perk> factory) {
+        return keyed(path, factory, SscJavaRegistries::registerPerk);
+    }
+
+    /** Defers registration of a Form-group-owned Perk graph under this registrar's namespace. */
+    public synchronized SscRegistryObject<PerkTree> perkTree(String path, Supplier<PerkTree> factory) {
+        return keyed(path, factory, SscJavaRegistries::registerPerkTree);
+    }
+
     /** Defers registration of a Java condition under this registrar's namespace. */
     public synchronized SscRegistryObject<SscCondition> condition(String path, Supplier<SscCondition> factory) {
         return keyed(path, factory, SscJavaRegistries::registerCondition);
