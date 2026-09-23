@@ -64,12 +64,18 @@ repositories {
             includeGroup 'top.theillusivec4.curios'
         }
     }
+    // JEI is optional (not a hard dependency). It resolves from ./libs (a flatDir local copy)
+    // so the mod compiles and dev-runs against JEI, but the shipped jar never bundles it.
+    flatDir {
+        dirs 'libs'
+    }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${project.minecraft_version}:${project.geckolib_version}")
     implementation fg.deobf("top.theillusivec4.curios:curios-forge:5.9.1+1.20.1")
+    implementation fg.deobf("local.runtime:jei:1.20.1-forge-15.28.0.160")
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 

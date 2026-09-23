@@ -5,6 +5,7 @@ $RECYCLE.BIN/
 **/build/
 run/
 runs/
+libs/
 /.claude/
 /fabric/
 /forge/

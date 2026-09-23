@@ -51,6 +51,10 @@ public final class FormAttunerScreen extends Screen {
 
     @Override
     protected void init() {
+        addRenderableWidget(Button.builder(Component.translatable(KEY + "upgrade_view"),
+                        button -> net.minecraft.client.Minecraft.getInstance().setScreen(
+                                new FormUpgradeScreen(attunementLevel, formGroupId, unlockedPerks, statusKey)))
+                .bounds(width / 2 - 45, height / 2 + 94, 90, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
                 .bounds(width / 2 - 45, height / 2 + 118, 90, 20).build());
     }

@@ -80,6 +80,16 @@ public final class WebComposterBlock extends Block {
         return stack.getItem().getFoodProperties() != null ? 0.55F : 0.5F;
     }
 
+    /** JEI-facing variant of {@link #canCompost}. */
+    public static boolean canIncrease(ItemStack stack) {
+        return canCompost(stack);
+    }
+
+    /** JEI-facing variant of {@link #chance}. */
+    public static float getIncreaseChance(ItemStack stack) {
+        return chance(stack);
+    }
+
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(LEVEL);

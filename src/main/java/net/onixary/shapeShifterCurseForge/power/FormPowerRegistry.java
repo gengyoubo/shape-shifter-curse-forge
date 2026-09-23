@@ -56,6 +56,7 @@ public final class FormPowerRegistry {
         event.addListener(new DynamicFormReloadListener());
         event.addListener(new ExtraPowerReloadListener());
         event.addListener(new AccessoryPowerReloadListener());
+        event.addListener(new net.onixary.shapeShifterCurseForge.brew.BrewingRecipeReloadListener());
     }
 
     /**
