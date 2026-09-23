@@ -4,6 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Set;
+import java.util.Map;
 
 /**
  * Stable public access contract for one player's mutable form runtime state.
@@ -81,6 +82,11 @@ public interface PlayerFormData {
 
     /** Server-side administrative/data-repair operation. */
     void revokePerk(ResourceLocation perkId);
+
+    /** Persistent mana pools keyed by the data-defined mana type. */
+    Map<String, Float> getManaPools();
+
+    void setManaPool(String manaType, float amount);
 
     void copyFrom(PlayerFormData other);
 

@@ -12,6 +12,7 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class PlayerCapabilityEvents {
@@ -53,6 +54,7 @@ public final class PlayerCapabilityEvents {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
+            FormActivePowerService.synchronizeMana(player);
         }
     }
 
@@ -62,6 +64,7 @@ public final class PlayerCapabilityEvents {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
+            FormActivePowerService.synchronizeMana(player);
         }
     }
 
@@ -71,6 +74,7 @@ public final class PlayerCapabilityEvents {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
+            FormActivePowerService.synchronizeMana(player);
         }
     }
 

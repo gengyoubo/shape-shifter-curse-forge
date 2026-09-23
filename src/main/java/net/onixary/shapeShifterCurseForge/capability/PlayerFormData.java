@@ -8,6 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class PlayerFormData implements IPlayerFormData {
     public static final String ORIGINAL_BEFORE_ENABLE_FORM = "shape-shifter-curse:original_before_enable";
@@ -27,6 +29,7 @@ public final class PlayerFormData implements IPlayerFormData {
     private static final String TRANSFORMATIVE_EFFECT_FORM_KEY = "TransformativeEffectForm";
     private static final String TRANSFORMATIVE_EFFECT_TICKS_KEY = "TransformativeEffectTicks";
     private static final String UNLOCKED_PERKS_KEY = "UnlockedPerks";
+    private static final String MANA_POOLS_KEY = "ManaPools";
 
     private String formId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String previousFormId = ORIGINAL_BEFORE_ENABLE_FORM;
@@ -43,6 +46,7 @@ public final class PlayerFormData implements IPlayerFormData {
     private String transformativeEffectFormId;
     private int transformativeEffectTicks;
     private final Set<ResourceLocation> unlockedPerks = new LinkedHashSet<>();
+    private final Map<String, Float> manaPools = new LinkedHashMap<>();
 
     @Override
     public String getFormId() {
@@ -149,6 +153,17 @@ public final class PlayerFormData implements IPlayerFormData {
     }
 
     @Override
+    public Map<String, Float> getManaPools() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(manaPools));
+    }
+
+    @Override
+    public void setManaPool(String manaType, float amount) {
+        if (manaType == null || manaType.isBlank()) return;
+        manaPools.put(manaType, Math.max(0.0F, amount));
+    }
+
+    @Override
     public void copyFrom(IPlayerFormData other) {
         setFormId(other.getFormId());
         setPreviousFormId(other.getPreviousFormId());
@@ -166,6 +181,8 @@ public final class PlayerFormData implements IPlayerFormData {
         setTransformativeEffectTicks(other.getTransformativeEffectTicks());
         unlockedPerks.clear();
         unlockedPerks.addAll(other.getUnlockedPerks());
+        manaPools.clear();
+        manaPools.putAll(other.getManaPools());
     }
 
     @Override
@@ -194,6 +211,9 @@ public final class PlayerFormData implements IPlayerFormData {
         ListTag perks = new ListTag();
         unlockedPerks.forEach(perkId -> perks.add(net.minecraft.nbt.StringTag.valueOf(perkId.toString())));
         tag.put(UNLOCKED_PERKS_KEY, perks);
+        CompoundTag mana = new CompoundTag();
+        manaPools.forEach(mana::putFloat);
+        tag.put(MANA_POOLS_KEY, mana);
         return tag;
     }
 
@@ -232,6 +252,13 @@ public final class PlayerFormData implements IPlayerFormData {
             for (Tag perkTag : tag.getList(UNLOCKED_PERKS_KEY, Tag.TAG_STRING)) {
                 ResourceLocation perkId = ResourceLocation.tryParse(perkTag.getAsString());
                 if (perkId != null) unlockedPerks.add(perkId);
+            }
+        }
+        manaPools.clear();
+        if (tag.contains(MANA_POOLS_KEY, Tag.TAG_COMPOUND)) {
+            CompoundTag mana = tag.getCompound(MANA_POOLS_KEY);
+            for (String manaType : mana.getAllKeys()) {
+                setManaPool(manaType, mana.getFloat(manaType));
             }
         }
     }

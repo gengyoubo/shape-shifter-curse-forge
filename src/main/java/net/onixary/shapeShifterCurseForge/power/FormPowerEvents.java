@@ -41,6 +41,7 @@ import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
+import net.onixary.shapeShifterCurseForge.effect.TransformativeStatusEffect;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -158,6 +159,13 @@ public final class FormPowerEvents {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
             }
         });
+        // Effect immunity must win.  Only a potion that actually remains on the
+        // player may create a pending transformative effect.
+        if (!event.isCanceled()
+                && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
+                && event.getEffectInstance().getEffect() instanceof TransformativeStatusEffect transformative) {
+            transformative.queue(serverPlayer);
+        }
     }
 
     @SubscribeEvent

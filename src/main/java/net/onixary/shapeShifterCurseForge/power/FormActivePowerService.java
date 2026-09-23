@@ -23,7 +23,6 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<ResourceLocation, Integer>> CHARGES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Double>> RESOURCES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
-    private static final Map<UUID, Map<String, Float>> MANA = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
     private static final Map<UUID, Boolean> CROUCHING = new HashMap<>();
     private static final Map<UUID, Integer> JUMPS = new HashMap<>();
@@ -271,8 +270,8 @@ public final class FormActivePowerService {
 
     public static float mana(Player player) {
         String type = manaType(player);
-        return MANA.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).computeIfAbsent(type,
-                ignored -> DEFAULT_MANA);
+        return SscApi.currentForm(player).map(data -> data.getManaPools().getOrDefault(type, DEFAULT_MANA))
+                .orElse(DEFAULT_MANA);
     }
 
     /** The retained SSC data expresses mana thresholds as a 0..1 fraction. */
@@ -281,8 +280,32 @@ public final class FormActivePowerService {
     }
 
     private static void setMana(Player player, float value) {
-        MANA.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(manaType(player),
-                Math.max(0.0F, Math.min(DEFAULT_MANA, value)));
+        String type = manaType(player);
+        float clamped = Math.max(0.0F, Math.min(DEFAULT_MANA, value));
+        SscApi.currentForm(player).ifPresent(data -> data.setManaPool(type, clamped));
+        if (player instanceof ServerPlayer serverPlayer) {
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(serverPlayer, type, clamped, DEFAULT_MANA);
+        }
+    }
+
+    /** Pushes the active pool after login, respawn, dimension changes and form swaps. */
+    public static void synchronizeMana(ServerPlayer player) {
+        if (!hasActiveManaType(player)) {
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(player, "", 0.0F, DEFAULT_MANA);
+            return;
+        }
+        String type = manaType(player);
+        net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(player, type, mana(player), DEFAULT_MANA);
+    }
+
+    private static boolean hasActiveManaType(Player player) {
+        final boolean[] found = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:mana_type_power".equals(FormPowerRegistry.typeOf(power)) && power.has("mana_type")) {
+                found[0] = true;
+            }
+        });
+        return found[0];
     }
 
     private static String manaType(Player player) {

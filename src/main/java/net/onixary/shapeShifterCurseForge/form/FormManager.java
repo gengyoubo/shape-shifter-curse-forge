@@ -52,6 +52,7 @@ public final class FormManager {
 
         if (player instanceof ServerPlayer serverPlayer) {
             ModNetwork.sendFormSync(serverPlayer, changed && playTransformAnimation);
+            net.onixary.shapeShifterCurseForge.power.FormActivePowerService.synchronizeMana(serverPlayer);
             if (changed) {
                 SscAdvancementTriggers.ON_TRANSFORM_FORM.triggerForm(serverPlayer, target);
                 InstinctService.applyImmediatePowers(serverPlayer);

@@ -4,6 +4,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -65,8 +68,23 @@ public final class ModCreativeModeTabs {
                         output.accept(ModItems.NETHERITE_MORPHSCALE_VEST.get());
                         output.accept(ModItems.NETHERITE_MORPHSCALE_CUISH.get());
                         output.accept(ModItems.NETHERITE_MORPHSCALE_ANKLET.get());
+                        output.accept(potion(ModPotions.MOONDUST));
+                        output.accept(potion(ModPotions.TO_BAT));
+                        output.accept(potion(ModPotions.TO_AXOLOTL));
+                        output.accept(potion(ModPotions.TO_OCELOT));
+                        output.accept(potion(ModPotions.TO_FAMILIAR_FOX));
+                        output.accept(potion(ModPotions.TO_SNOW_FOX));
+                        output.accept(potion(ModPotions.TO_ANUBIS_WOLF));
+                        output.accept(potion(ModPotions.TO_SPIDER));
+                        output.accept(potion(ModPotions.TO_ALLAY));
+                        output.accept(potion(ModPotions.TO_FERAL_CAT));
+                        output.accept(potion(ModPotions.FEED));
                     })
                     .build());
+
+    private static ItemStack potion(RegistryObject<Potion> potion) {
+        return PotionUtils.setPotion(new ItemStack(Items.POTION), potion.get());
+    }
 
     private ModCreativeModeTabs() {
     }

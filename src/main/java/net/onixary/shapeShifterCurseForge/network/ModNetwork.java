@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "3";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -132,6 +132,14 @@ public final class ModNetwork {
                 UnlockPerkPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
         );
+        CHANNEL.registerMessage(
+                13,
+                ManaSyncPacket.class,
+                ManaSyncPacket::encode,
+                ManaSyncPacket::decode,
+                ManaSyncPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -177,6 +185,10 @@ public final class ModNetwork {
 
     public static void sendCursedMoonSync(ServerPlayer player, boolean cursedMoonDay) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new CursedMoonSyncPacket(cursedMoonDay));
+    }
+
+    public static void sendManaSync(ServerPlayer player, String manaType, float mana, float maximum) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ManaSyncPacket(manaType, mana, maximum));
     }
 
     /** Opens the form select menu for {@code player}, acting on {@code target}. */
