@@ -12,6 +12,7 @@ import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.util.Optional;
+import java.util.Set;
 
 public final class ModNetwork {
     private static final String PROTOCOL_VERSION = "2";
@@ -115,6 +116,30 @@ public final class ModNetwork {
                 CursedMoonSyncPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                11,
+                OpenFormAttunerPacket.class,
+                OpenFormAttunerPacket::encode,
+                OpenFormAttunerPacket::decode,
+                OpenFormAttunerPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
+        CHANNEL.registerMessage(
+                12,
+                UnlockPerkPacket.class,
+                UnlockPerkPacket::encode,
+                UnlockPerkPacket::decode,
+                UnlockPerkPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
+        );
+        CHANNEL.registerMessage(
+                13,
+                SyncPerksPacket.class,
+                SyncPerksPacket::encode,
+                SyncPerksPacket::decode,
+                SyncPerksPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -166,6 +191,37 @@ public final class ModNetwork {
     public static void sendOpenSelectForm(ServerPlayer player, Player target) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
                 new OpenSelectFormPacket(target.getGameProfile().getName(), target.getUUID()));
+    }
+
+    public static void sendOpenFormAttuner(ServerPlayer player, int level, int maxLevel, String formGroupId) {
+        sendOpenFormAttuner(player, level, maxLevel, formGroupId, "");
+    }
+
+    private static void sendOpenFormAttuner(ServerPlayer player, int level, int maxLevel, String formGroupId,
+                                             String statusKey) {
+        Set<String> unlocked = SscApi.currentForm(player).map(data -> data.getUnlockedPerks().stream()
+                .map(ResourceLocation::toString).collect(java.util.stream.Collectors.toUnmodifiableSet())).orElse(Set.of());
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new OpenFormAttunerPacket(level, maxLevel, formGroupId == null ? "" : formGroupId, unlocked,
+                        statusKey == null ? "" : statusKey));
+    }
+
+    /** Reopens/refreshes the client view after an authoritative Perk purchase. */
+    public static void refreshFormAttuner(ServerPlayer player) {
+        refreshFormAttuner(player, "");
+    }
+
+    public static void refreshFormAttuner(ServerPlayer player, String statusKey) {
+        var attuner = net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity.getLastUsed(player);
+        if (attuner == null) return;
+        sendOpenFormAttuner(player, attuner.getAttunementLevel(),
+                net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity.getMaxLevel(),
+                SscApi.currentForm(player).map(data -> data.getFormGroupId()).orElse(""), statusKey);
+    }
+
+    public static void sendPerkSync(ServerPlayer player) {
+        Set<ResourceLocation> unlocked = SscApi.currentForm(player).map(PlayerFormData::getUnlockedPerks).orElse(Set.of());
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SyncPerksPacket(unlocked));
     }
 
     private static SyncFormPacket packetFor(ServerPlayer player,

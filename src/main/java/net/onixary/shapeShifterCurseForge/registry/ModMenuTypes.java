@@ -20,14 +20,5 @@ public final class ModMenuTypes {
         // fallback dummy
         return new AltarMenu(id, inv, new net.minecraft.world.SimpleContainer(11), new net.minecraft.world.inventory.SimpleContainerData(3));
     }));
-    public static final RegistryObject<MenuType<AltarMenu>> ALTER = MENUS.register("alter", () -> IForgeMenuType.create((id, inv, buf) -> {
-        var pos = buf.readBlockPos();
-        var level = inv.player.level();
-        var be = level.getBlockEntity(pos);
-        if (be instanceof net.onixary.shapeShifterCurseForge.blockentity.AlterBlockEntity alter) {
-            return new AltarMenu(id, inv, alter, alter.data, true);
-        }
-        return new AltarMenu(id, inv, new net.minecraft.world.SimpleContainer(11), new net.minecraft.world.inventory.SimpleContainerData(3), true);
-    }));
     private ModMenuTypes(){}
 }

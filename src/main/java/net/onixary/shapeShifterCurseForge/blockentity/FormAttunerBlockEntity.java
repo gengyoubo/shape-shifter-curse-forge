@@ -42,6 +42,10 @@ public final class FormAttunerBlockEntity extends BlockEntity {
         maxLevel = Math.max(maxLevel, requestedMaxLevel);
     }
 
+    public static int getMaxLevel() {
+        return maxLevel;
+    }
+
     public static void rememberUser(ServerPlayer player, BlockPos pos) {
         LAST_USED_POSITIONS.put(player.getUUID(), pos.immutable());
     }

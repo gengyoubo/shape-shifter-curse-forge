@@ -10,6 +10,7 @@ import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
 
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Optional;
@@ -178,6 +179,16 @@ public final class SscJavaRegistries {
     public static Optional<PerkTree> perkTreeFor(ResourceLocation perkId) {
         ResourceLocation treeId = PERK_TREE_IDS.get(perkId);
         return treeId == null ? Optional.empty() : perkTree(treeId);
+    }
+
+    /** Immutable snapshot of every perk tree available to a Form group. */
+    public static Map<ResourceLocation, PerkTree> perkTreesForGroup(ResourceLocation formGroupId) {
+        if (formGroupId == null) return Map.of();
+        Map<ResourceLocation, PerkTree> result = new LinkedHashMap<>();
+        PERK_TREES.forEach((treeId, tree) -> {
+            if (formGroupId.equals(tree.formGroupId())) result.put(treeId, tree);
+        });
+        return Map.copyOf(result);
     }
 
     /** Direct prerequisite ids for a perk, derived exclusively from its tree edges. */

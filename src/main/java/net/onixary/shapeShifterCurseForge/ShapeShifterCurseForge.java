@@ -8,6 +8,7 @@ import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.perk.ModPerks;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
@@ -43,6 +44,7 @@ public final class ShapeShifterCurseForge {
         ModRecipeSerializers.TYPES.register(modBus);
         SscAdvancementTriggers.initialize();
         FormManager.initialize();
+        ModPerks.initialize();
         ModNetwork.initialize();
     }
 }

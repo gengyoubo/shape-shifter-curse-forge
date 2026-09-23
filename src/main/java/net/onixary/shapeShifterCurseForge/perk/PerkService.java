@@ -7,6 +7,7 @@ import net.onixary.shapeShifterCurseForge.api.registry.Perk;
 import net.onixary.shapeShifterCurseForge.api.registry.PerkTree;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 
 import java.util.Objects;
 
@@ -44,11 +45,16 @@ public final class PerkService {
             return UnlockResult.MISSING_PREREQUISITE;
         }
         if (!perk.canUnlock(player)) return UnlockResult.CUSTOM_REQUIREMENT_FAILED;
-        if (player.experienceLevel < perk.experienceLevels()) return UnlockResult.INSUFFICIENT_EXPERIENCE;
+        if (!player.getAbilities().instabuild && player.experienceLevel < perk.experienceLevels()) {
+            return UnlockResult.INSUFFICIENT_EXPERIENCE;
+        }
 
-        player.giveExperienceLevels(-perk.experienceLevels());
+        if (!player.getAbilities().instabuild) {
+            player.giveExperienceLevels(-perk.experienceLevels());
+        }
         data.unlockPerk(perkId);
         perk.onUnlocked(player);
+        ModNetwork.sendPerkSync(player);
         return UnlockResult.SUCCESS;
     }
 

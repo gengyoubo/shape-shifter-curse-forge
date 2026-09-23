@@ -2,7 +2,6 @@ package net.onixary.shapeShifterCurseForge.block;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -17,6 +16,8 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,10 +59,9 @@ public final class FormAttunerBlock extends BaseEntityBlock implements BeaconBea
         if (level.getBlockEntity(pos) instanceof FormAttunerBlockEntity attuner
                 && player instanceof ServerPlayer serverPlayer) {
             FormAttunerBlockEntity.rememberUser(serverPlayer, pos);
-            // Do not substitute the administrator form picker for Fabric's
-            // Perk-tree screen.  That screen relies on a still-unported Perk
-            // data model, while this reports the real attunement state.
-            serverPlayer.sendSystemMessage(Component.literal("Form Attuner level: " + attuner.getAttunementLevel()));
+            ModNetwork.sendOpenFormAttuner(serverPlayer, attuner.getAttunementLevel(),
+                    FormAttunerBlockEntity.getMaxLevel(),
+                    SscApi.currentForm(serverPlayer).map(data -> data.getFormGroupId()).orElse(""));
         }
         return InteractionResult.CONSUME;
     }

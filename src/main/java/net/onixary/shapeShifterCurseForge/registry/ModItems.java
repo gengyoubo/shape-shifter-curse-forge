@@ -120,9 +120,6 @@ public final class ModItems {
     public static final RegistryObject<Item> ALTAR_ITEM = ITEMS.register(
             "altar", () -> new BlockItem(ModBlocks.ALTAR.get(), new Item.Properties()));
 
-    public static final RegistryObject<Item> ALTER_ITEM = ITEMS.register(
-            "alter", () -> new BlockItem(ModBlocks.ALTER.get(), new Item.Properties()));
-
     public static final RegistryObject<Item> FORM_ATTUNER_ITEM = ITEMS.register(
             "form_attuner", () -> new BlockItem(ModBlocks.FORM_ATTUNER.get(), new Item.Properties()));
 

@@ -10,12 +10,9 @@ import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
 public class AltarMenu extends AbstractContainerMenu {
     private final Container container;
     private final ContainerData data;
-    private final boolean isAlter;
-
-    public AltarMenu(int id, Inventory inv, Container container, ContainerData data) { this(id, inv, container, data, false); }
-    public AltarMenu(int id, Inventory inv, Container container, ContainerData data, boolean isAlter) {
-        super(isAlter ? ModMenuTypes.ALTER.get() : ModMenuTypes.ALTAR.get(), id);
-        this.container = container; this.data = data; this.isAlter = isAlter;
+    public AltarMenu(int id, Inventory inv, Container container, ContainerData data) {
+        super(ModMenuTypes.ALTAR.get(), id);
+        this.container = container; this.data = data;
         // 3x3 input 0-8
         for (int y=0;y<3;y++) for(int x=0;x<3;x++) addSlot(new Slot(container, x+y*3, 30 + x*18, 17 + y*18));
         // catalyst/fuel 9

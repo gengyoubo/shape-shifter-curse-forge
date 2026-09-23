@@ -21,12 +21,14 @@ public final class Perk {
 
     private final int requiredAttunerLevel;
     private final int experienceLevels;
+    private final Kind kind;
     private final Consumer<ServerPlayer> onUnlocked;
     private final Predicate<ServerPlayer> unlockCondition;
 
     private Perk(Builder builder) {
         requiredAttunerLevel = builder.requiredAttunerLevel;
         experienceLevels = builder.experienceLevels;
+        kind = builder.kind;
         onUnlocked = builder.onUnlocked;
         unlockCondition = builder.unlockCondition;
     }
@@ -45,6 +47,22 @@ public final class Perk {
         return experienceLevels;
     }
 
+    /** Declares how this node participates in gameplay; it is not inferred from its tree shape. */
+    public Kind kind() {
+        return kind;
+    }
+
+    public enum Kind {
+        /** A one-time server-side action supplied through {@link Builder#onUnlocked(Consumer)}. */
+        NON_POWER,
+        /** A continuously evaluated ability, normally queried by a server/client tick service. */
+        PASSIVE_POWER,
+        /** A player-triggered ability, normally reached through an input packet. */
+        ACTIVE_POWER,
+        /** A graph-only prerequisite with no inherent behavior. */
+        GATE
+    }
+
     /** Invoked once, server-side, after this perk has been persisted for the player. */
     public void onUnlocked(ServerPlayer player) {
         onUnlocked.accept(Objects.requireNonNull(player, "player"));
@@ -58,6 +76,7 @@ public final class Perk {
     public static final class Builder {
         private int requiredAttunerLevel;
         private int experienceLevels;
+        private Kind kind = Kind.NON_POWER;
         private Consumer<ServerPlayer> onUnlocked = NO_OP;
         private Predicate<ServerPlayer> unlockCondition = ALWAYS;
 
@@ -73,6 +92,11 @@ public final class Perk {
         public Builder experienceLevels(int levels) {
             if (levels < 0) throw new IllegalArgumentException("Perk experience cost cannot be negative");
             experienceLevels = levels;
+            return this;
+        }
+
+        public Builder kind(Kind kind) {
+            this.kind = Objects.requireNonNull(kind, "kind");
             return this;
         }
 

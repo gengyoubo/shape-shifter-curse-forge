@@ -10,6 +10,7 @@ import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.perk.PerkPowerService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -57,6 +58,9 @@ public final class FormActivePowerService {
                 return;
             }
             if ("key.shape-shifter-curse.make_sound".equals(key) && triggerHiss(player)) {
+                return;
+            }
+            if (PerkPowerService.triggerActive(player, key)) {
                 return;
             }
             // A surface-water active_self power (jump_out_water) must win over the

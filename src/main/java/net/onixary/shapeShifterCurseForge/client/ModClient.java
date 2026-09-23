@@ -5,6 +5,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.AxolotlRenderer;
 import net.minecraft.client.renderer.entity.BatRenderer;
 import net.minecraft.client.renderer.entity.OcelotRenderer;
@@ -17,6 +19,7 @@ import net.onixary.shapeShifterCurseForge.client.render.FormAttunerBeamRenderer;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
+import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ModClient {
@@ -24,7 +27,7 @@ public final class ModClient {
     public static void onClientSetup(FMLClientSetupEvent e) {
         e.enqueueWork(() -> {
             MenuScreens.register(ModMenuTypes.ALTAR.get(), AltarScreen::new);
-            MenuScreens.register(ModMenuTypes.ALTER.get(), AltarScreen::new);
+            ItemBlockRenderTypes.setRenderLayer(ModBlocks.FORM_ATTUNER.get(), RenderType.translucent());
         });
     }
 

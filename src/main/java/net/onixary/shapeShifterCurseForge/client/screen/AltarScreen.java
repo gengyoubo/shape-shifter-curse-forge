@@ -10,25 +10,29 @@ import net.onixary.shapeShifterCurseForge.menu.AltarMenu;
 
 public class AltarScreen extends AbstractContainerScreen<AltarMenu> {
     private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/altar_craft_ui.png");
-    private static final ResourceLocation BG_ALTER = ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/alter_craft_ui.png");
-    private final boolean isAlter;
+    /** The texture has a 24 px sprite strip at its right edge; it is not part of the window. */
+    private static final int WINDOW_WIDTH = 176;
+    private static final int TEXTURE_WIDTH = 200;
+    private static final int TEXTURE_HEIGHT = 166;
     public AltarScreen(AltarMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
-        this.isAlter = menu.toString().contains("alter"); // fallback, will be set via menu field
-        this.imageWidth = 176; this.imageHeight = 166;
+        this.imageWidth = WINDOW_WIDTH;
+        this.imageHeight = TEXTURE_HEIGHT;
     }
     @Override protected void renderBg(GuiGraphics g, float pt, int mx, int my) {
-        g.blit(isAlter ? BG_ALTER : BG, leftPos, topPos, 0, 0, imageWidth, imageHeight);
+        ResourceLocation background = BG;
+        g.blit(background, leftPos, topPos, 0, 0, WINDOW_WIDTH, imageHeight, TEXTURE_WIDTH, TEXTURE_HEIGHT);
         int prog = menu.getProgress();
         int total = menu.getTotal();
         if (total > 0 && prog > 0) {
             int w = (int)(24 * (prog / (float) total));
-            g.blit(isAlter ? BG_ALTER : BG, leftPos + 79, topPos + 34, 176, 0, w, 16);
+            g.blit(background, leftPos + 89, topPos + 35, 176, 0, w, 17, TEXTURE_WIDTH, TEXTURE_HEIGHT);
         }
         int fuel = menu.getFuel();
         if (fuel > 0) {
             int h = (int)(14 * Math.min(1f, fuel / 8000f));
-            g.blit(isAlter ? BG_ALTER : BG, leftPos + 152, topPos + 57 - h, 176, 14 + (14 - h), 14, h);
+            g.blit(background, leftPos + 152, topPos + 57 - h, 176, 14 + (14 - h), 14, h,
+                    TEXTURE_WIDTH, TEXTURE_HEIGHT);
         }
     }
     @Override public void render(GuiGraphics g, int mx, int my, float pt) { renderBackground(g); super.render(g, mx, my, pt); renderTooltip(g, mx, my); }
