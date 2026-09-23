@@ -13,8 +13,6 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 /**
  * Fabric 1.10.0 parity: altar/alter/morph-scale upgrade recipe types.
- * Forge port stubs – they accept the fabric JSONs (type shape-shifter-curse:altar_shapeless etc.)
- * so datapack loading does not fail. Real crafting logic can be added later.
  */
 public final class ModRecipeSerializers {
     public static final DeferredRegister<RecipeSerializer<?>> SERIALIZERS = DeferredRegister.create(
@@ -56,9 +54,9 @@ public final class ModRecipeSerializers {
     public static final RegistryObject<RecipeType<?>> MORPH_SCALE_UPGRADE_TYPE = TYPES.register("morph_scale_upgrade", () -> new DummyRecipeType<>("morph_scale_upgrade"));
 
     public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPELESS = SERIALIZERS.register("altar_shapeless", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe.Serializer());
-    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe.Serializer());
+    public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe.Serializer());
     public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPELESS = SERIALIZERS.register("alter_shapeless", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe.Serializer());
-    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe.Serializer());
+    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", () -> new net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapedRecipe.Serializer());
     public static final RegistryObject<RecipeSerializer<?>> MORPH_SCALE_UPGRADE = SERIALIZERS.register(
             "morph_scale_upgrade", net.onixary.shapeShifterCurseForge.recipe.MorphScaleUpgradeRecipe.Serializer::new);
 

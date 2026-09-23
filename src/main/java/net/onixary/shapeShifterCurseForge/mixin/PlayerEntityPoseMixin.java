@@ -134,7 +134,7 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
             pose = Pose.SWIMMING;
         } else if (this.isAutoSpinAttack()) {
             pose = Pose.SPIN_ATTACK;
-        } else if (this.isShiftKeyDown()) {
+        } else if (this.isShiftKeyDown() || MovementPowerService.shouldForceSneaking(player)) {
             pose = Pose.CROUCHING;
         } else {
             pose = Pose.STANDING;
@@ -157,8 +157,10 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
         // This is an on-ground substitute for vanilla's crawl entry.  Do not
         // turn a held Shift into crawling while jumping/falling or flying in
         // Creative; those states must retain their normal vanilla poses.
+        // keep_sneaking counts as held Shift so axolotl head-collide / no-air
+        // powers keep the crawl without requiring the key.
         if (!player.onGround() || player.getAbilities().flying
-                || !player.isShiftKeyDown() || player.isInWaterOrBubble() || player.isPassenger()
+                || !MovementPowerService.isSneakingOrForced(player) || player.isInWaterOrBubble() || player.isPassenger()
                 || player.isFallFlying() || player.isSleeping() || player.isAutoSpinAttack()) {
             return false;
         }

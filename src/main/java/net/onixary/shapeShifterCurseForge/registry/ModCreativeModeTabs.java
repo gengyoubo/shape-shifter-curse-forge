@@ -51,6 +51,7 @@ public final class ModCreativeModeTabs {
                         output.accept(ModItems.DEW_COVERED_COBWEB_ITEM.get());
                         output.accept(ModItems.WEB_COMPOSTER_ITEM.get());
                         output.accept(ModItems.ALTAR_ITEM.get());
+                        output.accept(ModItems.ALTER_ITEM.get());
                         output.accept(ModItems.FORM_ATTUNER_ITEM.get());
                         output.accept(ModItems.RIPPLE_MIRROR.get());
                         output.accept(ModItems.AUXILIARY_AXE.get());

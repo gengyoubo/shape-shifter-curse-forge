@@ -313,23 +313,104 @@ public final class MissingPowerEvents {
     }
 
     private static void tickJumpClash(Player player) {
-        if (!hasPowerId(player, "form_ocelot_3_sneaking_jump_clash") || !player.isCrouching()
-                || player.onGround() || CLASH_COOLDOWNS.containsKey(player.getUUID())) return;
-        JsonObject power = findPower(player, "form_ocelot_3_sneaking_jump_clash");
-        if (power == null) return;
-        double distance = FormPowerRuntime.doubleValue(power, "expansion_distance", 1.0D);
-        for (LivingEntity target : player.level().getEntitiesOfClass(LivingEntity.class,
-                player.getBoundingBox().inflate(distance), entity -> entity != player && entity.isAlive())) {
-            FormPowerRuntime.execute(player, target, power.getAsJsonObject("bientity_action"));
-            target.hurt(player.damageSources().playerAttack(player), FormPowerRuntime.floatValue(power, "damage", 0.0F));
-            CLASH_COOLDOWNS.put(player.getUUID(), Math.max(1, FormPowerRuntime.intValue(power, "check_duration", 15)));
-            break;
+        if (CLASH_COOLDOWNS.containsKey(player.getUUID())) return;
+        final java.util.List<JsonObject> clashPowers = new java.util.ArrayList<>();
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:sneaking_jump_clash".equals(FormPowerRegistry.typeOf(power))) {
+                clashPowers.add(power);
+            }
+        });
+        if (clashPowers.isEmpty()) {
+            CLASH_STATE.remove(player.getUUID());
+            return;
+        }
+        ClashState state = CLASH_STATE.computeIfAbsent(player.getUUID(), ignored -> new ClashState());
+        // Fabric edge: trigger when leaving ground while sneaking with upward motion.
+        if (player.onGround()) {
+            state.wasOnGround = true;
+            state.isActive = false;
+            state.activeTicks = 0;
+            return;
+        }
+        boolean sneaking = player.isCrouching()
+                || MovementPowerService.shouldForceSneaking(player);
+        if (state.wasOnGround && sneaking && player.getDeltaMovement().y > 0.0D) {
+            state.isActive = true;
+            state.activeTicks = 0;
+            state.wasOnGround = false;
+        }
+        if (!state.isActive) return;
+        state.activeTicks++;
+        for (JsonObject power : clashPowers) {
+            int duration = Math.max(1, FormPowerRuntime.intValue(power, "check_duration", 15));
+            if (state.activeTicks > duration) {
+                state.isActive = false;
+                state.activeTicks = 0;
+                return;
+            }
+            double expansion = FormPowerRuntime.doubleValue(power, "expansion_distance", 1.0D);
+            if (checkClashCollision(player, power, expansion)) {
+                CLASH_COOLDOWNS.put(player.getUUID(), duration);
+                state.isActive = false;
+                state.activeTicks = 0;
+                return;
+            }
         }
     }
 
+    private static boolean checkClashCollision(Player player, JsonObject power, double expansion) {
+        net.minecraft.core.Direction facing = player.getDirection();
+        net.minecraft.world.phys.Vec3 facingVec = new net.minecraft.world.phys.Vec3(
+                facing.getStepX(), 0.0D, facing.getStepZ());
+        net.minecraft.world.phys.AABB box = player.getBoundingBox()
+                .expandTowards(facingVec.scale(expansion)).inflate(0.5D);
+        for (LivingEntity target : player.level().getEntitiesOfClass(LivingEntity.class, box,
+                entity -> entity != player && entity.isAlive() && !entity.isRemoved())) {
+            net.minecraft.world.phys.Vec3 from = new net.minecraft.world.phys.Vec3(
+                    player.getX(), player.getY() + player.getBbHeight() * 0.5D, player.getZ());
+            net.minecraft.world.phys.Vec3 to = new net.minecraft.world.phys.Vec3(
+                    target.getX(), target.getY() + target.getBbHeight() * 0.5D, target.getZ());
+            net.minecraft.world.level.ClipContext context = new net.minecraft.world.level.ClipContext(
+                    from, to, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, player);
+            net.minecraft.world.phys.BlockHitResult hit = player.level().clip(context);
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) continue;
+            FormPowerRuntime.execute(player, target, power.getAsJsonObject("bientity_action"));
+            target.hurt(player.damageSources().playerAttack(player),
+                    FormPowerRuntime.floatValue(power, "damage", 0.0F));
+            return true;
+        }
+        return false;
+    }
+
+    private static final Map<UUID, ClashState> CLASH_STATE = new HashMap<>();
+
+    private static final class ClashState {
+        private boolean wasOnGround = true;
+        private boolean isActive;
+        private int activeTicks;
+    }
+
+    /**
+     * Forge counterpart of Fabric's {@code bypass_stepping_effect}: holders do not
+     * trample farmland. The power definition carries no condition in this pack, but
+     * the handler still honors an optional {@code condition} object for datapack use.
+     */
     @SubscribeEvent
-    public static void breakBlock(BlockEvent.BreakEvent event) {
-        Player player = event.getPlayer();
+    public static void trampleFarmland(BlockEvent.FarmlandTrampleEvent event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) return;
+        final boolean[] bypass = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!bypass[0] && "shape-shifter-curse:bypass_stepping_effect".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                bypass[0] = true;
+            }
+        });
+        if (bypass[0]) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void breakBlock(BlockEvent.BreakEvent event) {        Player player = event.getPlayer();
         if (player.level().isClientSide) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"apoli:action_on_block_break".equals(FormPowerRegistry.typeOf(power))

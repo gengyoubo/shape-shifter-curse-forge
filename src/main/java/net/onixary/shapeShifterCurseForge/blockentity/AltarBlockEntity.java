@@ -152,19 +152,27 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
             }
             currentRecipe = null; totalProgress = 0;
         }
-        net.minecraft.world.item.crafting.RecipeType<AltarRecipe> type = (net.minecraft.world.item.crafting.RecipeType<AltarRecipe>)(net.minecraft.world.item.crafting.RecipeType<?>)
-                ModRecipeSerializers.ALTAR_SHAPELESS_TYPE.get();
-        Optional<AltarRecipe> opt = level.getRecipeManager().getRecipeFor(type, this, level);
-        if (opt.isEmpty()) {
+        AltarRecipe match = findMatch(ModRecipeSerializers.ALTAR_SHAPELESS_TYPE.get());
+        if (match == null) match = findMatch(ModRecipeSerializers.ALTAR_SHAPED_TYPE.get());
+        if (match == null) {
             currentRecipe = null; totalProgress = 0; progress = 0;
             return;
         }
-        AltarRecipe r = opt.get();
-        if (!r.canCraft(getLastPlayer())) { currentRecipe = null; totalProgress = 0; return; }
-        if (!canOutput(r)) { currentRecipe = null; totalProgress = 0; return; }
-        currentRecipe = r;
-        totalProgress = r.getRecipeTime();
+        currentRecipe = match;
+        totalProgress = match.getRecipeTime();
         progress = 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    private AltarRecipe findMatch(net.minecraft.world.item.crafting.RecipeType<?> type) {
+        net.minecraft.world.item.crafting.RecipeType<AltarRecipe> altarType =
+                (net.minecraft.world.item.crafting.RecipeType<AltarRecipe>) type;
+        Optional<AltarRecipe> opt = level.getRecipeManager().getRecipeFor(altarType, this, level);
+        if (opt.isEmpty()) return null;
+        AltarRecipe candidate = opt.get();
+        if (!candidate.canCraft(getLastPlayer())) return null;
+        if (!canOutput(candidate)) return null;
+        return candidate;
     }
 
     private Player getLastPlayer() {
@@ -188,11 +196,26 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
         ItemStack outSlot = items.get(10);
         if (outSlot.isEmpty()) items.set(10, result.copy());
         else outSlot.grow(result.getCount());
-        var ings = ((net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe)currentRecipe).getIngredients();
-        for (var ing : ings) {
+        if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe shaped) {
+            for (int y = 0; y < 3; y++) {
+                for (int x = 0; x < 3; x++) {
+                    if (shaped.ingredientAt(x, y).isEmpty()) continue;
+                    ItemStack s = items.get(x + y * 3);
+                    if (!s.isEmpty()) s.shrink(1);
+                }
+            }
+        } else if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe shapeless) {
+            for (var ing : shapeless.getIngredients()) {
+                for (int i = 0; i < 9; i++) {
+                    ItemStack s = items.get(i);
+                    if (!s.isEmpty() && ing.test(s)) { s.shrink(1); break; }
+                }
+            }
+        } else {
+            // Unknown AltarRecipe implementation: consume one item from each occupied input slot.
             for (int i = 0; i < 9; i++) {
                 ItemStack s = items.get(i);
-                if (!s.isEmpty() && ing.test(s)) { s.shrink(1); break; }
+                if (!s.isEmpty()) s.shrink(1);
             }
         }
         if (currentRecipe.getCatalyst() != null && !currentRecipe.getCatalyst().isEmpty()) {

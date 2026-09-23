@@ -128,6 +128,37 @@ public final class MovementPowerService {
         return force[0];
     }
 
+    private static final ThreadLocal<Boolean> FORCE_SNEAK_GUARD = ThreadLocal.withInitial(() -> false);
+
+    /**
+     * Forge port of Fabric's KeepSneakingPower.shouldForceSneak: while any active
+     * {@code shape-shifter-curse:keep_sneaking} power has its condition met (and the
+     * player is not in water), the player is treated as holding sneak for pose and
+     * {@code apoli:sneaking} checks. Fabric explicitly returns false in water.
+     */
+    public static boolean shouldForceSneaking(Player player) {
+        if (Boolean.TRUE.equals(FORCE_SNEAK_GUARD.get())) return false;
+        if (player.isInWaterOrBubble() || player.isPassenger()) return false;
+        final boolean[] force = {false};
+        FORCE_SNEAK_GUARD.set(true);
+        try {
+            FormPowerRegistry.visitActive(player, (id, power) -> {
+                if (!force[0] && "shape-shifter-curse:keep_sneaking".equals(FormPowerRegistry.typeOf(power))
+                        && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                    force[0] = true;
+                }
+            });
+        } finally {
+            FORCE_SNEAK_GUARD.set(false);
+        }
+        return force[0];
+    }
+
+    /** Shift-held or keep_sneaking-forced sneak, for pose and speed decisions. */
+    public static boolean isSneakingOrForced(Player player) {
+        return player.isShiftKeyDown() || shouldForceSneaking(player);
+    }
+
     private static void attractEntity(Player player, JsonObject power) {
         if (!player.onGround() || player.isPassenger()) return;
         double radius = FormPowerRuntime.doubleValue(power, "attraction_radius", 8.0D);

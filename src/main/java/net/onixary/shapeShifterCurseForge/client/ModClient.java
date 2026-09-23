@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.entity.WolfRenderer;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.client.screen.AltarScreen;
+import net.onixary.shapeShifterCurseForge.client.screen.AlterScreen;
 import net.onixary.shapeShifterCurseForge.client.render.FormAttunerBeamRenderer;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
@@ -28,6 +29,7 @@ public final class ModClient {
     public static void onClientSetup(FMLClientSetupEvent e) {
         e.enqueueWork(() -> {
             MenuScreens.register(ModMenuTypes.ALTAR.get(), AltarScreen::new);
+            MenuScreens.register(ModMenuTypes.ALTER.get(), AlterScreen::new);
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.FORM_ATTUNER.get(), RenderType.translucent());
         });
     }

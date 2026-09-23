@@ -12,6 +12,14 @@ import net.onixary.shapeShifterCurseForge.items.SelectFormItem;
 import net.onixary.shapeShifterCurseForge.items.TooltipItem;
 import net.onixary.shapeShifterCurseForge.items.FormGrowthItem;
 import net.onixary.shapeShifterCurseForge.items.trinkets.*;
+import net.onixary.shapeShifterCurseForge.items.armors.MorphScaleArmor;
+import net.onixary.shapeShifterCurseForge.items.armors.NetheriteMorphScaleArmor;
+import net.onixary.shapeShifterCurseForge.items.tools.AuxiliaryAxe;
+import net.onixary.shapeShifterCurseForge.items.tools.AuxiliaryPickaxe;
+import net.onixary.shapeShifterCurseForge.items.tools.AuxiliarySword;
+import net.onixary.shapeShifterCurseForge.items.tools.BottledSnowfall;
+import net.onixary.shapeShifterCurseForge.items.tools.DiamondMiningClaw;
+import net.onixary.shapeShifterCurseForge.items.tools.SuperMorphScaleCore;
 import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
 
 public final class ModItems {
@@ -120,60 +128,71 @@ public final class ModItems {
     public static final RegistryObject<Item> ALTAR_ITEM = ITEMS.register(
             "altar", () -> new BlockItem(ModBlocks.ALTAR.get(), new Item.Properties()));
 
+    public static final RegistryObject<Item> ALTER_ITEM = ITEMS.register(
+            "alter", () -> new BlockItem(ModBlocks.ALTER.get(), new Item.Properties()));
+
     public static final RegistryObject<Item> FORM_ATTUNER_ITEM = ITEMS.register(
             "form_attuner", () -> new BlockItem(ModBlocks.FORM_ATTUNER.get(), new Item.Properties()));
 
     public static final RegistryObject<Item> RIPPLE_MIRROR = ITEMS.register(
-            "ripple_mirror", () -> new TooltipItem(
-                    new Item.Properties().stacksTo(1),
-                    "item.shape-shifter-curse.ripple_mirror.tooltip",
-                    ChatFormatting.GRAY));
+            "ripple_mirror", () -> new net.onixary.shapeShifterCurseForge.items.RippleMirror(
+                    new Item.Properties()));
 
     public static final RegistryObject<Item> TEMP_WEB_BRIDGE_ITEM = ITEMS.register(
             "temp_web_bridge", () -> new BlockItem(ModBlocks.TEMP_WEB_BRIDGE.get(), new Item.Properties()));
 
     // --- 1.10.0 fabric parity: tools / armor / special items referenced by recipes & models ---
     public static final RegistryObject<Item> AUXILIARY_AXE = ITEMS.register(
-            "auxiliary_axe", () -> new Item(new Item.Properties().stacksTo(1)));
+            "auxiliary_axe", () -> new AuxiliaryAxe(
+                    net.onixary.shapeShifterCurseForge.items.tools.AuxiliaryAxeToolMaterial.INSTANCE,
+                    1.0F, -2.4F, new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> AUXILIARY_PICKAXE = ITEMS.register(
-            "auxiliary_pickaxe", () -> new Item(new Item.Properties().stacksTo(1)));
+            "auxiliary_pickaxe", () -> new AuxiliaryPickaxe(
+                    net.onixary.shapeShifterCurseForge.items.tools.AuxiliaryPickaxeToolMaterial.INSTANCE,
+                    1, -2.8F, new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> AUXILIARY_SWORD = ITEMS.register(
-            "auxiliary_sword", () -> new Item(new Item.Properties().stacksTo(1)));
+            "auxiliary_sword", () -> new AuxiliarySword(
+                    net.onixary.shapeShifterCurseForge.items.tools.AuxiliarySwordToolMaterial.INSTANCE,
+                    1, -2.4F, new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> BOTTLED_SNOWFALL = ITEMS.register(
-            "bottled_snowfall", () -> new Item(new Item.Properties().stacksTo(16)));
+            "bottled_snowfall", () -> new BottledSnowfall(
+                    net.onixary.shapeShifterCurseForge.items.tools.BottledSnowfallToolMaterial.INSTANCE,
+                    1, 1.0F, new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> DIAMOND_MINING_CLAW = ITEMS.register(
-            "diamond_mining_claw", () -> new Item(new Item.Properties().stacksTo(1)));
+            "diamond_mining_claw", () -> new DiamondMiningClaw(
+                    net.onixary.shapeShifterCurseForge.items.tools.DiamondMiningClawToolMaterial.INSTANCE,
+                    1, -2.4F, new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> MORPHSCALE_CORE = ITEMS.register(
             "morphscale_core", () -> new TooltipItem(new Item.Properties(), "item.shape-shifter-curse.morphscale_core.tooltip", ChatFormatting.GRAY));
     public static final RegistryObject<Item> SUPER_MORPHSCALE_CORE = ITEMS.register(
-            "super_morphscale_core", () -> new TooltipItem(new Item.Properties(), "item.shape-shifter-curse.super_morphscale_core.tooltip", ChatFormatting.GRAY));
+            "super_morphscale_core", () -> new SuperMorphScaleCore(new Item.Properties().stacksTo(1).durability(512)));
     public static final RegistryObject<Item> MORPHSCALE_HEADRING = ITEMS.register(
-            "morphscale_headring", () -> new Item(new Item.Properties().stacksTo(1)));
+            "morphscale_headring", () -> new MorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.HELMET, new Item.Properties()));
     public static final RegistryObject<Item> MORPHSCALE_VEST = ITEMS.register(
-            "morphscale_vest", () -> new Item(new Item.Properties().stacksTo(1)));
+            "morphscale_vest", () -> new MorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE, new Item.Properties()));
     public static final RegistryObject<Item> MORPHSCALE_CUISH = ITEMS.register(
-            "morphscale_cuish", () -> new Item(new Item.Properties().stacksTo(1)));
+            "morphscale_cuish", () -> new MorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.LEGGINGS, new Item.Properties()));
     public static final RegistryObject<Item> MORPHSCALE_ANKLET = ITEMS.register(
-            "morphscale_anklet", () -> new Item(new Item.Properties().stacksTo(1)));
+            "morphscale_anklet", () -> new MorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.BOOTS, new Item.Properties()));
     public static final RegistryObject<Item> NETHERITE_MORPHSCALE_HEADRING = ITEMS.register(
-            "netherite_morphscale_headring", () -> new Item(new Item.Properties().stacksTo(1)));
+            "netherite_morphscale_headring", () -> new NetheriteMorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.HELMET, new Item.Properties()));
     public static final RegistryObject<Item> NETHERITE_MORPHSCALE_VEST = ITEMS.register(
-            "netherite_morphscale_vest", () -> new Item(new Item.Properties().stacksTo(1)));
+            "netherite_morphscale_vest", () -> new NetheriteMorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.CHESTPLATE, new Item.Properties()));
     public static final RegistryObject<Item> NETHERITE_MORPHSCALE_CUISH = ITEMS.register(
-            "netherite_morphscale_cuish", () -> new Item(new Item.Properties().stacksTo(1)));
+            "netherite_morphscale_cuish", () -> new NetheriteMorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.LEGGINGS, new Item.Properties()));
     public static final RegistryObject<Item> NETHERITE_MORPHSCALE_ANKLET = ITEMS.register(
-            "netherite_morphscale_anklet", () -> new Item(new Item.Properties().stacksTo(1)));
+            "netherite_morphscale_anklet", () -> new NetheriteMorphScaleArmor(net.minecraft.world.item.ArmorItem.Type.BOOTS, new Item.Properties()));
     // cosmetics / spawn eggs / misc models present in fabric jar
     public static final RegistryObject<Item> CREATIVE_INHIBITOR = ITEMS.register(
-            "creative_inhibitor", () -> new Item(new Item.Properties().stacksTo(1)));
+            "creative_inhibitor", () -> new net.onixary.shapeShifterCurseForge.items.CreativeInhibitor(new Item.Properties()));
     public static final RegistryObject<Item> CURSED_BOOK_OF_SHAPE_SHIFTER = ITEMS.register(
             "cursed_book_of_shape_shifter", () -> new Item(new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> CUSTOM_TRINKET = ITEMS.register(
             "custom_trinket", () -> new Item(new Item.Properties().stacksTo(1)));
     public static final RegistryObject<Item> PATRON_FORM_ITEM = ITEMS.register(
-            "patron_form_item", () -> new Item(new Item.Properties().stacksTo(1)));
+            "patron_form_item", () -> new net.onixary.shapeShifterCurseForge.items.PatronFormItem(new Item.Properties()));
     public static final RegistryObject<Item> SPIDER_FLUID_COCOON = ITEMS.register(
-            "spider_fluid_cocoon", () -> new Item(new Item.Properties().stacksTo(16)));
+            "spider_fluid_cocoon", () -> new net.onixary.shapeShifterCurseForge.items.SpiderFluidCocoon(new Item.Properties()));
     // Transformative spawn eggs create the dedicated entities, which apply the
     // matching temporary transformation effect on a successful attack.
     public static final RegistryObject<Item> CUSTOM_AXOLOTL_SPAWN_EGG = ITEMS.register(

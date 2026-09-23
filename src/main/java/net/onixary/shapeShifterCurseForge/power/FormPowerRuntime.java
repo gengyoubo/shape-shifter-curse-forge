@@ -69,6 +69,7 @@ public final class FormPowerRuntime {
             // compensating sneaking-speed modifier. Ordinary CROUCHING alone
             // still does not count as sneaking.
             case "apoli:sneaking" -> actor.isShiftKeyDown()
+                    || net.onixary.shapeShifterCurseForge.power.MovementPowerService.shouldForceSneaking(actor)
                     || actor.isVisuallyCrawling() && !actor.isInWaterOrBubble();
             case "apoli:sprinting" -> actor.isSprinting();
             case "apoli:on_ground" -> actor.onGround();
