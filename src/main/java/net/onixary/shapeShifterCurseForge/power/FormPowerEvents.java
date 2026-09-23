@@ -59,6 +59,8 @@ public final class FormPowerEvents {
     private static final Map<UUID, Integer> LAST_ATTRIBUTE_REFRESH_TICK = new HashMap<>();
     /** Last Axolotl III movement snapshot written to the server log, per player. */
     private static final Map<UUID, String> LAST_AXOLOTL_MOVE_DEBUG = new HashMap<>();
+    /** Previous position used to report actual per-tick displacement on each logical side. */
+    private static final Map<UUID, Vec3> LAST_AXOLOTL_MOVE_POSITION = new HashMap<>();
     /** Per-power transition state matching SSC Fabric's DelayAttributePower. */
     private static final Map<UUID, Map<UUID, DelayAttributeState>> DELAY_ATTRIBUTE_STATES = new HashMap<>();
     /** Cached condition results for apoli:conditioned_attribute tick_rate semantics. */
@@ -771,23 +773,30 @@ public final class FormPowerEvents {
      */
     private static void logAxolotlMovementState(Player player) {
         if (!"shape-shifter-curse:axolotl_3".equals(FormManager.current(player).id().toString())) {
-            LAST_AXOLOTL_MOVE_DEBUG.remove(attributeStateKey(player));
+            UUID stateKey = attributeStateKey(player);
+            LAST_AXOLOTL_MOVE_DEBUG.remove(stateKey);
+            LAST_AXOLOTL_MOVE_POSITION.remove(stateKey);
             return;
         }
-        MoveSpeedDebug debug = moveSpeedDebug(player);
-        String powers = debug.powers().stream()
-                .filter(power -> power.powerId().getPath().startsWith("form_axolotl_3_"))
-                .map(power -> power.powerId().getPath() + "=" + power.conditionMet()
-                        + "/" + power.installed())
-                .reduce((left, right) -> left + "," + right).orElse("<none>");
-        String snapshot = "sprint=" + debug.sprinting() + ", shift=" + player.isShiftKeyDown()
-                + ", air=" + player.getAirSupply() + ", water=" + player.getFluidHeight(FluidTags.WATER)
-                + ", ground=" + player.onGround() + ", speed=" + debug.effectiveValue()
-                + ", powers=" + powers;
+        Vec3 velocity = player.getDeltaMovement();
+        Vec3 position = player.position();
         UUID stateKey = attributeStateKey(player);
+        Vec3 previousPosition = LAST_AXOLOTL_MOVE_POSITION.put(stateKey, position);
+        Vec3 tickDisplacement = previousPosition == null ? Vec3.ZERO : position.subtract(previousPosition);
+        double horizontalSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+        String snapshot = "side=" + (player.level().isClientSide ? "client" : "server")
+                + ", tick=" + player.tickCount
+                + ", pos=(" + position.x + "," + position.y + "," + position.z + ")"
+                + ", tickDisplacement=(" + tickDisplacement.x + "," + tickDisplacement.y + "," + tickDisplacement.z + ")"
+                + ", horizontalDisplacement=" + Math.sqrt(tickDisplacement.x * tickDisplacement.x
+                        + tickDisplacement.z * tickDisplacement.z)
+                + ", yaw=" + player.getYRot() + ", pitch=" + player.getXRot()
+                + ", swimming=" + player.isSwimming() + ", sprinting=" + player.isSprinting()
+                + ", " + swimDebugString(player)
+                + ", velocity=(" + velocity.x + "," + velocity.y + "," + velocity.z + ")"
+                + ", horizontalSpeed=" + horizontalSpeed;
         if (!snapshot.equals(LAST_AXOLOTL_MOVE_DEBUG.put(stateKey, snapshot))) {
-            ShapeShifterCurseForge.LOGGER.info("[SSC-MOVE-DEBUG] side={} player={} {}",
-                    player.level().isClientSide ? "client" : "server", player.getGameProfile().getName(), snapshot);
+            ShapeShifterCurseForge.LOGGER.info("[SSC-MOVE-DEBUG] {}", snapshot);
         }
     }
 
@@ -1145,10 +1154,17 @@ public final class FormPowerEvents {
         boolean isLegacy = LEGACY_WATER_SPEED.equals(attributeId);
         AttributeModifier.Operation operation;
         double amount;
-        if (isLegacy) {
-            // Fabric water_speed 1.2 means 20% boost, not 120%; convert to 0.2 for Forge SWIM_SPEED
+        if (waterSpeedModifier) {
+            // Fabric's in_water_speed_modifier multiplies travel's g by this top-level factor.
+            // Forge multiplies g by SWIM_SPEED.getValue(), so m maps to a MULTIPLY_TOTAL m-1.
             operation = AttributeModifier.Operation.MULTIPLY_TOTAL;
-            amount = FormPowerRuntime.doubleValue(modifier, "value", 1.0D) - 1.0D;
+            amount = FormPowerRuntime.doubleValue(power, "modifier", 1.0D) - 1.0D;
+        } else if (isLegacy) {
+            // AdditionalEntityAttributes sets WATER_SPEED's base to travel's g and returns
+            // base * (1 + value). Forge SWIM_SPEED has base 1.0, so the same result is a
+            // MULTIPLY_BASE modifier of the raw value (1.2 -> 2.2x, matching Fabric).
+            operation = AttributeModifier.Operation.MULTIPLY_BASE;
+            amount = FormPowerRuntime.doubleValue(modifier, "value", 1.0D);
         } else {
             // Apoli's extended attribute operations are collapsed to the three vanilla
             // AttributeModifier operations. SSC's data only uses addition/multiply_base/multiply_total,
@@ -1171,9 +1187,6 @@ public final class FormPowerEvents {
     }
 
     private static boolean attributeConditionMet(Player player, JsonObject power, String type, UUID modifierId) {
-        if (isLegacyWaterSpeed(power, type) && !player.isEyeInFluid(FluidTags.WATER)) {
-            return false;
-        }
         if ("apoli:attribute".equals(type)) {
             return true;
         }
@@ -1215,17 +1228,6 @@ public final class FormPowerEvents {
         return state.applied;
     }
 
-    private static boolean isLegacyWaterSpeed(JsonObject power, String type) {
-        if (!"apoli:attribute".equals(type) && !"apoli:conditioned_attribute".equals(type)
-                && !"shape-shifter-curse:delay_attribute".equals(type)) {
-            return false;
-        }
-        JsonObject modifier = power.getAsJsonObject("modifier");
-        ResourceLocation attributeId = ResourceLocation.tryParse(
-                FormPowerRuntime.stringValue(modifier, "attribute", ""));
-        return LEGACY_WATER_SPEED.equals(attributeId);
-    }
-
     /** Server-side probe used by /ssc power status to verify the complete swim-speed chain. */
     public static SwimSpeedDebug swimSpeedDebug(Player player) {
         AttributeInstance instance = player.getAttribute(ForgeMod.SWIM_SPEED.get());
@@ -1259,6 +1261,16 @@ public final class FormPowerEvents {
     private static UUID attributeModifierId(ResourceLocation powerId, ResourceLocation attributeId, JsonObject power) {
         return UUID.nameUUIDFromBytes((powerId + "|" + attributeId + "|" + power)
                 .getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Compact water-speed summary appended to the axolotl move probe. */
+    private static String swimDebugString(Player player) {
+        SwimSpeedDebug swim = swimSpeedDebug(player);
+        String modifiers = swim.powers().stream()
+                .map(power -> power.powerId().getPath() + "=" + power.conditionMet() + "/" + power.installed()
+                        + "(" + power.amount() + "," + power.operation() + ")")
+                .reduce((left, right) -> left + "," + right).orElse("<none>");
+        return "swim=" + swim.effectiveValue() + ", swimPowers=" + modifiers;
     }
 
     public record SwimSpeedDebug(boolean attributePresent, double baseValue, double effectiveValue,

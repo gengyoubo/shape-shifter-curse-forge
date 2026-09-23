@@ -115,16 +115,18 @@ public final class MovementPowerService {
         }
     }
 
-    /** Whether an active power provides Fabric's always-sprint-swimming behavior. */
-    public static boolean shouldForceSwimming(Player player) {
+    /**
+     * Mirrors Fabric's PowerHolderComponent.hasPower: this checks whether the current form
+     * assigns the power, without evaluating its optional runtime condition.
+     */
+    public static boolean hasAlwaysSprintSwimmingPower(Player player) {
         final boolean[] force = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!force[0] && "shape-shifter-curse:always_sprint_swimming".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+            if (!force[0] && "shape-shifter-curse:always_sprint_swimming".equals(FormPowerRegistry.typeOf(power))) {
                 force[0] = true;
             }
         });
-        return !force[0];
+        return force[0];
     }
 
     private static final ThreadLocal<Boolean> FORCE_SNEAK_GUARD = ThreadLocal.withInitial(() -> false);

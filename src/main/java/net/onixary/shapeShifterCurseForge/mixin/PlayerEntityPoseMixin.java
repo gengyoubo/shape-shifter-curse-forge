@@ -4,10 +4,13 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeMod;
+import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
@@ -26,6 +29,8 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
 
     @Unique
     private boolean ssc$wasSwimming;
+    @Unique
+    private boolean ssc$debugAxolotlSwimmingTravel;
 
     protected PlayerEntityPoseMixin(EntityType<? extends LivingEntity> entityType, Level level) {
         super(entityType, level);
@@ -37,20 +42,50 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
         ssc$wasSwimming = this.isSwimming();
     }
 
+    @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("HEAD"))
+    private void ssc$debugSwimmingTravelStart(Vec3 input, CallbackInfo ci) {
+        Player player = (Player) (Object) this;
+        ssc$debugAxolotlSwimmingTravel = MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+                && (player.isInWater() || player.isSwimming());
+        if (!ssc$debugAxolotlSwimmingTravel) return;
+        ShapeShifterCurseForge.LOGGER.info(
+                "[SSC-TRAVEL-DEBUG] stage=head side={} tick={} input=({}, {}, {}) xxa={} zza={} swimming={} sprinting={} pose={} touchingWater={} eyeInWater={} alwaysSprintSwimmingPower=true collisions=({}, {}) movementSpeed={} swimSpeed={} velocity={}",
+                player.level().isClientSide ? "client" : "server", player.tickCount,
+                input.x, input.y, input.z, this.xxa, this.zza, player.isSwimming(), player.isSprinting(),
+                player.getPose(), player.isInWater(), player.isEyeInFluid(FluidTags.WATER),
+                player.horizontalCollision, player.verticalCollision,
+                player.getAttributeValue(Attributes.MOVEMENT_SPEED),
+                player.getAttributeValue(ForgeMod.SWIM_SPEED.get()), player.getDeltaMovement());
+    }
+
+    @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("RETURN"))
+    private void ssc$debugSwimmingTravelEnd(Vec3 input, CallbackInfo ci) {
+        if (!ssc$debugAxolotlSwimmingTravel) return;
+        Player player = (Player) (Object) this;
+        ShapeShifterCurseForge.LOGGER.info(
+                "[SSC-TRAVEL-DEBUG] stage=travel-return side={} tick={} input=({}, {}, {}) xxa={} zza={} swimming={} sprinting={} collisions=({}, {}) velocity={}",
+                player.level().isClientSide ? "client" : "server", player.tickCount,
+                input.x, input.y, input.z, this.xxa, this.zza, player.isSwimming(), player.isSprinting(),
+                player.horizontalCollision, player.verticalCollision, player.getDeltaMovement());
+    }
+
     @Inject(method = "updateSwimming", at = @At("TAIL"))
     private void ssc$forceSwimmingUnderwater(CallbackInfo ci) {
         Player player = (Player) (Object) this;
-        if (player.isSwimming() || MovementPowerService.shouldForceSwimming(player)
+        if (player.isSwimming() || !MovementPowerService.hasAlwaysSprintSwimmingPower(player)
                 || player.isPassenger()) return;
 
         // Match Fabric's EntityMixin: entering swimming requires full
         // submersion; an already swimming player may remain swimming while
         // still touching water. Do not force the sprint flag itself.
-        boolean shouldSwim = ssc$wasSwimming
-                ? player.isInWaterOrBubble()
-                : player.isUnderWater()
-                && player.level().getFluidState(player.blockPosition()).is(FluidTags.WATER);
-        if (shouldSwim) player.setSwimming(true);
+        if (ssc$wasSwimming) {
+            // Fabric reevaluates the previous swimming state against isInWater;
+            // bubbles do not keep this power's swimming state alive.
+            player.setSwimming(player.isInWater());
+        } else if (player.isUnderWater()
+                && player.level().getFluidState(player.blockPosition()).is(FluidTags.WATER)) {
+            player.setSwimming(true);
+        }
     }
 
     /** Fabric removes vanilla's upward swim impulse while this power is not sprinting. */
@@ -60,8 +95,14 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
             index = 0)
     private Vec3 ssc$preserveNonSprintSwimVerticalVelocity(Vec3 original) {
         Player player = (Player) (Object) this;
-        if (!player.isSwimming() || player.isPassenger()
-                || MovementPowerService.shouldForceSwimming(player) || player.isSprinting()) {
+        if (MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+                && (player.isInWater() || player.isSwimming())) {
+            ShapeShifterCurseForge.LOGGER.info(
+                    "[SSC-TRAVEL-DEBUG] stage=player-swim-impulse-before-set side={} tick={} swimming={} sprinting={} velocityBeforeSet={} currentVelocity={}",
+                    player.level().isClientSide ? "client" : "server", player.tickCount,
+                    player.isSwimming(), player.isSprinting(), original, player.getDeltaMovement());
+        }
+        if (!MovementPowerService.hasAlwaysSprintSwimmingPower(player) || player.isSprinting()) {
             return original;
         }
         Vec3 current = player.getDeltaMovement();

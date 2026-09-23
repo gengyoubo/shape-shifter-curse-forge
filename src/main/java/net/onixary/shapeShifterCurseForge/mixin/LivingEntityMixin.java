@@ -4,11 +4,15 @@ import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
+import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
+import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -32,6 +36,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @SuppressWarnings("JavadocReference")
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin implements LivingEntityJumpState {
+    @Shadow protected float xxa;
+    @Shadow protected float zza;
+
     @Unique
     private static final float SSC_MAX_WATER_FLEXIBILITY = 0.98F;
     @Unique
@@ -45,6 +52,31 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Unique
     private boolean ssc$jumpStartedOnBlock;
 
+    @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;moveRelative(FLnet/minecraft/world/phys/Vec3;)V",
+                    shift = At.Shift.BEFORE))
+    private void ssc$debugBeforeSwimInput(Vec3 input, CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player) || !ssc$shouldDebugAxolotlSwim(player)) return;
+        ShapeShifterCurseForge.LOGGER.info(
+                "[SSC-TRAVEL-DEBUG] stage=before-moveRelative side={} tick={} input=({}, {}, {}) xxa={} zza={} velocity={}",
+                player.level().isClientSide ? "client" : "server", player.tickCount,
+                input.x, input.y, input.z, xxa, zza, player.getDeltaMovement());
+    }
+
+    @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;moveRelative(FLnet/minecraft/world/phys/Vec3;)V",
+                    shift = At.Shift.AFTER))
+    private void ssc$debugAfterSwimInput(Vec3 input, CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player) || !ssc$shouldDebugAxolotlSwim(player)) return;
+        ShapeShifterCurseForge.LOGGER.info(
+                "[SSC-TRAVEL-DEBUG] stage=after-moveRelative side={} tick={} input=({}, {}, {}) xxa={} zza={} velocity={}",
+                player.level().isClientSide ? "client" : "server", player.tickCount,
+                input.x, input.y, input.z, xxa, zza, player.getDeltaMovement());
+    }
     @Inject(method = "tick", at = @At("HEAD"))
     private void ssc$tickNoJump(CallbackInfo ci) {
         if (ssc$noJumpTick > 0) {
@@ -299,7 +331,9 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
                     target = "Lnet/minecraft/world/phys/Vec3;multiply(DDD)Lnet/minecraft/world/phys/Vec3;",
                     ordinal = 0), index = 0)
     private double ssc$modifyInWaterFlexibilityX(double original) {
-        return ssc$waterFlexibilityDamping(original);
+        double modified = ssc$waterFlexibilityDamping(original);
+        ssc$logWaterFlexibilityDamping("x", original, modified);
+        return modified;
     }
 
     @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
@@ -307,7 +341,9 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
                     target = "Lnet/minecraft/world/phys/Vec3;multiply(DDD)Lnet/minecraft/world/phys/Vec3;",
                     ordinal = 0), index = 2)
     private double ssc$modifyInWaterFlexibilityZ(double original) {
-        return ssc$waterFlexibilityDamping(original);
+        double modified = ssc$waterFlexibilityDamping(original);
+        ssc$logWaterFlexibilityDamping("z", original, modified);
+        return modified;
     }
 
     /**
@@ -367,5 +403,21 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         }
 
         return 0.8D + (SSC_MAX_WATER_FLEXIBILITY - 0.8D) * flexibility[0];
+    }
+
+    @Unique
+    private void ssc$logWaterFlexibilityDamping(String axis, double vanillaFactor, double appliedFactor) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player) || !ssc$shouldDebugAxolotlSwim(player)) return;
+        ShapeShifterCurseForge.LOGGER.info(
+                "[SSC-TRAVEL-DEBUG] stage=water-flexibility axis={} side={} tick={} vanillaFactor={} appliedFactor={} velocity={}",
+                axis, player.level().isClientSide ? "client" : "server", player.tickCount,
+                vanillaFactor, appliedFactor, player.getDeltaMovement());
+    }
+
+    @Unique
+    private static boolean ssc$shouldDebugAxolotlSwim(Player player) {
+        return MovementPowerService.hasAlwaysSprintSwimmingPower(player)
+                && (player.isInWater() || player.isSwimming());
     }
 }

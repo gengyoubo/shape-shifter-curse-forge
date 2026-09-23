@@ -263,10 +263,13 @@ public final class MissingPowerEvents {
 
     private static void maintainSimpleMovement(Player player) {
         if (hasPowerId(player, "like_water") || !player.isInWater() || player.isShiftKeyDown()) return;
-        if (player.getDeltaMovement().y < 0.0D) {
-            var velocity = player.getDeltaMovement();
-            player.setDeltaMovement(velocity.x, Math.max(velocity.y, -0.02D), velocity.z);
-            player.hurtMarked = true;
+        var velocity = player.getDeltaMovement();
+        double limitedY = Math.max(velocity.y, -0.02D);
+        if (limitedY != velocity.y) {
+            // The local player applies the same limit. Sending the server player's
+            // velocity to its owner also sends the server's zero X/Z components,
+            // erasing the horizontal speed accumulated by client-side swimming.
+            player.setDeltaMovement(velocity.x, limitedY, velocity.z);
         }
     }
 
