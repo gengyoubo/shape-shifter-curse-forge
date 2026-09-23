@@ -63,11 +63,13 @@ public final class FormPowerRuntime {
         boolean result = javaResult != null ? javaResult : switch (type) {
             case "apoli:and" -> testAll(actor, target, condition.getAsJsonArray("conditions"));
             case "apoli:or" -> testAny(actor, target, condition.getAsJsonArray("conditions"));
-            // Apoli's sneaking condition tracks the real sneak input flag, not
-            // the current pose. Forge's one-block axolotl crawl uses a CROUCHING
-            // pose for collision, but Fabric's KeepSneaking power does not let
-            // that synthetic pose activate sneaking-only attributes.
-            case "apoli:sneaking" -> actor.isShiftKeyDown();
+            // A dry-land axolotl in Minecraft's actual crawling pose needs the
+            // same movement modifiers as held Shift. Otherwise a one-block gap
+            // applies crawl drag while the explicit-Shift path receives its
+            // compensating sneaking-speed modifier. Ordinary CROUCHING alone
+            // still does not count as sneaking.
+            case "apoli:sneaking" -> actor.isShiftKeyDown()
+                    || actor.isVisuallyCrawling() && !actor.isInWaterOrBubble();
             case "apoli:sprinting" -> actor.isSprinting();
             case "apoli:on_ground" -> actor.onGround();
             case "apoli:moving" -> actor.getDeltaMovement().horizontalDistanceSqr() > 0.0004D;
