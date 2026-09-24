@@ -9,10 +9,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.level.Level;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.storage.loot.LootTable;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import org.jetbrains.annotations.NotNull;
 
@@ -28,9 +25,9 @@ public final class TransformativeSpiderEntity extends Spider {
         return EntityDimensions.fixed(0.7F, 0.45F);
     }
 
-    @Override protected ResourceKey<LootTable> getDefaultLootTable() {
-        return ResourceKey.create(Registries.LOOT_TABLE, ResourceLocation.fromNamespaceAndPath(
-                ShapeShifterCurseForge.RESOURCE_NAMESPACE, "entities/t_spider"));
+    @Override protected ResourceLocation getDefaultLootTable() {
+        return ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE,
+                "entities/t_spider");
     }
 
     @Override public boolean doHurtTarget(Entity target) {

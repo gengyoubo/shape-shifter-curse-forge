@@ -10,6 +10,8 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.resources.ResourceLocation;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 
 public final class TransformativeBatEntity extends Bat {
     private int attackCooldown;
@@ -39,6 +41,10 @@ public final class TransformativeBatEntity extends Bat {
     }
 
     @Override public boolean doHurtTarget(Entity target) {
+        if (target instanceof Player player && !FormManager.current(player).id().equals(
+                ResourceLocation.fromNamespaceAndPath("shape-shifter-curse", "original_shifter"))) {
+            return false;
+        }
         boolean hit = super.doHurtTarget(target);
         if (hit) TransformativeMobEffects.tryApply(target, 0.5F, "bat_0");
         return hit;

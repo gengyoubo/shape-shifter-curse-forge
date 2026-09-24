@@ -7,15 +7,13 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Ocelot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.minecraft.resources.ResourceLocation;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
-
-import java.util.function.Predicate;
+import net.onixary.shapeShifterCurseForge.mixin.accessor.OcelotTrustingAccessor;
 
 public final class TransformativeOcelotEntity extends Ocelot {
     private SscFleeGoal ssc$fleePlayers;
@@ -45,12 +43,16 @@ public final class TransformativeOcelotEntity extends Ocelot {
             this.ssc$fleePlayers = new SscFleeGoal(this);
         }
         this.goalSelector.removeGoal(this.ssc$fleePlayers);
-        if (!this.isTrusting()) this.goalSelector.addGoal(4, this.ssc$fleePlayers);
+        if (!ssc$isTrusting(this)) this.goalSelector.addGoal(4, this.ssc$fleePlayers);
     }
 
     private static boolean ssc$isCatFriendly(Player player) {
         return FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
                 "shape-shifter-curse", "cat_friendly"));
+    }
+
+    private static boolean ssc$isTrusting(Ocelot ocelot) {
+        return ((OcelotTrustingAccessor) (Object) ocelot).ssc$isTrusting();
     }
 
     private static final class SscFleeGoal extends AvoidEntityGoal<Player> {
@@ -63,8 +65,12 @@ public final class TransformativeOcelotEntity extends Ocelot {
             this.ocelot = ocelot;
         }
 
-        @Override public boolean canUse() { return !this.ocelot.isTrusting() && super.canUse(); }
-        @Override public boolean canContinueToUse() { return !this.ocelot.isTrusting() && super.canContinueToUse(); }
+        @Override public boolean canUse() {
+            return !ssc$isTrusting(this.ocelot) && super.canUse();
+        }
+        @Override public boolean canContinueToUse() {
+            return !ssc$isTrusting(this.ocelot) && super.canContinueToUse();
+        }
     }
 
     @Override public boolean doHurtTarget(Entity target) {

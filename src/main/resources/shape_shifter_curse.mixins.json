@@ -13,6 +13,7 @@
         "SweetBerryBushBlockMixin",
         "CancelEntityStepSoundMixin",
         "TransformativeStructureSpawnsMixin",
+        "accessor.OcelotTrustingAccessor",
         "accessory.CurioImpl"
     ],
     "client": [
