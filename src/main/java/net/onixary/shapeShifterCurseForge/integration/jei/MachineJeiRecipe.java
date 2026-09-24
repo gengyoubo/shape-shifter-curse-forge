@@ -10,8 +10,6 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapedRecipe;
-import net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe;
 import net.onixary.shapeShifterCurseForge.recipe.altar.AltarRecipe;
 import net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe;
 import net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe;
@@ -21,11 +19,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/** JEI presentation data for the altar and alter custom recipe types. */
+/** JEI presentation data for the altar custom recipe types. */
 public record MachineJeiRecipe(ResourceLocation id, List<Ingredient> grid, Ingredient catalyst,
                                ItemStack output, int recipeTime, int fuelCost) {
-    public static List<MachineJeiRecipe> load(ResourceManager resources, String machine) {
-        String prefix = "recipes/" + machine + "/";
+    public static List<MachineJeiRecipe> load(ResourceManager resources) {
+        String prefix = "recipes/altar/";
         List<MachineJeiRecipe> recipes = new ArrayList<>();
         resources.listResources("recipes", id -> id.getNamespace().equals(ShapeShifterCurseForge.RESOURCE_NAMESPACE)
                         && id.getPath().startsWith(prefix) && id.getPath().endsWith(".json"))
@@ -37,28 +35,21 @@ public record MachineJeiRecipe(ResourceLocation id, List<Ingredient> grid, Ingre
                                 entry.getKey().getNamespace(),
                                 entry.getKey().getPath().substring("recipes/".length(),
                                         entry.getKey().getPath().length() - ".json".length()));
-                        AltarRecipe recipe = parse(recipeId, json, machine);
+                        AltarRecipe recipe = parse(recipeId, json);
                         if (recipe != null) recipes.add(from(recipe));
                     } catch (Exception exception) {
-                        ShapeShifterCurseForge.LOGGER.warn("Could not add {} recipe {} to JEI",
-                                machine, entry.getKey(), exception);
+                        ShapeShifterCurseForge.LOGGER.warn("Could not add altar recipe {} to JEI",
+                                entry.getKey(), exception);
                     }
                 });
         return List.copyOf(recipes);
     }
 
-    private static AltarRecipe parse(ResourceLocation id, JsonObject json, String machine) {
+    private static AltarRecipe parse(ResourceLocation id, JsonObject json) {
         String type = json.has("type") ? json.get("type").getAsString() : "";
-        if ("altar".equals(machine)) {
-            return switch (type) {
-                case "shape-shifter-curse:altar_shaped" -> new AltarShapedRecipe.Serializer().fromJson(id, json);
-                case "shape-shifter-curse:altar_shapeless" -> new AltarShapelessRecipe.Serializer().fromJson(id, json);
-                default -> null;
-            };
-        }
         return switch (type) {
-            case "shape-shifter-curse:alter_shaped" -> new AlterShapedRecipe.Serializer().fromJson(id, json);
-            case "shape-shifter-curse:alter_shapeless" -> new AlterShapelessRecipe.Serializer().fromJson(id, json);
+            case "shape-shifter-curse:altar_shaped" -> new AltarShapedRecipe.Serializer().fromJson(id, json);
+            case "shape-shifter-curse:altar_shapeless" -> new AltarShapelessRecipe.Serializer().fromJson(id, json);
             default -> null;
         };
     }
@@ -71,15 +62,7 @@ public record MachineJeiRecipe(ResourceLocation id, List<Ingredient> grid, Ingre
                     grid.set(x + y * 3, shaped.ingredientAt(x, y));
                 }
             }
-        } else if (recipe instanceof AlterShapedRecipe shaped) {
-            for (int y = 0; y < shaped.getHeight(); y++) {
-                for (int x = 0; x < shaped.getWidth(); x++) {
-                    grid.set(x + y * 3, shaped.ingredientAt(x, y));
-                }
-            }
         } else if (recipe instanceof AltarShapelessRecipe shapeless) {
-            for (int i = 0; i < shapeless.getIngredients().size(); i++) grid.set(i, shapeless.getIngredients().get(i));
-        } else if (recipe instanceof AlterShapelessRecipe shapeless) {
             for (int i = 0; i < shapeless.getIngredients().size(); i++) grid.set(i, shapeless.getIngredients().get(i));
         }
         return new MachineJeiRecipe(recipe.getId(), List.copyOf(grid), recipe.getCatalyst(),

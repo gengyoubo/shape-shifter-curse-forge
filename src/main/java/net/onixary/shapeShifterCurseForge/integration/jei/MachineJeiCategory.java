@@ -17,18 +17,11 @@ import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 
 import java.util.Arrays;
 
-/** JEI recipe page shared by altar and alter. */
+/** JEI recipe page for the Fabric Altar workstation. */
 public final class MachineJeiCategory extends AbstractRecipeCategory<MachineJeiRecipe> {
-    public MachineJeiCategory(IGuiHelper guiHelper, boolean altar) {
-        super(recipeType(altar), Component.translatable(altar
-                        ? "gui.shape_shifter_curse.category.altar"
-                        : "gui.shape_shifter_curse.category.alter"),
-                guiHelper.createDrawableItemStack(new ItemStack(altar
-                        ? ModBlocks.ALTAR.get() : ModBlocks.ALTER.get())), 128, 58);
-    }
-
-    private static RecipeType<MachineJeiRecipe> recipeType(boolean altar) {
-        return altar ? SscJeiPlugin.ALTAR_RECIPES : SscJeiPlugin.ALTER_RECIPES;
+    public MachineJeiCategory(IGuiHelper guiHelper) {
+        super(SscJeiPlugin.ALTAR_RECIPES, Component.translatable("gui.shape_shifter_curse.category.altar"),
+                guiHelper.createDrawableItemStack(new ItemStack(ModBlocks.ALTAR.get())), 128, 58);
     }
 
     @Override

@@ -204,7 +204,6 @@
     "block.shape-shifter-curse.moondust_crystal_grit": "月尘晶砾",
     "block.shape-shifter-curse.temp_web_bridge": "桥梁蛛丝",
     "block.shape-shifter-curse.altar": "祭坛",
-    "block.shape-shifter-curse.alter": "嬗变祭坛",
     "block.shape-shifter-curse.form_attuner": "形态调谐器",
     "screen.shape-shifter-curse.form_attuner.title": "形态调谐器",
     "screen.shape-shifter-curse.form_attuner.level": "调谐等级：%s / %s",
@@ -722,7 +721,6 @@
     "text.cloth-config.boolean.value.true": "开",
     "text.cloth-config.boolean.value.false": "关",
     "gui.shape_shifter_curse.category.altar": "祭坛",
-    "gui.shape_shifter_curse.category.alter": "改造台",
     "gui.shape_shifter_curse.jei.machine_details": "耗时 %s 秒，燃料 %s"
 
 }

@@ -15,15 +15,10 @@ import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe;
 import net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe;
-import net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapedRecipe;
-import net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe;
 
 /**
- * Fabric 1.10.0 parity: altar/alter/morph-scale upgrade recipe types.
+ * Fabric 1.10.0 parity: altar and morph-scale upgrade recipe types.
  */
-// TODO[TEST] The shaped altar/alter serializers (AltarShapedRecipe/AlterShapedRecipe) and the
-//   Altar/Alter block entities' dual type lookup are newly implemented; verify shaped and shapeless
-//   crafting plus reload behaviour in-game.
 public final class ModRecipeSerializers {
     public static final DeferredRegister<RecipeSerializer<?>> SERIALIZERS = DeferredRegister.create(
             Registries.RECIPE_SERIALIZER, ShapeShifterCurseForge.RESOURCE_NAMESPACE);
@@ -89,14 +84,10 @@ public final class ModRecipeSerializers {
 
     public static final RegistryObject<RecipeType<?>> ALTAR_SHAPELESS_TYPE = TYPES.register("altar_shapeless", () -> new DummyRecipeType<>("altar_shapeless"));
     public static final RegistryObject<RecipeType<?>> ALTAR_SHAPED_TYPE = TYPES.register("altar_shaped", () -> new DummyRecipeType<>("altar_shaped"));
-    public static final RegistryObject<RecipeType<?>> ALTER_SHAPELESS_TYPE = TYPES.register("alter_shapeless", () -> new DummyRecipeType<>("alter_shapeless"));
-    public static final RegistryObject<RecipeType<?>> ALTER_SHAPED_TYPE = TYPES.register("alter_shaped", () -> new DummyRecipeType<>("alter_shaped"));
     public static final RegistryObject<RecipeType<?>> MORPH_SCALE_UPGRADE_TYPE = TYPES.register("morph_scale_upgrade", () -> new DummyRecipeType<>("morph_scale_upgrade"));
 
     public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPELESS = SERIALIZERS.register("altar_shapeless", AltarShapelessRecipe.Serializer::new);
     public static final RegistryObject<RecipeSerializer<?>> ALTAR_SHAPED = SERIALIZERS.register("altar_shaped", AltarShapedRecipe.Serializer::new);
-    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPELESS = SERIALIZERS.register("alter_shapeless", AlterShapelessRecipe.Serializer::new);
-    public static final RegistryObject<RecipeSerializer<?>> ALTER_SHAPED = SERIALIZERS.register("alter_shaped", AlterShapedRecipe.Serializer::new);
     public static final RegistryObject<RecipeSerializer<?>> MORPH_SCALE_UPGRADE = SERIALIZERS.register(
             "morph_scale_upgrade", net.onixary.shapeShifterCurseForge.recipe.MorphScaleUpgradeRecipe.Serializer::new);
 

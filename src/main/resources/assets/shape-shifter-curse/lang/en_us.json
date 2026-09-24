@@ -204,7 +204,6 @@
     "block.shape-shifter-curse.moondust_crystal_grit": "Moondust Crystal Grit",
     "block.shape-shifter-curse.temp_web_bridge": "Bridge Cobweb",
     "block.shape-shifter-curse.altar": "Altar",
-    "block.shape-shifter-curse.alter": "Alter",
     "block.shape-shifter-curse.form_attuner": "Form Attuner",
     "screen.shape-shifter-curse.form_attuner.title": "Form Attuner",
     "screen.shape-shifter-curse.form_attuner.level": "Attunement level: %s / %s",
@@ -722,7 +721,6 @@
     "text.cloth-config.boolean.value.true": "True",
     "text.cloth-config.boolean.value.false": "False",
     "gui.shape_shifter_curse.category.altar": "Altar",
-    "gui.shape_shifter_curse.category.alter": "Alter",
     "gui.shape_shifter_curse.jei.machine_details": "%s s; fuel: %s"
 
 }

@@ -44,11 +44,6 @@ public final class ModBlocks {
             () -> new net.onixary.shapeShifterCurseForge.block.AltarBlock(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0F).sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion())
     );
 
-    public static final RegistryObject<Block> ALTER = BLOCKS.register(
-            "alter",
-            () -> new net.onixary.shapeShifterCurseForge.block.AlterBlock(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0F).sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion())
-    );
-
     public static final RegistryObject<Block> FORM_ATTUNER = BLOCKS.register(
             "form_attuner",
             () -> new net.onixary.shapeShifterCurseForge.block.FormAttunerBlock(

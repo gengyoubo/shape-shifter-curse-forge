@@ -22,8 +22,6 @@ public class SscJeiPlugin implements IModPlugin {
             RecipeType.create(MOD_ID, "web_compostable", WebComposterRecipe.class);
     public static final RecipeType<MachineJeiRecipe> ALTAR_RECIPES =
             RecipeType.create(MOD_ID, "altar", MachineJeiRecipe.class);
-    public static final RecipeType<MachineJeiRecipe> ALTER_RECIPES =
-            RecipeType.create(MOD_ID, "alter", MachineJeiRecipe.class);
 
     @Override
     public @NotNull ResourceLocation getPluginUid() {
@@ -33,8 +31,7 @@ public class SscJeiPlugin implements IModPlugin {
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
         registration.addRecipeCategories(new WebComposterCategory(registration.getJeiHelpers().getGuiHelper()));
-        registration.addRecipeCategories(new MachineJeiCategory(registration.getJeiHelpers().getGuiHelper(), true));
-        registration.addRecipeCategories(new MachineJeiCategory(registration.getJeiHelpers().getGuiHelper(), false));
+        registration.addRecipeCategories(new MachineJeiCategory(registration.getJeiHelpers().getGuiHelper()));
     }
 
     @Override
@@ -42,7 +39,6 @@ public class SscJeiPlugin implements IModPlugin {
         IIngredientManager ingredientManager = registration.getIngredientManager();
         registration.addRecipes(WEB_COMPOSTING, WebComposterRecipe.getRecipes(ingredientManager));
         var resourceManager = Minecraft.getInstance().getResourceManager();
-        registration.addRecipes(ALTAR_RECIPES, MachineJeiRecipe.load(resourceManager, "altar"));
-        registration.addRecipes(ALTER_RECIPES, MachineJeiRecipe.load(resourceManager, "alter"));
+        registration.addRecipes(ALTAR_RECIPES, MachineJeiRecipe.load(resourceManager));
     }
 }

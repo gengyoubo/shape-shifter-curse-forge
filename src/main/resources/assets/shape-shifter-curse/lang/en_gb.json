@@ -716,7 +716,6 @@
     "text.cloth-config.boolean.value.true": "True",
     "text.cloth-config.boolean.value.false": "False",
     "gui.shape_shifter_curse.category.altar": "Altar",
-    "gui.shape_shifter_curse.category.alter": "Alter",
     "gui.shape_shifter_curse.jei.machine_details": "%s s; fuel: %s"
 
 }
