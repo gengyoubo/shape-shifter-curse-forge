@@ -18,7 +18,10 @@ import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
+import net.onixary.shapeShifterCurseForge.power.TransformativeEffectService;
 
+import java.util.List;
 import java.util.Objects;
 
 /** Server-side Cursed Moon state machine, ported from Fabric's world tick flow. */
@@ -119,12 +122,12 @@ public final class CursedMoonService {
 
             if (!beforeEnable && SscCommonConfig.ENABLE_CURSED_MOON_TRANSFORM.get()
                     && !current.hasFlag("no_cursed_moon_effect")) {
-                FormDefinition next = nextCursedMoonForm(current);
+                FormDefinition next = nextCursedMoonForm(player, current);
                 if (next != null && !next.id().equals(current.id())) {
                     data.setBeforeCursedMoonAppliedForm(current.id().toString());
                     data.setAfterCursedMoonAppliedForm(next.id().toString());
                     FormManager.setForm(player, next.id(), true);
-                    if (current.hasFlag("final_form")) {
+                    if (current.hasFlag("cursed_moon_final_form")) {
                         SscAdvancementTriggers.ON_TRIGGER_CURSED_MOON_FORM_2.trigger(player);
                     }
                 }
@@ -202,8 +205,34 @@ public final class CursedMoonService {
         return currentPhase;
     }
 
-    private static FormDefinition nextCursedMoonForm(FormDefinition current) {
-        return FormRegistry.nextInProgression(current);
+    private static FormDefinition nextCursedMoonForm(ServerPlayer player, FormDefinition current) {
+        if (FormRegistry.ORIGINAL_SHIFTER.equals(current.id())) {
+            ResourceLocation transformativeTarget = SscApi.currentForm(player)
+                    .filter(ignored -> TransformativeEffectService.has(player))
+                    .map(PlayerFormData::getTransformativeEffectFormId)
+                    .map(ResourceLocation::tryParse)
+                    .orElse(null);
+            if (transformativeTarget != null) {
+                FormDefinition target = FormRegistry.get(transformativeTarget);
+                if (target != null) {
+                    return target;
+                }
+            }
+            List<FormDefinition> starters = FormRegistry.forms().values().stream()
+                    .filter(form -> form.hasFlag("starter_form"))
+                    .toList();
+            return starters.isEmpty() ? current : starters.get(player.getRandom().nextInt(starters.size()));
+        }
+
+        int targetStage = current.hasFlag("cursed_moon_final_form") ? 1 : current.stage() + 1;
+        var group = FormRegistry.getGroup(current.groupId());
+        if (group == null) {
+            return current;
+        }
+        List<FormDefinition> candidates = group.formsAtStage(targetStage).stream()
+                .filter(form -> !form.hasFlag("no_cursed_moon_target"))
+                .toList();
+        return candidates.isEmpty() ? current : candidates.get(player.getRandom().nextInt(candidates.size()));
     }
 
     private static void sendMessage(ServerPlayer player, String key) {

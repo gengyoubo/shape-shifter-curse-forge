@@ -2,6 +2,8 @@ package net.onixary.shapeShifterCurseForge.form;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 
 /** Growth and regression policy migrated from the Fabric catalyst/inhibitor transform reasons. */
 public final class FormGrowthService {
@@ -16,6 +18,10 @@ public final class FormGrowthService {
     }
 
     public static boolean apply(ServerPlayer player, Mode mode) {
+        if ((mode == Mode.CATALYST || mode == Mode.POWERFUL_CATALYST)
+                && CursedMoonService.isInCursedMoon(player.getServer().overworld())) {
+            return false;
+        }
         FormDefinition current = FormManager.current(player);
         boolean changed = switch (mode) {
             case CATALYST -> advance(player, current, false);
@@ -24,6 +30,9 @@ public final class FormGrowthService {
             case POWERFUL_INHIBITOR -> regress(player, current, true);
         };
         if (changed) {
+            if (mode == Mode.INHIBITOR || mode == Mode.POWERFUL_INHIBITOR) {
+                SscApi.currentForm(player).ifPresent(data -> data.setLastTransformByCure(true));
+            }
             switch (mode) {
                 case CATALYST -> SscAdvancementTriggers.ON_TRANSFORM_BY_CATALYST.trigger(player);
                 case INHIBITOR -> SscAdvancementTriggers.ON_TRANSFORM_BY_CURE.trigger(player);

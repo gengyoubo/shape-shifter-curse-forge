@@ -97,6 +97,10 @@ public final class FormRegistry {
             }
             if (path.equals("spider") && tier <= 1) {
                 flags.add("catalyst_immune");
+                if (tier == 1) {
+                    flags.add("no_cursed_moon_effect");
+                    flags.add("no_cursed_moon_target");
+                }
             }
             if (path.equals("spider") && (tier == 1 || tier >= 3)) {
                 flags.add("poison_immune");

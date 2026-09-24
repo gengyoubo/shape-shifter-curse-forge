@@ -13,6 +13,7 @@ import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
+import net.onixary.shapeShifterCurseForge.power.InstinctService;
 
 @SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
@@ -56,6 +57,7 @@ public final class PlayerCapabilityEvents {
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
+            InstinctService.synchronizeHud(player);
         }
     }
 
@@ -66,6 +68,7 @@ public final class PlayerCapabilityEvents {
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
+            InstinctService.synchronizeHud(player);
         }
     }
 
@@ -76,6 +79,7 @@ public final class PlayerCapabilityEvents {
             ModNetwork.sendSkinSync(player);
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
+            InstinctService.synchronizeHud(player);
         }
     }
 

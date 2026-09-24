@@ -473,6 +473,7 @@ public final class FormPowerEvents {
         // Apoli action_on_item_use with trigger=finish fires after the use duration completes.
         runItemUseInteraction(player, used, true);
         if (used.is(Items.GOLDEN_APPLE) || used.is(Items.ENCHANTED_GOLDEN_APPLE)) {
+            InstinctService.reset(player);
             if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 FormDefinition current = FormManager.current(player);
                 if (!current.hasFlag("no_instinct") && !current.hasFlag("lock_instinct")) {

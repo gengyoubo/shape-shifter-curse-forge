@@ -2,12 +2,14 @@ package net.onixary.shapeShifterCurseForge.power;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
 
 /** Persisted replacement for Cardinal Components' instinct meter and timed instinct effects. */
 public final class InstinctService {
@@ -25,6 +27,7 @@ public final class InstinctService {
         SscApi.currentForm(player).ifPresent(data -> {
             FormDefinition form = FormManager.current(player);
             if (form.hasFlag("no_instinct") || form.hasFlag("lock_instinct")) return;
+            if (isCursedMoonLock(player) && amount > 0.0F) return;
             if (immediate) {
                 data.setInstinctValue(value(player) + amount * Math.max(1, duration));
                 return;
@@ -45,6 +48,12 @@ public final class InstinctService {
                 data.setInstinctValue(0.0F);
                 data.setInstinctRate(0.0F);
                 data.setInstinctEffects(new CompoundTag());
+                syncIfDue(player);
+                return;
+            }
+            if (isCursedMoonLock(player)) {
+                data.setInstinctRate(0.0F);
+                syncIfDue(player);
                 return;
             }
             CompoundTag effects = data.getInstinctEffects();
@@ -70,7 +79,42 @@ public final class InstinctService {
                 data.setInstinctEffects(new CompoundTag());
             }
             data.setInstinctValue(Math.max(0.0F, Math.min(next, MAX_INSTINCT)));
+            syncIfDue(player);
         });
+    }
+
+    /** Sends the server-authoritative HUD state to the owning client. */
+    public static void synchronizeHud(ServerPlayer player) {
+        SscApi.currentForm(player).ifPresentOrElse(data -> {
+            FormDefinition form = FormManager.current(player);
+            boolean eligibleMode = player.gameMode.getGameModeForPlayer() == GameType.SURVIVAL
+                    || player.gameMode.getGameModeForPlayer() == GameType.ADVENTURE;
+            boolean visible = eligibleMode && !form.hasFlag("no_instinct")
+                    && !form.hasFlag("special_form");
+            boolean locked = form.hasFlag("lock_instinct") || isCursedMoonLock(player);
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendInstinctSync(player,
+                    data.getInstinctValue(), data.getInstinctRate(), visible, locked);
+        }, () -> net.onixary.shapeShifterCurseForge.network.ModNetwork.sendInstinctSync(
+                player, 0.0F, 0.0F, false, false));
+    }
+
+    /** Golden apples clear accumulated instinct and any temporary instinct modifiers. */
+    public static void reset(Player player) {
+        SscApi.currentForm(player).ifPresent(data -> {
+            data.setInstinctValue(0.0F);
+            data.setInstinctRate(0.0F);
+            data.setInstinctEffects(new CompoundTag());
+        });
+        if (player instanceof ServerPlayer serverPlayer) synchronizeHud(serverPlayer);
+    }
+
+    private static boolean isCursedMoonLock(Player player) {
+        if (player.getServer() == null) return false;
+        return CursedMoonService.isInCursedMoon(player.getServer().overworld());
+    }
+
+    private static void syncIfDue(ServerPlayer player) {
+        if (player.tickCount % 5 == 0) synchronizeHud(player);
     }
 
     public static void applyImmediatePowers(ServerPlayer player) {

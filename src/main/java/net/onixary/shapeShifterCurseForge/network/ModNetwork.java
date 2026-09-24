@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "3";
+    private static final String PROTOCOL_VERSION = "4";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -151,6 +151,14 @@ public final class ModNetwork {
                 VirtualTotemPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                15,
+                InstinctSyncPacket.class,
+                InstinctSyncPacket::encode,
+                InstinctSyncPacket::decode,
+                InstinctSyncPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -200,6 +208,12 @@ public final class ModNetwork {
 
     public static void sendManaSync(ServerPlayer player, String manaType, float mana, float maximum) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new ManaSyncPacket(manaType, mana, maximum));
+    }
+
+    public static void sendInstinctSync(ServerPlayer player, float value, float rate,
+                                        boolean visible, boolean locked) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new InstinctSyncPacket(value, rate, visible, locked));
     }
 
     /** Plays the totem activation animation for a virtual totem's (possibly custom) stack. */

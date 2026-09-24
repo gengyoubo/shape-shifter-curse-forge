@@ -45,6 +45,10 @@ public final class ClientPacketHandlers {
                 level, maxLevel, formGroupId, unlockedPerks, statusKey));
     }
 
+    public static void setInstinct(float value, float rate, boolean visible, boolean locked) {
+        InstinctClientState.set(value, rate, visible, locked);
+    }
+
     /** Plays the vanilla totem activation animation for a virtual totem stack. */
     public static void displayTotem(net.minecraft.world.item.ItemStack stack) {
         if (!stack.isEmpty()) {
