@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.cursedmoon;
+package net.onixary.shapeShifterCurseForge.other.cursedmoon;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;

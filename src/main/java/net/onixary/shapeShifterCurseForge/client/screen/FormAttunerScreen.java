@@ -11,6 +11,7 @@ import net.onixary.shapeShifterCurseForge.api.registry.PerkTree;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.network.UnlockPerkPacket;
+import net.onixary.shapeShifterCurseForge.other.perk.PerkService;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,7 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 /** Evolution-style Perk tree for the Form Attuner. Purchases are requested here but validated
- * and persisted only by {@link net.onixary.shapeShifterCurseForge.perk.PerkService} on server. */
+ * and persisted only by {@link PerkService} on server. */
 public final class FormAttunerScreen extends Screen {
     private static final String KEY = "screen." + ShapeShifterCurseForge.RESOURCE_NAMESPACE + ".form_attuner.";
     private static final int NODE_WIDTH = 98;

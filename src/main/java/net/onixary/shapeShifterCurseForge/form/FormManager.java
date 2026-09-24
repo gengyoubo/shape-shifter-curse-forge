@@ -6,7 +6,7 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
-import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
 
 public final class FormManager {

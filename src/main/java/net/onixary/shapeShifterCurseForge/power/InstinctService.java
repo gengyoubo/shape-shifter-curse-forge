@@ -9,7 +9,7 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
-import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
+import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 
 /** Persisted replacement for Cardinal Components' instinct meter and timed instinct effects. */
 public final class InstinctService {

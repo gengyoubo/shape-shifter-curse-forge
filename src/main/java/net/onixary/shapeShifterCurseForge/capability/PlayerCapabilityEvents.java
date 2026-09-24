@@ -10,8 +10,8 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
-import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
-import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
+import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
 

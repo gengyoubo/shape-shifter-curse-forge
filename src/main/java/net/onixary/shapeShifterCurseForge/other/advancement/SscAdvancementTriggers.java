@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.advancement;
+package net.onixary.shapeShifterCurseForge.other.advancement;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

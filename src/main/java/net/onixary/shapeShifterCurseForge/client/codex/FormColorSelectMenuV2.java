@@ -16,7 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
-import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;

@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.menu.AlterMenu;
+import net.onixary.shapeShifterCurseForge.other.menu.AlterMenu;
 
 public class AlterScreen extends AbstractContainerScreen<AlterMenu> {
     private static final ResourceLocation BG = ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/alter_craft_ui.png");

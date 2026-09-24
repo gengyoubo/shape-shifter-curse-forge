@@ -19,6 +19,7 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.other.brew.BrewingRecipeReloadListener;
 import net.onixary.shapeShifterCurseForge.util.TrinketUtils;
 
 import java.util.ArrayList;
@@ -56,7 +57,7 @@ public final class FormPowerRegistry {
         event.addListener(new DynamicFormReloadListener());
         event.addListener(new ExtraPowerReloadListener());
         event.addListener(new AccessoryPowerReloadListener());
-        event.addListener(new net.onixary.shapeShifterCurseForge.brew.BrewingRecipeReloadListener());
+        event.addListener(new BrewingRecipeReloadListener());
     }
 
     /**

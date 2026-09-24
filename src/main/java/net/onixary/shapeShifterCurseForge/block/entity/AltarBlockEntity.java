@@ -1,9 +1,10 @@
-package net.onixary.shapeShifterCurseForge.blockentity;
+package net.onixary.shapeShifterCurseForge.block.entity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.MenuProvider;
@@ -15,21 +16,33 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.onixary.shapeShifterCurseForge.menu.AlterMenu;
+import net.onixary.shapeShifterCurseForge.other.menu.AltarMenu;
 import net.onixary.shapeShifterCurseForge.recipe.altar.AltarRecipe;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
 
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
-/**
- * Fabric 1.10.0 parity: the Alter workstation. Same 11-slot layout as the Altar
- * (3x3 inputs 0-8, catalyst/fuel 9, output 10) but consuming the
- * {@code shape-shifter-curse:alter_shapeless}/{@code alter_shaped} recipe types.
- */
-public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, MenuProvider {
+public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, MenuProvider {
+    public static final int MAX_FUEL = 102400;
+    private static Map<net.minecraft.world.item.Item, Integer> fuelMap = null;
+    private static Map<net.minecraft.world.item.Item, Integer> getFuelMap() {
+        if (fuelMap == null) {
+            fuelMap = new HashMap<>();
+            try {
+                var item = net.onixary.shapeShifterCurseForge.registry.ModItems.UNTREATED_MOONDUST.get();
+                fuelMap.put(item, 800);
+            } catch (Exception ignored) {}
+            try {
+                var reg = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(ResourceLocation.fromNamespaceAndPath(net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge.RESOURCE_NAMESPACE, "untreated_moondust"));
+                if (reg != null) fuelMap.putIfAbsent(reg, 800);
+            } catch (Exception ignored) {}
+        }
+        return fuelMap;
+    }
+    public static boolean canFuel(ItemStack s) { return getFuelMap().containsKey(s.getItem()); }
+    public static int getFuelTime(ItemStack s) { return getFuelMap().getOrDefault(s.getItem(), 0); }
+
     private NonNullList<ItemStack> items = NonNullList.withSize(11, ItemStack.EMPTY);
     public UUID lastUser;
     private AltarRecipe currentRecipe;
@@ -57,12 +70,12 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
         @Override public int getCount() { return 3; }
     };
 
-    public AlterBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.ALTER.get(), pos, state);
+    public AltarBlockEntity(BlockPos pos, BlockState state) {
+        super(ModBlockEntities.ALTAR.get(), pos, state);
     }
 
-    @Override public Component getDisplayName() { return Component.translatable("block.shape-shifter-curse.alter"); }
-    @Override public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) { return new AlterMenu(id, inv, this, dataAccess); }
+    @Override public Component getDisplayName() { return Component.translatable("block.shape-shifter-curse.altar"); }
+    @Override public AbstractContainerMenu createMenu(int id, Inventory inv, Player player) { return new AltarMenu(id, inv, this, dataAccess); }
 
     // Container
     @Override public int getContainerSize() { return items.size(); }
@@ -78,7 +91,7 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
     }
     @Override public boolean canPlaceItem(int slot, ItemStack stack) {
         if (slot < 9) return true;
-        if (slot == 9) return currentRecipe != null && currentRecipe.getCatalyst() != null && currentRecipe.getCatalyst().test(stack);
+        if (slot == 9) return canFuel(stack) || (currentRecipe != null && currentRecipe.getCatalyst() != null && currentRecipe.getCatalyst().test(stack));
         return false;
     }
     @Override public int[] getSlotsForFace(net.minecraft.core.Direction dir) {
@@ -107,11 +120,12 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
         tag.putInt("TotalProgress", totalProgress);
     }
 
-    public static void tick(Level level, BlockPos pos, BlockState state, AlterBlockEntity be) {
+    public static void tick(Level level, BlockPos pos, BlockState state, AltarBlockEntity be) {
         if (level.isClientSide) return;
         if (be.needCheckRecipe) { be.checkRecipe(); be.needCheckRecipe = false; }
         boolean dirty = false;
-        // Same simplified fuel handling as the Altar: progress when a recipe matches.
+        // Forge parity: simplify fuel handling – ignore fuel requirement for now, just progress when recipe matches
+        // Keep fuelTime for GUI display but don't block progress
         if (be.currentRecipe != null) {
             be.progress++;
             dirty = true;
@@ -136,8 +150,8 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
             }
             currentRecipe = null; totalProgress = 0;
         }
-        AltarRecipe match = findMatch(ModRecipeSerializers.ALTER_SHAPELESS_TYPE.get());
-        if (match == null) match = findMatch(ModRecipeSerializers.ALTER_SHAPED_TYPE.get());
+        AltarRecipe match = findMatch(ModRecipeSerializers.ALTAR_SHAPELESS_TYPE.get());
+        if (match == null) match = findMatch(ModRecipeSerializers.ALTAR_SHAPED_TYPE.get());
         if (match == null) {
             currentRecipe = null; totalProgress = 0; progress = 0;
             return;
@@ -149,9 +163,9 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
 
     @SuppressWarnings("unchecked")
     private AltarRecipe findMatch(net.minecraft.world.item.crafting.RecipeType<?> type) {
-        net.minecraft.world.item.crafting.RecipeType<AltarRecipe> alterType =
+        net.minecraft.world.item.crafting.RecipeType<AltarRecipe> altarType =
                 (net.minecraft.world.item.crafting.RecipeType<AltarRecipe>) type;
-        Optional<AltarRecipe> opt = Objects.requireNonNull(level).getRecipeManager().getRecipeFor(alterType, this, level);
+        Optional<AltarRecipe> opt = Objects.requireNonNull(level).getRecipeManager().getRecipeFor(altarType, this, level);
         if (opt.isEmpty()) return null;
         AltarRecipe candidate = opt.get();
         if (!candidate.canCraft(getLastPlayer())) return null;
@@ -180,7 +194,7 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
         ItemStack outSlot = items.get(10);
         if (outSlot.isEmpty()) items.set(10, result.copy());
         else outSlot.grow(result.getCount());
-        if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapedRecipe shaped) {
+        if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe shaped) {
             for (int y = 0; y < 3; y++) {
                 for (int x = 0; x < 3; x++) {
                     if (shaped.ingredientAt(x, y).isEmpty()) continue;
@@ -188,7 +202,7 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
                     if (!s.isEmpty()) s.shrink(1);
                 }
             }
-        } else if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.alter.AlterShapelessRecipe shapeless) {
+        } else if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe shapeless) {
             for (var ing : shapeless.getIngredients()) {
                 for (int i = 0; i < 9; i++) {
                     ItemStack s = items.get(i);
@@ -196,6 +210,7 @@ public class AlterBlockEntity extends BlockEntity implements WorldlyContainer, M
                 }
             }
         } else {
+            // Unknown AltarRecipe implementation: consume one item from each occupied input slot.
             for (int i = 0; i < 9; i++) {
                 ItemStack s = items.get(i);
                 if (!s.isEmpty()) s.shrink(1);

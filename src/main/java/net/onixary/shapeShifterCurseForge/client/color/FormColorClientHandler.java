@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
-import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.network.ModifyFcdPacket;
 import net.onixary.shapeShifterCurseForge.network.UpdateSkinPacket;

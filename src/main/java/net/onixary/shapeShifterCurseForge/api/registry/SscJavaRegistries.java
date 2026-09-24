@@ -7,7 +7,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
-import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.FormAttunerBlockEntity;
 
 import java.util.Map;
 import java.util.LinkedHashMap;

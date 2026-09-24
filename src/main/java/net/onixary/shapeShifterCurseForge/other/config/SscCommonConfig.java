@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.config;
+package net.onixary.shapeShifterCurseForge.other.config;
 
 import net.minecraftforge.common.ForgeConfigSpec;
 

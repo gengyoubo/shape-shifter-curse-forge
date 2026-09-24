@@ -5,9 +5,9 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.blockentity.AltarBlockEntity;
-import net.onixary.shapeShifterCurseForge.blockentity.AlterBlockEntity;
-import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.AltarBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.AlterBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.FormAttunerBlockEntity;
 
 public final class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, ShapeShifterCurseForge.RESOURCE_NAMESPACE);

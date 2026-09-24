@@ -8,6 +8,7 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.client.render.FormAnimationSystem;
 import net.onixary.shapeShifterCurseForge.network.SyncFormPacket;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -24,7 +25,7 @@ public final class FormSyncClientHandler {
         net.onixary.shapeShifterCurseForge.client.color.FormColorData data =
                 net.onixary.shapeShifterCurseForge.client.color.FormColorData.client();
         if (!data.enableDefaultFormColor
-                || !net.onixary.shapeShifterCurseForge.config.SscClientConfig
+                || !SscClientConfig
                         .CUSTOM_ENABLE_FORM_DEFAULT_COLOR_SYSTEM.get()) {
             return;
         }

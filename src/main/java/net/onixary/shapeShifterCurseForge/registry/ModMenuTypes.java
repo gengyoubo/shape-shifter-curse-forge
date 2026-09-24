@@ -6,8 +6,10 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.menu.AltarMenu;
-import net.onixary.shapeShifterCurseForge.menu.AlterMenu;
+import net.onixary.shapeShifterCurseForge.block.entity.AltarBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.AlterBlockEntity;
+import net.onixary.shapeShifterCurseForge.other.menu.AltarMenu;
+import net.onixary.shapeShifterCurseForge.other.menu.AlterMenu;
 
 public final class ModMenuTypes {
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, ShapeShifterCurseForge.RESOURCE_NAMESPACE);
@@ -15,7 +17,7 @@ public final class ModMenuTypes {
         var pos = buf.readBlockPos();
         var level = inv.player.level();
         var be = level.getBlockEntity(pos);
-        if (be instanceof net.onixary.shapeShifterCurseForge.blockentity.AltarBlockEntity altar) {
+        if (be instanceof AltarBlockEntity altar) {
             return new AltarMenu(id, inv, altar, altar.dataAccess);
         }
         // fallback dummy
@@ -25,7 +27,7 @@ public final class ModMenuTypes {
         var pos = buf.readBlockPos();
         var level = inv.player.level();
         var be = level.getBlockEntity(pos);
-        if (be instanceof net.onixary.shapeShifterCurseForge.blockentity.AlterBlockEntity alter) {
+        if (be instanceof AlterBlockEntity alter) {
             return new AlterMenu(id, inv, alter, alter.dataAccess);
         }
         // fallback dummy

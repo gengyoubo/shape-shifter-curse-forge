@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
-import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.FormAttunerBlockEntity;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;

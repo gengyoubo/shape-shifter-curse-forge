@@ -3,7 +3,7 @@ package net.onixary.shapeShifterCurseForge.client.codex;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
-import net.onixary.shapeShifterCurseForge.config.SscCommonConfig;
+import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 
 /**
  * Client readout for the Codex. The server packet is authoritative while connected;

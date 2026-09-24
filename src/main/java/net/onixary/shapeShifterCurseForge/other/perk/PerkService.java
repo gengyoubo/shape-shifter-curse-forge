@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.perk;
+package net.onixary.shapeShifterCurseForge.other.perk;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -6,7 +6,7 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.api.registry.Perk;
 import net.onixary.shapeShifterCurseForge.api.registry.PerkTree;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
-import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.FormAttunerBlockEntity;
 
 import java.util.Objects;
 

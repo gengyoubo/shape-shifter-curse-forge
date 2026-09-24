@@ -10,7 +10,7 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
 import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
-import net.onixary.shapeShifterCurseForge.config.SscClientConfig;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.network.UpdateSkinPacket;
 

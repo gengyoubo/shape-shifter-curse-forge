@@ -1,9 +1,9 @@
 package net.onixary.shapeShifterCurseForge.form;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.onixary.shapeShifterCurseForge.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
-import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
+import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 
 /** Growth and regression policy migrated from the Fabric catalyst/inhibitor transform reasons. */
 public final class FormGrowthService {

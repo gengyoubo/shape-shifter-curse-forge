@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.onixary.shapeShifterCurseForge.blockentity.AltarBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.AltarBlockEntity;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import org.jetbrains.annotations.Nullable;
 

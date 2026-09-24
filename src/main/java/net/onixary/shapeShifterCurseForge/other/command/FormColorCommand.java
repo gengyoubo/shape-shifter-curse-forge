@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.command;
+package net.onixary.shapeShifterCurseForge.other.command;
 
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;

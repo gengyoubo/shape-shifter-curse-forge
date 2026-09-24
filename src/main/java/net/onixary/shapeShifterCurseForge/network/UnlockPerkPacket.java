@@ -5,7 +5,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkEvent;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.perk.PerkService;
+import net.onixary.shapeShifterCurseForge.other.perk.PerkService;
 
 import java.util.function.Supplier;
 

@@ -6,7 +6,7 @@ import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
-import net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.block.entity.FormAttunerBlockEntity;
 
 /** Forge rendering counterpart to Fabric's FormAttunerBeamRenderer. */
 public final class FormAttunerBeamRenderer implements BlockEntityRenderer<FormAttunerBlockEntity> {

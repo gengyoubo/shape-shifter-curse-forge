@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.blockentity;
+package net.onixary.shapeShifterCurseForge.block.entity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.BeaconBeamBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
+import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

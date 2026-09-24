@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.command;
+package net.onixary.shapeShifterCurseForge.other.command;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -17,7 +17,7 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerEvents;
-import net.onixary.shapeShifterCurseForge.cursedmoon.CursedMoonService;
+import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;

@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.block.entity.FormAttunerBlockEntity;
 
 import java.util.Optional;
 import java.util.Set;
@@ -246,10 +247,10 @@ public final class ModNetwork {
     }
 
     public static void refreshFormAttuner(ServerPlayer player, String statusKey) {
-        var attuner = net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity.getLastUsed(player);
+        var attuner = FormAttunerBlockEntity.getLastUsed(player);
         if (attuner == null) return;
         sendOpenFormAttuner(player, attuner.getAttunementLevel(),
-                net.onixary.shapeShifterCurseForge.blockentity.FormAttunerBlockEntity.getMaxLevel(),
+                FormAttunerBlockEntity.getMaxLevel(),
                 SscApi.currentForm(player).map(PlayerFormData::getFormGroupId).orElse(""), statusKey);
     }
 

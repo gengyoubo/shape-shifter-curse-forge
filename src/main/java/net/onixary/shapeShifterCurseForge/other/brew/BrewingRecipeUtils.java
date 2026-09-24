@@ -1,4 +1,4 @@
-package net.onixary.shapeShifterCurseForge.brew;
+package net.onixary.shapeShifterCurseForge.other.brew;
 
 import com.google.gson.JsonObject;
 import net.minecraft.nbt.CompoundTag;
