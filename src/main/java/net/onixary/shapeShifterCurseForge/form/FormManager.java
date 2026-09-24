@@ -8,6 +8,11 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
+import net.onixary.shapeShifterCurseForge.power.BatAttachService;
+import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
+import net.onixary.shapeShifterCurseForge.power.FormPowerEvents;
+import net.onixary.shapeShifterCurseForge.power.MissingPowerEvents;
+import net.onixary.shapeShifterCurseForge.power.PowerAnimationService;
 
 public final class FormManager {
     private FormManager() {
@@ -50,6 +55,18 @@ public final class FormManager {
             data.setContentEnabled(!FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(target.id()));
             return differentForm;
         }).orElse(false);
+
+        if (changed) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                FormActivePowerService.onFormChanged(serverPlayer);
+                BatAttachService.clear(serverPlayer);
+                PowerAnimationService.stop(serverPlayer);
+            }
+            FormPowerEvents.onFormChanged(player);
+            if (player instanceof ServerPlayer serverPlayer) {
+                MissingPowerEvents.onFormChanged(serverPlayer);
+            }
+        }
 
         if (player instanceof ServerPlayer serverPlayer) {
             ModNetwork.sendFormSync(serverPlayer, changed && playTransformAnimation);
@@ -95,11 +112,13 @@ public final class FormManager {
 
     public static void applySyncedForm(Player player, String formId, String groupId, int tier, boolean enabled) {
         SscApi.currentForm(player).ifPresent(data -> {
+            boolean changed = !data.getFormId().equals(formId);
             data.setFormId(formId);
             data.setFormGroupId(groupId);
             data.setFormTier(tier);
             data.setContentEnabled(enabled);
             player.refreshDimensions();
+            if (changed) FormPowerEvents.onFormChanged(player);
         });
     }
 }

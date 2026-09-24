@@ -88,6 +88,7 @@ public final class FormPowerEvents {
             enforceSprinting(player);
             applyClimbing(player);
             tickCustomWaterBreathing(player);
+            BatAttachService.tick(player);
             return;
         }
 
@@ -110,6 +111,9 @@ public final class FormPowerEvents {
     public static void playerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (!event.getEntity().level().isClientSide) {
             FormActivePowerService.clearTransientInput(event.getEntity());
+            if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+                BatAttachService.forget(player);
+            }
         }
     }
 
@@ -143,6 +147,7 @@ public final class FormPowerEvents {
             return;
         }
         PowerAnimationService.synchronizeTo(target, receiver);
+        BatAttachService.synchronizeTo(target, receiver);
     }
 
     @SubscribeEvent
@@ -514,8 +519,10 @@ public final class FormPowerEvents {
     @SubscribeEvent
     public static void useBlock(PlayerInteractEvent.RightClickBlock event) {
         if (!event.getEntity().level().isClientSide) {
-            if (BatAttachService.toggleOrAttach((net.minecraft.server.level.ServerPlayer) event.getEntity(),
+            if (event.getHand() == net.minecraft.world.InteractionHand.MAIN_HAND
+                    && BatAttachService.toggleOrAttach((net.minecraft.server.level.ServerPlayer) event.getEntity(),
                     event.getPos(), event.getFace())) {
+                event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
                 event.setCanceled(true);
                 return;
             }
@@ -700,6 +707,16 @@ public final class FormPowerEvents {
             if (stackId.toString().equals(entry.getAsString())) return true;
         }
         return false;
+    }
+
+    /** Reconcile installed modifiers with the newly selected form immediately. */
+    public static void onFormChanged(Player player) {
+        UUID stateKey = attributeStateKey(player);
+        FOOD_HEAL_REMAINDERS.remove(player.getUUID());
+        DAMAGE_OVER_TIME_STARTED_TICKS.remove(player.getUUID());
+        LAST_AXOLOTL_MOVE_DEBUG.remove(stateKey);
+        LAST_AXOLOTL_MOVE_POSITION.remove(stateKey);
+        refreshAttributes(player);
     }
 
     private static void refreshAttributes(Player player) {

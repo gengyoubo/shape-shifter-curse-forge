@@ -41,6 +41,17 @@ public final class MissingPowerEvents {
 
     private MissingPowerEvents() { }
 
+    /** Remove owned effects and flight permissions that the new form no longer grants. */
+    public static void onFormChanged(Player player) {
+        if (player.level().isClientSide) return;
+        maintainEffects(player);
+        maintainFlight(player);
+        maintainEntityGlow(player);
+        ItemStoreService.tick(player);
+        CLASH_COOLDOWNS.remove(player.getUUID());
+        CLASH_STATE.remove(player.getUUID());
+    }
+
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
@@ -104,8 +115,11 @@ public final class MissingPowerEvents {
 
     /** Records the pre-power instance of an effect once, so cleanup can restore it. */
     private static void snapshotEffect(Player player, MobEffect effect) {
-        OWNED_EFFECT_SNAPSHOTS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
-                .putIfAbsent(effect, player.getEffect(effect));
+        Map<MobEffect, MobEffectInstance> snapshots = OWNED_EFFECT_SNAPSHOTS
+                .computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
+        // null means no effect existed before this power. putIfAbsent treats null as
+        // absent and would capture the power's own effect on the following tick.
+        if (!snapshots.containsKey(effect)) snapshots.put(effect, player.getEffect(effect));
     }
 
     private static MobEffect applyEffect(Player player, JsonObject data) {
@@ -123,7 +137,7 @@ public final class MissingPowerEvents {
 
     private static void maintainFlight(Player player) {
         boolean creativeFlight = hasActive(player, "apoli:creative_flight");
-        boolean elytraFlight = hasActive(player, "apoli:elytra_flight");
+        boolean elytraFlight = ElytraFlightPowerService.hasFlight(player);
         if (creativeFlight) {
             MAY_FLY_BEFORE_POWER.putIfAbsent(player.getUUID(), player.getAbilities().mayfly);
             player.getAbilities().mayfly = true;
@@ -240,8 +254,14 @@ public final class MissingPowerEvents {
         Set<UUID> previous = OWNED_GLOW_TARGETS.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>());
         for (UUID old : previous) {
             if (wanted.contains(old)) continue;
-            Entity target = player.level().getEntities(player, player.getBoundingBox().inflate(32.0D),
-                    entity -> entity.getUUID().equals(old)).stream().findFirst().orElse(null);
+            // A target may have moved beyond the old search radius before the form changes.
+            Entity target = null;
+            if (player.getServer() != null) {
+                for (ServerLevel level : player.getServer().getAllLevels()) {
+                    target = level.getEntity(old);
+                    if (target != null) break;
+                }
+            }
             Boolean priorState = GLOW_PREVIOUS_STATE.remove(old);
             if (target != null) target.setGlowingTag(priorState != null && priorState);
         }

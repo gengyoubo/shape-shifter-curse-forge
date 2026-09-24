@@ -49,6 +49,20 @@ public final class FormActivePowerService {
         WATER_LAUNCH_GRACE.remove(id);
     }
 
+    /** An Origin replacement removes its power instances; discard the matching runtime state. */
+    public static void onFormChanged(Player player) {
+        UUID id = player.getUUID();
+        clearTransientInput(player);
+        COOLDOWNS.remove(id);
+        RESOURCES.remove(id);
+        TOGGLES.remove(id);
+        SPRINTING.remove(id);
+        CROUCHING.remove(id);
+        JUMPS.remove(id);
+        GROUND_TICKS.remove(id);
+        LEVITATE_TICKS.remove(id);
+    }
+
     public static void setKeyPressed(ServerPlayer player, String key, boolean pressed) {
         if (!key.startsWith("key.shape-shifter-curse.") && !"key.jump".equals(key)) {
             return;

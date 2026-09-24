@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "5";
+    private static final String PROTOCOL_VERSION = "6";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -168,6 +168,22 @@ public final class ModNetwork {
                 ItemStoresSyncPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                17,
+                BatAttachStatePacket.class,
+                BatAttachStatePacket::encode,
+                BatAttachStatePacket::decode,
+                BatAttachStatePacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
+        CHANNEL.registerMessage(
+                18,
+                BatDetachRequestPacket.class,
+                BatDetachRequestPacket::encode,
+                BatDetachRequestPacket::decode,
+                BatDetachRequestPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -191,6 +207,12 @@ public final class ModNetwork {
 
     public static void sendPowerAnimation(ServerPlayer player, PowerAnimationPacket packet) {
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player), packet.forEntity(player.getId()));
+    }
+
+    public static void sendBatAttachState(ServerPlayer player, net.minecraft.core.BlockPos pos,
+                                          net.minecraft.core.Direction side) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
+                new BatAttachStatePacket(player.getUUID(), pos, side));
     }
 
     public static void sendPowerAnimationTo(ServerPlayer target, ServerPlayer receiver, PowerAnimationPacket packet) {

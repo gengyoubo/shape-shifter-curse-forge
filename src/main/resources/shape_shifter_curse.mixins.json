@@ -7,6 +7,9 @@
     "refmap": "shape_shifter_curse.mixins.refmap.json",
     "mixins": [
         "LivingEntityMixin",
+        "BatAttachMovementMixin",
+        "ElytraFlightLivingMixin",
+        "ElytraFlightPlayerMixin",
         "PotionStackMixin",
         "StatusEffectMixin",
         "EnchantmentHelperLootingMixin",
@@ -24,6 +27,7 @@
     ],
     "client": [
         "PlayerModelAnimMixin",
+        "client.ElytraLayerMixin",
         "PlayerRendererBodyMixin",
         "HideThirdPersonItemMixin",
         "client.InventoryScreenMixin",

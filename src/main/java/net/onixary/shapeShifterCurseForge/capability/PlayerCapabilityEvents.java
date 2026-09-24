@@ -14,6 +14,7 @@ import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
+import net.onixary.shapeShifterCurseForge.power.BatAttachService;
 
 @SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
@@ -65,6 +66,7 @@ public final class PlayerCapabilityEvents {
     @SubscribeEvent
     public static void playerRespawned(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            BatAttachService.clear(player);
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
@@ -77,6 +79,7 @@ public final class PlayerCapabilityEvents {
     @SubscribeEvent
     public static void playerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            BatAttachService.clear(player);
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));

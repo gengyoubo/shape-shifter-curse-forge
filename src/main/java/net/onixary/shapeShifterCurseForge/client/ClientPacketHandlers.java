@@ -1,6 +1,8 @@
 package net.onixary.shapeShifterCurseForge.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenuV2;
 import net.onixary.shapeShifterCurseForge.client.codex.NormalFormSelectScreen;
@@ -53,6 +55,11 @@ public final class ClientPacketHandlers {
         var player = Minecraft.getInstance().player;
         if (player != null) net.onixary.shapeShifterCurseForge.api.SscApi.currentForm(player)
                 .ifPresent(data -> data.setItemStores(stores));
+    }
+
+    public static void setBatAttachState(UUID playerId, BlockPos pos, Direction side) {
+        net.onixary.shapeShifterCurseForge.power.BatAttachService.applyClientState(
+                playerId, Minecraft.getInstance().level, pos, side);
     }
 
     /** Plays the vanilla totem activation animation for a virtual totem stack. */
