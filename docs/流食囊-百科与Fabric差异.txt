@@ -1,0 +1,47 @@
+流食囊：MC百科与 Fabric 实现差异记录
+====================================
+
+对照范围
+--------
+MC百科条目：https://www.mcmod.cn/item/944763.html
+Fabric 上游：
+https://github.com/onixary/shape-shifter-curse-fabric/blob/master/src/main/java/net/onixary/shapeShifterCurseFabric/items/SpiderFluidCocoon.java
+https://github.com/onixary/shape-shifter-curse-fabric/blob/master/src/main/java/net/onixary/shapeShifterCurseFabric/mixin/LivingEntityMixin.java
+
+一致项
+------
+- 流食囊可堆叠 64 个。
+- 食用恢复 6 点饥饿值，饱和度倍率为 0.8。
+- 食用后必定施加 150 tick、I 级中毒。
+- 蜘蛛 3/4 阶段拥有裹茧猎物掉落流食囊的能力。
+- 液化茧体完成后产出 4 至 6 个流食囊。
+
+百科与 Fabric 源码的差异
+-----------------------
+- 百科称食用后恢复 9 点饱和度；Fabric 实际设置的是 0.8 饱和度倍率。
+  按 Minecraft 的饱和度计算公式，6 × 0.8 × 2 = 9.6，百科文本可能做了取整。
+- 百科将裹茧掉落数量描述为 1 至 ceil(最大生命值 / 4)，含上界。
+  Fabric 源码实际调用 nextInt(ceil(最大生命值 / 4))，其上界不包含在随机范围内，
+  再把结果钳制到至少 1。因此最大生命值大于 4 时，实际最多为 ceil(最大生命值 / 4) - 1；
+  当该上界为 1 时，最终仍为 1。这是上游源码与百科描述的差异，不应静默改成百科算法。
+- Fabric 的流食囊显式使用通用饮用音效；百科条目没有说明音效。
+
+Fabric 掉落条件（实现依据）
+-------------------------
+- 死亡实体带有完全裹茧效果时，在其脚下为空气的位置生成蜘蛛网。
+- 流食囊掉落还要求死亡实体为 MobEntity、攻击者为服务端玩家、玩家拥有
+  can_loot_spider_fluid_cocoon 能力，且目标实体类型不在 spider_fluid_cocoon_blacklist 标签内。
+- 满足上述条件后，使用玩家随机源进行 40% 概率判定。
+- 数量使用 ceil(目标最大生命值 / 4) 作为 nextInt 的排他上界，并至少掉落 1 个。
+
+版本演变核对（Fabric 上游提交）
+------------------------------
+- 2026-04-15 的平衡调整把流食囊饥饿值从 7 降到 6，把裹茧掉率从 50% 降到 40%；
+  同次把液化茧体产量从 2–5 调成 2–4，并将随机数量的 0 钳制为至少 1。
+  提交：https://github.com/onixary/shape-shifter-curse-fabric/commit/483b893cf8
+- 2026-04-21 的后续提交把液化茧体产量从 2–4 提高到 4–6；当前 Fabric 源码和百科都为 4–6。
+  提交：https://github.com/onixary/shape-shifter-curse-fabric/commit/9c1bb4eecf
+- 掉落数量的 nextInt 排他上界没有在上述改动中修正；当前百科写含上界的 1–ceil(最大生命值 / 4)，
+  仍与当前 Fabric 实际最大值少 1 的实现不一致。
+- 因此，饥饿值、掉率和茧体产量的旧差异属于 Fabric 版本迭代；饱和度取整和掉落数量上界差异，
+  则是当前百科文本与当前源码的差异。

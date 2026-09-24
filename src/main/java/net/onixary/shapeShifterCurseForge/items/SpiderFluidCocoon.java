@@ -9,6 +9,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.List;
 
@@ -20,6 +22,11 @@ public class SpiderFluidCocoon extends Item {
                 .saturationMod(0.8F)
                 .effect(() -> new MobEffectInstance(MobEffects.POISON, 150, 0), 1.0F)
                 .build()));
+    }
+
+    @Override
+    public SoundEvent getEatingSound() {
+        return SoundEvents.GENERIC_DRINK;
     }
 
     @Override

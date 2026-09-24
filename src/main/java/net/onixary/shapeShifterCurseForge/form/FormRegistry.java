@@ -95,12 +95,15 @@ public final class FormRegistry {
                 flags.add("night_vision");
                 flags.add("climb");
             }
-            if (path.equals("spider") && tier <= 1) {
+            if (path.equals("spider") && tier <= 2) {
                 flags.add("catalyst_immune");
-                if (tier == 1) {
-                    flags.add("no_cursed_moon_effect");
-                    flags.add("no_cursed_moon_target");
-                }
+            }
+            if (path.equals("spider") && tier == 1) {
+                // Spider 0 is still a starter target, but only Spider 1 resists the moon's effect.
+                flags.add("no_cursed_moon_target");
+            }
+            if (path.equals("spider") && tier == 2) {
+                flags.add("no_cursed_moon_effect");
             }
             if (path.equals("spider") && (tier == 1 || tier >= 3)) {
                 flags.add("poison_immune");
