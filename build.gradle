@@ -99,6 +99,19 @@ mixin {
     config "shape_shifter_curse.mixins.json"
 }
 
+// Compile-only contract for add-ons. The full SSC mod is still required at runtime.
+tasks.register('apiJar', Jar) {
+    archiveClassifier = 'api'
+    from sourceSets.main.output
+    include 'net/onixary/shapeShifterCurseForge/api/**'
+    include 'net/onixary/shapeShifterCurseForge/form/FormBodyType.class'
+    include 'net/onixary/shapeShifterCurseForge/form/FormDefinition.class'
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('apiJar')
+}
+
 publishing {
     publications {
         register('mavenJava', MavenPublication) {
@@ -108,6 +121,7 @@ publishing {
 
             // ForgeGradle's reobfuscated output is the jar that can run in-game.
             artifact layout.buildDirectory.file('reobfJar/output.jar')
+            artifact tasks.named('apiJar')
         }
     }
     repositories {

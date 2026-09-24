@@ -92,7 +92,14 @@ public final class FormPowerRegistry {
     }
 
     public static List<ResourceLocation> idsFor(Player player) {
-        ResourceLocation formId = FormManager.current(player).id();
+        return TrinketUtils.effectivePowerIds(player, idsForForm(FormManager.current(player).id()));
+    }
+
+    /** Power assignments for one resolved form, before player-specific accessory changes. */
+    public static List<ResourceLocation> idsForForm(ResourceLocation formId) {
+        if (FormRegistry.get(formId) == null) {
+            return List.of();
+        }
         LinkedHashSet<ResourceLocation> originKeys = new LinkedHashSet<>();
         for (ResourceLocation inheritedForm : FormRegistry.lineage(formId)) {
             ResourceLocation legacyOriginId = ResourceLocation.fromNamespaceAndPath(
@@ -113,7 +120,7 @@ public final class FormPowerRegistry {
         }
         assigned.addAll(SscJavaRegistries.powersForForm(formId));
         assigned.removeAll(removed);
-        return TrinketUtils.effectivePowerIds(player, List.copyOf(assigned));
+        return List.copyOf(assigned);
     }
 
     private static void addAll(Set<ResourceLocation> target, List<ResourceLocation> values) {
