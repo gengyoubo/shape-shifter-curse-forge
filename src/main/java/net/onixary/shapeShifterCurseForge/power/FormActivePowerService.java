@@ -40,6 +40,15 @@ public final class FormActivePowerService {
     private FormActivePowerService() {
     }
 
+    /** Drops transient input state when a player leaves, so held/charged skills cannot survive a reconnect. */
+    public static void clearTransientInput(Player player) {
+        UUID id = player.getUUID();
+        PRESSED_KEYS.remove(id);
+        CHARGES.remove(id);
+        JUMP_INPUT_GRACE.remove(id);
+        WATER_LAUNCH_GRACE.remove(id);
+    }
+
     public static void setKeyPressed(ServerPlayer player, String key, boolean pressed) {
         if (!key.startsWith("key.shape-shifter-curse.") && !"key.jump".equals(key)) {
             return;

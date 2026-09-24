@@ -108,6 +108,13 @@ public final class FormPowerEvents {
     }
 
     @SubscribeEvent
+    public static void playerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (!event.getEntity().level().isClientSide) {
+            FormActivePowerService.clearTransientInput(event.getEntity());
+        }
+    }
+
+    @SubscribeEvent
     public static void playerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Player player = event.player;

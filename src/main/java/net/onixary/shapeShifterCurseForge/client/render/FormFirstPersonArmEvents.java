@@ -23,6 +23,8 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
+import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 
@@ -56,6 +58,10 @@ public final class FormFirstPersonArmEvents {
         Minecraft minecraft = Minecraft.getInstance();
         if (player != minecraft.player || !minecraft.options.getCameraType().isFirstPerson()) {
             return;
+        }
+        boolean hideArms = shouldHideArms(player);
+        if (hideArms) {
+            event.setCanceled(true);
         }
 
         FormDefinition form = FormManager.current(player);
@@ -111,6 +117,7 @@ public final class FormFirstPersonArmEvents {
             return;
         }
         float partialTick = minecraft.getFrameTime();
+        if (!hideArms) {
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         try {
@@ -138,6 +145,7 @@ public final class FormFirstPersonArmEvents {
         } finally {
             poseStack.popPose();
         }
+        }
 
         // Fabric has no item layer: the vanilla hand item renders through its own path.
         // When the arm event died (power or Hidden_*), vanilla skipped the item too, so
@@ -146,6 +154,17 @@ public final class FormFirstPersonArmEvents {
             renderHeldItem(event.getPoseStack(), animatable, event.getMultiBufferSource(),
                     event.getPackedLight(), right);
         }
+    }
+
+    private static boolean shouldHideArms(AbstractClientPlayer player) {
+        final boolean[] hide = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!hide[0] && "shape-shifter-curse:no_render_arm".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                hide[0] = true;
+            }
+        });
+        return hide[0];
     }
 
     private static void renderHeldItem(

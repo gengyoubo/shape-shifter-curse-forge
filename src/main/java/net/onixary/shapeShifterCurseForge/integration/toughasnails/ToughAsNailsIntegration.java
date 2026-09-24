@@ -6,14 +6,12 @@ import net.minecraft.world.entity.player.Player;
  * Optional single seam for Tough As Nails. TAN is not a build dependency, so the Forge port keeps
  * every TAN touch-point here instead of spreading reflection across the power interpreter.
  *
- * <p>TODO[PARITY] TAN integration is incomplete:</p>
+ * <p>TAN is an optional runtime integration. Mixin hooks are gated on the mod being present.</p>
  * <ul>
  *   <li>{@code tan_add_thirst} (action) — best-effort reflection below, unverified against the exact
  *       TAN 1.20.1 API.</li>
- *   <li>{@code tan_form_temperature_modifier} — needs a mixin into TAN's temperature computation;
- *       only the offsets (icy/cold/neutral/warm/hot) are currently parsed by nothing.</li>
- *   <li>{@code tan_prevent_dirty_water_thirst_effect} / thirst exhaustion — only approximated in
- *       MissingPowerEvents.</li>
+ *   <li>{@code tan_form_temperature_modifier} and
+ *       {@code tan_prevent_dirty_water_thirst_effect} are handled by optional mixins.</li>
  * </ul>
  */
 public final class ToughAsNailsIntegration {

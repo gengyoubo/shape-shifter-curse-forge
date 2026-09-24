@@ -16,6 +16,9 @@ public class CuriosMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (mixinClassName.contains("integration.ToughAsNails")) {
+            return net.minecraftforge.fml.ModList.get().isLoaded("toughasnails");
+        }
         if (mixinClassName.contains("accessory.CurioImpl")) {
             try {
                 Class.forName("top.theillusivec4.curios.api.type.capability.ICurioItem", false, getClass().getClassLoader());

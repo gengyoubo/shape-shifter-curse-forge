@@ -33,9 +33,6 @@ import java.util.Set;
 import java.util.UUID;
 
 /** Forge event bridge for the retained power types that do not have a vanilla event of their own. */
-// TODO[PARITY] The Tough As Nails power types tan_form_temperature_modifier and
-//   tan_prevent_dirty_water_thirst_effect (plus the tan_add_thirst action) have no handler at all;
-//   they are only meaningful with the optional TAN dependency.
 @SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class MissingPowerEvents {
@@ -69,7 +66,6 @@ public final class MissingPowerEvents {
         maintainSimpleMovement(player);
         maintainLooting(player);
         maintainPotionStacks(player);
-        maintainDirtyWaterThirst(player);
         tickJumpClash(player);
 
         CLASH_COOLDOWNS.computeIfPresent(player.getUUID(), (id, value) -> value <= 1 ? null : value - 1);
@@ -329,16 +325,6 @@ public final class MissingPowerEvents {
         return stack.getItem() == Items.POTION
                 && net.minecraft.world.item.alchemy.PotionUtils.getPotion(stack)
                 == net.minecraft.world.item.alchemy.Potions.WATER;
-    }
-
-    private static void maintainDirtyWaterThirst(Player player) {
-        // TODO[PARITY] Tough As Nails integration; only partially emulated (dirty-water thirst) and
-        //   the temperature-modifier / add-thirst powers have no handler at all.
-        if (hasPowerId(player, "form_tan_prevent_dirty_water_thirst")) return;
-        if (!player.isInWater()) return;
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("dehydration", "thirst_effect");
-        MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(id);
-        if (effect != null) player.removeEffect(effect);
     }
 
     private static void tickJumpClash(Player player) {

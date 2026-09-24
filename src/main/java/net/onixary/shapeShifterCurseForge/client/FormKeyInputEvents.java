@@ -33,6 +33,8 @@ public final class FormKeyInputEvents {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null) {
             clipAtLedgeDisabled = false;
+            LAST_STATE.clear();
+            return;
         } else if (!FormPowerRegistry.has(minecraft.player, TOGGLE_CLIP_POWER)) {
             clipAtLedgeDisabled = false;
         }

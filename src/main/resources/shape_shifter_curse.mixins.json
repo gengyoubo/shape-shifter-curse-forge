@@ -7,7 +7,6 @@
     "refmap": "shape_shifter_curse.mixins.refmap.json",
     "mixins": [
         "LivingEntityMixin",
-        "EntityRotationMixin",
         "PlayerEntityPoseMixin",
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
@@ -15,7 +14,10 @@
         "TransformativeStructureSpawnsMixin",
         "WitchEntityMixin",
         "accessor.OcelotTrustingAccessor",
-        "accessory.CurioImpl"
+        "accessory.CurioImpl",
+        "integration.ToughAsNailsTemperatureHelperImplMixin",
+        "integration.ToughAsNailsThirstHandlerMixin",
+        "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
         "PlayerModelAnimMixin",
@@ -24,7 +26,8 @@
         "client.InventoryScreenMixin",
         "client.PlayerEdgeClipMixin",
         "client.GameRendererBlockSelectionMixin",
-        "client.NightVisionStrengthMixin"
+        "client.NightVisionStrengthMixin",
+        "client.DisablePlayerRotationRendererMixin"
     ],
     "injectors": {
         "defaultRequire": 1
