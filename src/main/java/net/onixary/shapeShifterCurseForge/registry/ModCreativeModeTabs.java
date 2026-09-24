@@ -47,6 +47,12 @@ public final class ModCreativeModeTabs {
                         output.accept(ModItems.POWERFUL_CATALYST.get());
                         output.accept(ModItems.INHIBITOR.get());
                         output.accept(ModItems.POWERFUL_INHIBITOR.get());
+                        output.accept(ModItems.CREATIVE_INHIBITOR.get());
+                        output.accept(ModItems.CUSTOM_AXOLOTL_SPAWN_EGG.get());
+                        output.accept(ModItems.CUSTOM_BAT_SPAWN_EGG.get());
+                        output.accept(ModItems.CUSTOM_OCELOT_SPAWN_EGG.get());
+                        output.accept(ModItems.CUSTOM_SPIDER_SPAWN_EGG.get());
+                        output.accept(ModItems.CUSTOM_WOLF_SPAWN_EGG.get());
                         output.accept(ModItems.MOONDUST_CRYSTAL_GRIT_ITEM.get());
                         output.accept(ModItems.DEW_COVERED_COBWEB_ITEM.get());
                         output.accept(ModItems.WEB_COMPOSTER_ITEM.get());

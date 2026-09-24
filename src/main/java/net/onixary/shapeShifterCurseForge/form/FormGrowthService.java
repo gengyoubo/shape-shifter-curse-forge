@@ -4,6 +4,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
+import net.onixary.shapeShifterCurseForge.power.TransformativeEffectService;
 
 /** Growth and regression policy migrated from the Fabric catalyst/inhibitor transform reasons. */
 public final class FormGrowthService {
@@ -24,7 +25,7 @@ public final class FormGrowthService {
         }
         FormDefinition current = FormManager.current(player);
         boolean changed = switch (mode) {
-            case CATALYST -> advance(player, current, false);
+            case CATALYST -> activateTransformativeEffect(player, current);
             case POWERFUL_CATALYST -> advance(player, current, true);
             case INHIBITOR -> regress(player, current, false);
             case POWERFUL_INHIBITOR -> regress(player, current, true);
@@ -41,6 +42,17 @@ public final class FormGrowthService {
             }
         }
         return changed;
+    }
+
+    /** A regular catalyst activates a pending curse effect; it does not advance the form by itself. */
+    private static boolean activateTransformativeEffect(ServerPlayer player, FormDefinition current) {
+        if (!(current.hasFlag("can_have_transform_effect") || current.hasFlag("original_shifter"))
+                || !TransformativeEffectService.has(player)) {
+            return false;
+        }
+        var before = current.id();
+        TransformativeEffectService.activate(player);
+        return !FormManager.current(player).id().equals(before);
     }
 
     /**
