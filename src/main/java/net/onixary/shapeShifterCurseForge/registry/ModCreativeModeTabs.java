@@ -49,6 +49,7 @@ public final class ModCreativeModeTabs {
                         output.accept(ModItems.POWERFUL_INHIBITOR.get());
                         output.accept(ModItems.CREATIVE_INHIBITOR.get());
                         output.accept(ModItems.CUSTOM_AXOLOTL_SPAWN_EGG.get());
+                        output.accept(ModItems.TRANSFORMATIVE_AXOLOTL_BUCKET.get());
                         output.accept(ModItems.CUSTOM_BAT_SPAWN_EGG.get());
                         output.accept(ModItems.CUSTOM_OCELOT_SPAWN_EGG.get());
                         output.accept(ModItems.CUSTOM_SPIDER_SPAWN_EGG.get());

@@ -35,19 +35,19 @@ public final class ModEntities {
     public static final RegistryObject<EntityType<TransformativeAxolotlEntity>> TRANSFORMATIVE_AXOLOTL = ENTITIES.register("transformative_axolotl",
             () -> EntityType.Builder.of(TransformativeAxolotlEntity::new, MobCategory.AXOLOTLS).sized(0.75F, 0.42F).build("transformative_axolotl"));
     public static final RegistryObject<EntityType<TransformativeOcelotEntity>> TRANSFORMATIVE_OCELOT = ENTITIES.register("transformative_ocelot",
-            () -> EntityType.Builder.of(TransformativeOcelotEntity::new, MobCategory.CREATURE).sized(0.6F, 0.7F).build("transformative_ocelot"));
+            () -> EntityType.Builder.of(TransformativeOcelotEntity::new, MobCategory.MONSTER).sized(0.6F, 0.7F).build("transformative_ocelot"));
     public static final RegistryObject<EntityType<TransformativeSpiderEntity>> TRANSFORMATIVE_SPIDER = ENTITIES.register("transformative_spider",
-            () -> EntityType.Builder.of(TransformativeSpiderEntity::new, MobCategory.MONSTER).sized(1.4F, 0.9F).build("transformative_spider"));
+            () -> EntityType.Builder.of(TransformativeSpiderEntity::new, MobCategory.MONSTER).sized(0.7F, 0.45F).build("transformative_spider"));
     public static final RegistryObject<EntityType<TransformativeWolfEntity>> TRANSFORMATIVE_WOLF = ENTITIES.register("transformative_wolf",
             () -> EntityType.Builder.of(TransformativeWolfEntity::new, MobCategory.CREATURE).sized(0.6F, 0.85F).build("transformative_wolf"));
 
     @SubscribeEvent
     public static void registerAttributes(EntityAttributeCreationEvent event) {
-        event.put(TRANSFORMATIVE_BAT.get(), Bat.createAttributes().build());
-        event.put(TRANSFORMATIVE_AXOLOTL.get(), Axolotl.createAttributes().build());
-        event.put(TRANSFORMATIVE_OCELOT.get(), Ocelot.createAttributes().build());
-        event.put(TRANSFORMATIVE_SPIDER.get(), Spider.createAttributes().build());
-        event.put(TRANSFORMATIVE_WOLF.get(), Wolf.createAttributes().build());
+        event.put(TRANSFORMATIVE_BAT.get(), TransformativeBatEntity.createAttributes().build());
+        event.put(TRANSFORMATIVE_AXOLOTL.get(), TransformativeAxolotlEntity.createAttributes().build());
+        event.put(TRANSFORMATIVE_OCELOT.get(), TransformativeOcelotEntity.createAttributes().build());
+        event.put(TRANSFORMATIVE_SPIDER.get(), TransformativeSpiderEntity.createAttributes().build());
+        event.put(TRANSFORMATIVE_WOLF.get(), TransformativeWolfEntity.createAttributes().build());
     }
 
     private ModEntities() {

@@ -12,6 +12,7 @@
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
         "CancelEntityStepSoundMixin",
+        "TransformativeStructureSpawnsMixin",
         "accessory.CurioImpl"
     ],
     "client": [

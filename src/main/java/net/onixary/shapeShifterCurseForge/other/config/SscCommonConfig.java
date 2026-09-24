@@ -25,9 +25,20 @@ public final class SscCommonConfig {
             .comment("Log detailed player movement, swimming, and jump diagnostics on this side.")
             .define("debug.movement_logging", false);
 
+    public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_BAT_SPAWN_CHANCE = spawnChance("transformative_bat_spawn_chance");
+    public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_AXOLOTL_SPAWN_CHANCE = spawnChance("transformative_axolotl_spawn_chance");
+    public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_OCELOT_SPAWN_CHANCE = spawnChance("transformative_ocelot_spawn_chance");
+    public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_WOLF_SPAWN_CHANCE = spawnChance("transformative_wolf_spawn_chance");
+    public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_SPIDER_SPAWN_CHANCE = spawnChance("transformative_spider_spawn_chance");
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private SscCommonConfig() {
+    }
+
+    private static ForgeConfigSpec.DoubleValue spawnChance(String key) {
+        return BUILDER.comment("Probability of a transformative mob spawning (0 disables it; 1 guarantees it).")
+                .defineInRange("transformative_mobs." + key, 0.5, 0.0, 1.0);
     }
 
     public static int[] cursedMoonPhases() {

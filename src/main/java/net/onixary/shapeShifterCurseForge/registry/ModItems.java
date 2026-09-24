@@ -206,7 +206,9 @@ public final class ModItems {
     public static final RegistryObject<Item> CUSTOM_WOLF_SPAWN_EGG = ITEMS.register(
             "custom_wolf_spawn_egg", () -> new net.minecraftforge.common.ForgeSpawnEggItem(ModEntities.TRANSFORMATIVE_WOLF, 9145227, 16765781, new Item.Properties()));
     public static final RegistryObject<Item> TRANSFORMATIVE_AXOLOTL_BUCKET = ITEMS.register(
-            "transformative_axolotl_bucket", () -> new Item(new Item.Properties().stacksTo(1)));
+            "transformative_axolotl_bucket", () -> new net.minecraft.world.item.MobBucketItem(
+                    ModEntities.TRANSFORMATIVE_AXOLOTL, () -> net.minecraft.world.level.material.Fluids.WATER,
+                    () -> net.minecraft.sounds.SoundEvents.BUCKET_EMPTY_AXOLOTL, new Item.Properties().stacksTo(1)));
 
     private ModItems() {
     }
