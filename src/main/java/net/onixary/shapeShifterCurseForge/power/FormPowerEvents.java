@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.power;
 
 import com.google.gson.JsonObject;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.DamageTypeTags;
@@ -252,10 +253,6 @@ public final class FormPowerEvents {
                         power.getAsJsonObject("damage_condition"))) {
                     FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("entity_action"));
                 }
-                if ("shape-shifter-curse:enhanced_falling_attack".equals(type) && player.fallDistance > 0.0F) {
-                    FormPowerRuntime.execute(player, event.getEntity(), power.getAsJsonObject("target_action_on_critical_hit"));
-                    FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action_on_critical_hit"));
-                }
             });
         }
 
@@ -296,13 +293,26 @@ public final class FormPowerEvents {
     public static void criticalHit(CriticalHitEvent event) {
         Player player = event.getEntity();
         if (player.level().isClientSide || !event.isVanillaCritical()) return;
+        float fallMultiplier = Math.max(1.0F, Math.min(2.0F, player.fallDistance));
+        final boolean[] enhancedFallingAttack = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:critical_damage_modifier".equals(FormPowerRegistry.typeOf(power))
-                    || !FormPowerRuntime.test(player, event.getTarget(), power.getAsJsonObject("condition"))) return;
-            event.setDamageModifier(event.getDamageModifier()
-                    * FormPowerRuntime.floatValue(power, "multiplier", 1.0F));
-            FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
+            if (!FormPowerRuntime.test(player, event.getTarget(), power.getAsJsonObject("condition"))) return;
+            String type = FormPowerRegistry.typeOf(power);
+            if ("shape-shifter-curse:critical_damage_modifier".equals(type)) {
+                event.setDamageModifier(event.getDamageModifier()
+                        * FormPowerRuntime.floatValue(power, "multiplier", 1.0F));
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
+            } else if ("shape-shifter-curse:enhanced_falling_attack".equals(type)) {
+                enhancedFallingAttack[0] = true;
+                if (event.getTarget() instanceof LivingEntity target) {
+                    FormPowerRuntime.execute(player, target, power.getAsJsonObject("target_action_on_critical_hit"));
+                }
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action_on_critical_hit"));
+            }
         });
+        if (enhancedFallingAttack[0]) {
+            event.setDamageModifier(event.getDamageModifier() * fallMultiplier);
+        }
     }
 
     @SubscribeEvent
@@ -526,7 +536,7 @@ public final class FormPowerEvents {
                 event.setCanceled(true);
                 return;
             }
-            runInteraction(event.getEntity(), null, "apoli:action_on_block_use");
+            runInteraction(event.getEntity(), null, "apoli:action_on_block_use", event.getFace());
         }
     }
 
@@ -545,7 +555,7 @@ public final class FormPowerEvents {
                 event.setCanceled(true);
                 return;
             }
-            runInteraction(event.getEntity(), target, "apoli:action_on_entity_use");
+            runInteraction(event.getEntity(), target, "apoli:action_on_entity_use", null);
         }
     }
 
@@ -634,8 +644,19 @@ public final class FormPowerEvents {
         }
     }
 
-    private static void runInteraction(Player player, LivingEntity target, String expectedType) {
+    private static void runInteraction(Player player, LivingEntity target, String expectedType, Direction face) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (power.has("directions") && power.get("directions").isJsonArray()) {
+                boolean faceAllowed = false;
+                for (var direction : power.getAsJsonArray("directions")) {
+                    if (face != null && direction.isJsonPrimitive()
+                            && face.getName().equals(direction.getAsString())) {
+                        faceAllowed = true;
+                        break;
+                    }
+                }
+                if (!faceAllowed) return;
+            }
             JsonObject condition = power.has("bientity_condition") ? power.getAsJsonObject("bientity_condition")
                     : power.getAsJsonObject("condition");
             if (expectedType.equals(FormPowerRegistry.typeOf(power))

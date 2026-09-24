@@ -27,7 +27,6 @@ public final class MovementPowerService {
                 case "shape-shifter-curse:projectile_dodge" -> dodgeProjectiles(player, power);
                 case "shape-shifter-curse:powder_snow_walker" -> walkPowderSnow(player);
                 case "shape-shifter-curse:slowdown_percent" -> resistWebSlowdown(player, power);
-                case "shape-shifter-curse:soul_speed" -> applySoulSpeed(player, power);
                 case "shape-shifter-curse:attract_by_entity" -> attractEntity(player, power);
                 case "apoli:modify_falling" -> modifyFalling(player, power);
                 default -> { }
@@ -84,26 +83,6 @@ public final class MovementPowerService {
             setMotionAndSync(player, restoredX, Math.max(motion.y, -0.05D), restoredZ);
             // alternative: set to original input velocity if needed; keep single restoration per tick without compounding
         }
-    }
-
-    private static void applySoulSpeed(Player player, JsonObject power) {
-        if (!player.getBlockStateOn().is(Blocks.SOUL_SAND) && !player.getBlockStateOn().is(Blocks.SOUL_SOIL)) return;
-        double boost = 0.03D * Math.min(FormPowerRuntime.intValue(power, "level", 1),
-                FormPowerRuntime.intValue(power, "max_level", 3));
-        // soul speed should be additive to base speed, not multiplicative compounding each tick
-        // use horizontal speed clamp to prevent exponential acceleration
-        Vec3 motion = player.getDeltaMovement();
-        double targetX = motion.x + Math.signum(motion.x) * boost * 0.5D;
-        double targetZ = motion.z + Math.signum(motion.z) * boost * 0.5D;
-        // cap max horizontal speed to 0.35 (approx sprint) + boost
-        double cap = 0.35D + boost;
-        double speed = Math.sqrt(motion.x * motion.x + motion.z * motion.z);
-        if (speed > cap) {
-            double scale = cap / speed;
-            targetX = motion.x * scale;
-            targetZ = motion.z * scale;
-        }
-        setMotionAndSync(player, targetX, motion.y, targetZ);
     }
 
     private static void modifyFalling(Player player, JsonObject power) {
