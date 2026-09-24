@@ -49,10 +49,6 @@ import java.util.UUID;
 /**
  * Shared condition and action interpreter for the common Origins JSON building blocks.
  *
- * <p>TODO[PARITY] Fabric's persisted {@code item_store} subsystem (item_store / check_stored_item /
- * gain_store_power_item / drop_store_power_item / swap_store_power_item / invoke_store_power_item)
- * is not ported. SSC 1.10.0's base data does not reference it (it is only used by custom/patron
- * form packs), so no base-content power currently depends on it.</p>
  */
 @SuppressWarnings("deprecation")
 public final class FormPowerRuntime {
@@ -142,6 +138,8 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:has_mana_percent" -> compare(FormActivePowerService.manaPercent(actor), condition);
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);
             case "shape-shifter-curse:is_sleep" -> actor.isSleeping();
+            case "shape-shifter-curse:check_stored_item" -> ItemStoreService.check(
+                    target instanceof Player targetPlayer ? targetPlayer : actor, condition);
             case "apoli:target_condition" -> target != null && testEntity(actor, target, condition.getAsJsonObject("condition"));
             case "apoli:actor_condition" -> test(actor, target, condition.getAsJsonObject("condition"));
             case "apoli:entity_type" -> target != null && matchesEntityType(target, condition);
@@ -376,7 +374,12 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:stop_power_animation" -> stopPowerAnimation(actor, action);
             case "shape-shifter-curse:tan_add_thirst" ->
                     net.onixary.shapeShifterCurseForge.integration.toughasnails.ToughAsNailsIntegration
-                            .addThirst(actor, floatValue(action, "amount", 0.0F));
+                            .addThirst(actor, intValue(action, "amount", 0));
+            case "shape-shifter-curse:gain_store_power_item",
+                 "shape-shifter-curse:drop_store_power_item",
+                 "shape-shifter-curse:swap_store_power_item",
+                 "shape-shifter-curse:invoke_store_power_item" -> ItemStoreService.execute(
+                    recipient instanceof Player targetPlayer ? targetPlayer : actor, action);
             default -> {
                 // Unhandled action types are warned about once and ignored instead of being executed.
                 if (!type.isBlank() && WARNED_ACTIONS.add(type)) {

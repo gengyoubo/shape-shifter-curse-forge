@@ -42,6 +42,14 @@ public final class SscClientConfig {
     public static final ForgeConfigSpec.BooleanValue CUSTOM_ENABLE_FORM_RANDOM_SOUND = BUILDER
             .define("custom.enable_form_random_sound", true);
 
+    public static final ForgeConfigSpec.IntValue ITEM_STORE_POSITION = BUILDER
+            .comment("Item store HUD anchor: 1-9, from top-left to bottom-right.")
+            .defineInRange("hud.item_store_position", 8, 1, 9);
+    public static final ForgeConfigSpec.IntValue ITEM_STORE_OFFSET_X = BUILDER
+            .defineInRange("hud.item_store_offset_x", -120, -10000, 10000);
+    public static final ForgeConfigSpec.IntValue ITEM_STORE_OFFSET_Y = BUILDER
+            .defineInRange("hud.item_store_offset_y", 1, -10000, 10000);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private SscClientConfig() {

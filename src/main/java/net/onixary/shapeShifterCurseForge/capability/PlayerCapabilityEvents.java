@@ -55,6 +55,7 @@ public final class PlayerCapabilityEvents {
             SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
+            SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
             InstinctService.synchronizeHud(player);
@@ -66,6 +67,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
+            SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
             InstinctService.synchronizeHud(player);
@@ -77,6 +79,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             ModNetwork.sendFormSync(player);
             ModNetwork.sendSkinSync(player);
+            SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
             InstinctService.synchronizeHud(player);

@@ -1,5 +1,8 @@
 package net.onixary.shapeShifterCurseForge.mixin.plugin;
 
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.loading.FMLLoader;
+import net.minecraftforge.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -17,7 +20,13 @@ public class CuriosMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.contains("integration.ToughAsNails")) {
-            return net.minecraftforge.fml.ModList.get().isLoaded("toughasnails");
+            // Mixin preparation can run before Forge creates the runtime ModList.
+            ModList runtimeMods = ModList.get();
+            if (runtimeMods != null) {
+                return runtimeMods.isLoaded("toughasnails");
+            }
+            LoadingModList loadingMods = FMLLoader.getLoadingModList();
+            return loadingMods != null && loadingMods.getModFileById("toughasnails") != null;
         }
         if (mixinClassName.contains("accessory.CurioImpl")) {
             try {

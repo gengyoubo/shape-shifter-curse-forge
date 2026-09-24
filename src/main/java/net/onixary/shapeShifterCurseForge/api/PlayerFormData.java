@@ -88,6 +88,11 @@ public interface PlayerFormData {
 
     void setManaPool(String manaType, float amount);
 
+    /** Persisted virtual item slots for item_store powers, keyed by power definition id. */
+    CompoundTag getItemStores();
+
+    void setItemStores(CompoundTag stores);
+
     void copyFrom(PlayerFormData other);
 
     CompoundTag serializeNBT();

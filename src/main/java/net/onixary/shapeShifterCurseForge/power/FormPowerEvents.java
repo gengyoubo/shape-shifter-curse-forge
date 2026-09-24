@@ -20,7 +20,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
-import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.MobEffectEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
@@ -228,10 +227,6 @@ public final class FormPowerEvents {
                     event.setAmount(event.getAmount() + FormPowerRuntime.floatValue(power, "modifier", 0.0F));
                     FormPowerRuntime.execute(defender, defender, power.getAsJsonObject("action"));
                 }
-                if ("shape-shifter-curse:modify_instant_damage_scale".equals(type)
-                        && isInstantMagic(event.getSource())) {
-                    event.setAmount(event.getAmount() * FormPowerRuntime.floatValue(power, "scale", 1.0F));
-                }
             });
         }
 
@@ -290,19 +285,6 @@ public final class FormPowerEvents {
             }
         });
         if (immune[0]) event.setCanceled(true);
-    }
-
-    @SubscribeEvent
-    public static void heal(LivingHealEvent event) {
-        // TODO[PARITY] Fabric scales instant health at the potion mixin; this LivingHealEvent
-        //   approximation also catches any non-potion heal above 1.0 that reaches this path.
-        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
-                || event.getAmount() <= 1.0F) return;
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:modify_instant_health_scale".equals(FormPowerRegistry.typeOf(power))
-                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
-            event.setAmount(event.getAmount() * FormPowerRuntime.floatValue(power, "scale", 1.0F));
-        });
     }
 
     @SubscribeEvent
@@ -875,13 +857,6 @@ public final class FormPowerEvents {
         if (!"apoli:projectile".equals(FormPowerRegistry.typeOf(condition))) return true;
         ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
         return id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
-    }
-
-    private static boolean isInstantMagic(net.minecraft.world.damagesource.DamageSource source) {
-        // TODO[PARITY] Fabric scales instant damage at the potion mixin; this magic/indirectMagic
-        //   source check is an approximation that may also match other magic damage.
-        String id = source.getMsgId();
-        return "magic".equals(id) || "indirectMagic".equals(id);
     }
 
     private static boolean blocksWithVirtualShield(Player defender, LivingHurtEvent event, JsonObject power) {

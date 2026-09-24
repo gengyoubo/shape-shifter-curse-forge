@@ -31,6 +31,7 @@ public final class PlayerFormData implements IPlayerFormData {
     private static final String TRANSFORMATIVE_EFFECT_TICKS_KEY = "TransformativeEffectTicks";
     private static final String UNLOCKED_PERKS_KEY = "UnlockedPerks";
     private static final String MANA_POOLS_KEY = "ManaPools";
+    private static final String ITEM_STORES_KEY = "ItemStores";
 
     private String formId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String previousFormId = ORIGINAL_BEFORE_ENABLE_FORM;
@@ -48,6 +49,7 @@ public final class PlayerFormData implements IPlayerFormData {
     private int transformativeEffectTicks;
     private final Set<ResourceLocation> unlockedPerks = new LinkedHashSet<>();
     private final Map<String, Float> manaPools = new LinkedHashMap<>();
+    private CompoundTag itemStores = new CompoundTag();
 
     @Override
     public String getFormId() {
@@ -164,6 +166,12 @@ public final class PlayerFormData implements IPlayerFormData {
         manaPools.put(manaType, Math.max(0.0F, amount));
     }
 
+    @Override public CompoundTag getItemStores() { return itemStores.copy(); }
+
+    @Override public void setItemStores(CompoundTag stores) {
+        itemStores = stores == null ? new CompoundTag() : stores.copy();
+    }
+
     @Override
     public void copyFrom(IPlayerFormData other) {
         setFormId(other.getFormId());
@@ -184,6 +192,7 @@ public final class PlayerFormData implements IPlayerFormData {
         unlockedPerks.addAll(other.getUnlockedPerks());
         manaPools.clear();
         manaPools.putAll(other.getManaPools());
+        setItemStores(other.getItemStores());
     }
 
     @Override
@@ -215,6 +224,7 @@ public final class PlayerFormData implements IPlayerFormData {
         CompoundTag mana = new CompoundTag();
         manaPools.forEach(mana::putFloat);
         tag.put(MANA_POOLS_KEY, mana);
+        tag.put(ITEM_STORES_KEY, itemStores.copy());
         return tag;
     }
 
@@ -262,5 +272,7 @@ public final class PlayerFormData implements IPlayerFormData {
                 setManaPool(manaType, mana.getFloat(manaType));
             }
         }
+        itemStores = tag.contains(ITEM_STORES_KEY, Tag.TAG_COMPOUND)
+                ? tag.getCompound(ITEM_STORES_KEY).copy() : new CompoundTag();
     }
 }

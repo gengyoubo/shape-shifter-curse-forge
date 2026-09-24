@@ -12,8 +12,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.PotionItem;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -59,7 +57,7 @@ public final class MissingPowerEvents {
         maintainParticles(player);
         maintainEntityGlow(player);
         maintainSimpleMovement(player);
-        maintainPotionStacks(player);
+        ItemStoreService.tick(player);
         tickJumpClash(player);
 
         CLASH_COOLDOWNS.computeIfPresent(player.getUUID(), (id, value) -> value <= 1 ? null : value - 1);
@@ -264,42 +262,6 @@ public final class MissingPowerEvents {
             // erasing the horizontal speed accumulated by client-side swimming.
             player.setDeltaMovement(velocity.x, limitedY, velocity.z);
         }
-    }
-
-    private static void maintainPotionStacks(Player player) {
-        // TODO[PARITY] Fabric raises the maximum stack size via an inventory-aware
-        //   ItemStack#getMaxItemCount hook; the Forge port can only merge carried potions up to
-        //   the power's count, so a single stack still cannot exceed the vanilla limit of 1.
-        final int[] limits = {0, 0};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:modify_potion_stack".equals(FormPowerRegistry.typeOf(power))
-                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
-            int count = Math.max(1, FormPowerRuntime.intValue(power, "count", 1));
-            if (FormPowerRuntime.booleanValue(power, "only_water_potion", false)) limits[1] = Math.max(limits[1], count);
-            else limits[0] = Math.max(limits[0], count);
-        });
-        int regularLimit = limits[0];
-        int waterLimit = limits[1];
-        if (regularLimit == 0 && waterLimit == 0) return;
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack source = player.getInventory().getItem(i);
-            if (!(source.getItem() instanceof PotionItem) || source.getCount() >= Math.max(regularLimit, waterLimit)) continue;
-            int limit = isWaterPotion(source) ? waterLimit : regularLimit;
-            if (limit <= 1) continue;
-            for (int j = i + 1; j < player.getInventory().getContainerSize() && source.getCount() < limit; j++) {
-                ItemStack other = player.getInventory().getItem(j);
-                if (other.isEmpty() || !ItemStack.isSameItemSameTags(source, other)) continue;
-                int moved = Math.min(limit - source.getCount(), other.getCount());
-                source.grow(moved);
-                other.shrink(moved);
-            }
-        }
-    }
-
-    private static boolean isWaterPotion(ItemStack stack) {
-        return stack.getItem() == Items.POTION
-                && net.minecraft.world.item.alchemy.PotionUtils.getPotion(stack)
-                == net.minecraft.world.item.alchemy.Potions.WATER;
     }
 
     private static void tickJumpClash(Player player) {
