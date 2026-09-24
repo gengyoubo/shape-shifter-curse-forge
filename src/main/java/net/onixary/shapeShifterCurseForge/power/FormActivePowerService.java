@@ -64,7 +64,8 @@ public final class FormActivePowerService {
     }
 
     public static void setKeyPressed(ServerPlayer player, String key, boolean pressed) {
-        if (!key.startsWith("key.shape-shifter-curse.") && !"key.jump".equals(key)) {
+        if (!key.startsWith("key.shape-shifter-curse.") && !"key.jump".equals(key)
+                && !"key.sprint".equals(key)) {
             return;
         }
         Map<String, Boolean> keys = PRESSED_KEYS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
@@ -371,8 +372,12 @@ public final class FormActivePowerService {
             if (jumpOutWater) {
                 return;
             }
-            Vec3 before = null;
+            Vec3 before = player.getDeltaMovement();
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+            if (!before.equals(player.getDeltaMovement())) {
+                player.hurtMarked = true;
+                player.connection.send(new ClientboundSetEntityMotionPacket(player));
+            }
             startCooldown(player, id, FormPowerRuntime.intValue(power, "cooldown", 0));
             triggered[0] = true;
         });

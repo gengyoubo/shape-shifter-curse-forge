@@ -10,6 +10,7 @@ import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
+import net.onixary.shapeShifterCurseForge.power.ClimbingExService;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
 import org.spongepowered.asm.mixin.Mixin;
@@ -281,14 +282,20 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
             return;
         }
         final boolean[] active = {false};
+        final boolean[] holdBreath = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("shape-shifter-curse:breathing_under_water".equals(FormPowerRegistry.typeOf(power))
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 active[0] = true;
+            } else if ("shape-shifter-curse:hold_breath".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                holdBreath[0] = true;
             }
         });
         if (active[0]) {
             cir.setReturnValue(player.getRandom().nextInt(101) == 0 ? air - 1 : air);
+        } else if (holdBreath[0]) {
+            cir.setReturnValue(player.getRandom().nextInt(4) > 0 ? air : air - 1);
         }
     }
 
@@ -308,7 +315,12 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         }
         final boolean[] climbing = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (climbing[0] || !"apoli:climbing".equals(FormPowerRegistry.typeOf(power))) return;
+            if (climbing[0]) return;
+            if ("shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))) {
+                climbing[0] = ClimbingExService.isActive(player, id, power);
+                return;
+            }
+            if (!"apoli:climbing".equals(FormPowerRegistry.typeOf(power))) return;
             JsonObject start = power.getAsJsonObject("condition");
             JsonObject hold = power.getAsJsonObject("hold_condition");
             if (FormPowerRuntime.test(player, player, start)

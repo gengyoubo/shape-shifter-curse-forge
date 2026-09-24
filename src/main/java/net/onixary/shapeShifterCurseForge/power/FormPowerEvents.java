@@ -904,17 +904,7 @@ public final class FormPowerEvents {
     private static void applyClimbing(Player player) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))) return;
-            JsonObject start = power.getAsJsonObject("start_climb_condition");
-            JsonObject keep = power.getAsJsonObject("continue_climb_condition");
-            if (FormPowerRuntime.test(player, player, start) || FormPowerRuntime.test(player, player, keep)) {
-                Vec3 motion = player.getDeltaMovement();
-                double y = Math.max(motion.y, -0.15D);
-                if (Double.compare(motion.y, y) != 0) {
-                    player.setDeltaMovement(motion.x, y, motion.z);
-                    // The server tracker otherwise broadcasts hasImpulse only to
-                    // watchers, not to the player whose climb velocity changed.
-                    if (!player.level().isClientSide) player.hurtMarked = true;
-                }
+            if (ClimbingExService.isActive(player, id, power)) {
                 player.resetFallDistance();
             }
         });
@@ -956,10 +946,6 @@ public final class FormPowerEvents {
     private static void maintainBreathingAndImmunity(Player player) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
-            if ("shape-shifter-curse:hold_breath".equals(type) && player.isInWater()
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                player.setAirSupply(player.getMaxAirSupply());
-            }
             if ("shape-shifter-curse:optional_effect_immunity".equals(type)) {
                 if (power.has("inverted") && power.get("inverted").getAsBoolean()) {
                     // Immune to everything except the listed effects.
@@ -987,9 +973,9 @@ public final class FormPowerEvents {
      *   <li>creative/spectator refills to maxAir (Fabric first branch); without this,
      *       creative air sticks at &le;0 and every air&gt;0-gated power (e.g. axolotl
      *       sprinting_speed) silently stops working;</li>
-     *   <li>land drain subtracts {@code increaseAirSupply(0)} (normally 4) after
-     *       the respiration-style roll. Thus it is -4 when the roll skips and -5
-     *       when it does not; {@code level &gt;= 1000} still drains by -4;</li>
+     *   <li>land drain follows Fabric's respiration-style roll: normally one air
+     *       point is consumed with probability {@code 1 / (level + 1)} per tick;
+     *       {@code level &gt;= 1000} prevents the drain;</li>
      *   <li>rain and eye-in-water recover via vanilla {@code increaseAirSupply} (+4);</li>
      *   <li>depleted state: without damage configured negatives clamp to -1
      *       ("oxygen (moisture)"); with damage configured the -20 loop deals the
@@ -1030,10 +1016,7 @@ public final class FormPowerEvents {
         } else {
             boolean skip = totalLevel[0] >= 1000
                     || (totalLevel[0] > 0 && player.getRandom().nextInt(totalLevel[0] + 1) > 0);
-            // Exact Fabric expression:
-            // setAir(getNextAirUnderwaterSlow(getAir(), level) - increaseAirSupply(0)).
-            int airAfterRespirationRoll = player.getAirSupply() - (skip ? 0 : 1);
-            player.setAirSupply(airAfterRespirationRoll - Math.min(4, player.getMaxAirSupply()));
+            player.setAirSupply(player.getAirSupply() - (skip ? 0 : 1));
         }
         if (damageWhenNoAir[0]) {
             if (player.getAirSupply() == -20) {

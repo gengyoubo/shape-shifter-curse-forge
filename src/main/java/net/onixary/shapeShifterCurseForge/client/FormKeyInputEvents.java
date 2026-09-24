@@ -58,6 +58,13 @@ public final class FormKeyInputEvents {
             ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket("key.jump", pressed));
             LAST_STATE.put(jump, pressed);
         }
+        KeyMapping sprint = minecraft.options.keySprint;
+        pressed = sprint.isDown();
+        previous = LAST_STATE.getOrDefault(sprint, false);
+        if (pressed != previous) {
+            ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket("key.sprint", pressed));
+            LAST_STATE.put(sprint, pressed);
+        }
     }
 
     public static boolean isClipAtLedgeDisabled() {
