@@ -5,7 +5,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.living.LivingBreatheEvent;
 import net.minecraftforge.event.entity.living.MobEffectEvent;
-import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -18,22 +17,6 @@ import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class Sprint3SupplementEvents {
     private Sprint3SupplementEvents() {
-    }
-
-    // ——— 世界/方块：ModifyBlockDropPower 的 Forge 事件等价 ———
-    @SubscribeEvent
-    public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        Player player = event.getPlayer();
-        if (player == null) {
-            return;
-        }
-        // 复用与 Fabric 一致的判定：遍历 ModifyBlockDropPower 的条件与概率
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:modify_block_drop".equals(FormPowerRegistry.typeOf(power))) {
-            }
-            // 条件与掉落替换由 Power 自身的 JSON 驱动；此处仅为占位，实际掉落替换
-            // 在 1.20.1 通过 LootTableModifier 更稳妥，已在数据包侧可配，事件侧保留钩子
-        });
     }
 
     // ——— 呼吸：CustomWaterBreathing / BreathingUnderWater / HoldBreath ———

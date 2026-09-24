@@ -1,11 +1,15 @@
 package net.onixary.shapeShifterCurseForge.power;
 
 import com.google.gson.JsonObject;
-import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.vehicle.Boat;
+import net.minecraft.world.entity.vehicle.AbstractMinecart;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
@@ -16,22 +20,38 @@ import java.util.UUID;
 public final class MovementPowerService {
     private static final Map<UUID, Integer> DODGE_COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Boolean> DODGE_RIGHT = new HashMap<>();
+    private static final Map<UUID, AttractState> ATTRACT_STATES = new HashMap<>();
+
+    private static final class AttractState {
+        private ResourceLocation powerId;
+        private int ticks;
+        private Entity target;
+
+        private AttractState(ResourceLocation powerId) {
+            this.powerId = powerId;
+        }
+    }
 
     private MovementPowerService() { }
 
     public static void tick(Player player) {
         DODGE_COOLDOWNS.computeIfPresent(player.getUUID(), (id, ticks) -> ticks <= 1 ? null : ticks - 1);
 
+        final boolean[] hasAttraction = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             switch (FormPowerRegistry.typeOf(power)) {
                 case "shape-shifter-curse:projectile_dodge" -> dodgeProjectiles(player, power);
-                case "shape-shifter-curse:powder_snow_walker" -> walkPowderSnow(player);
-                case "shape-shifter-curse:slowdown_percent" -> resistWebSlowdown(player, power);
-                case "shape-shifter-curse:attract_by_entity" -> attractEntity(player, power);
+                case "shape-shifter-curse:attract_by_entity" -> {
+                    if (FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                        hasAttraction[0] = true;
+                        attractEntity(player, id, power);
+                    }
+                }
                 case "apoli:modify_falling" -> modifyFalling(player, power);
                 default -> { }
             }
         });
+        if (!hasAttraction[0]) ATTRACT_STATES.remove(player.getUUID());
     }
 
     private static void dodgeProjectiles(Player player, JsonObject power) {
@@ -59,29 +79,6 @@ public final class MovementPowerService {
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
             DODGE_COOLDOWNS.put(player.getUUID(), Math.max(1, FormPowerRuntime.intValue(power, "cooldown", 20)));
             break;
-        }
-    }
-
-    private static void walkPowderSnow(Player player) {
-        if (player.getBlockStateOn().is(Blocks.POWDER_SNOW) || player.level().getBlockState(player.blockPosition()).is(Blocks.POWDER_SNOW)) {
-            Vec3 motion = player.getDeltaMovement();
-            setMotionAndSync(player, motion.x, Math.max(motion.y, 0.0D), motion.z);
-            player.resetFallDistance();
-        }
-    }
-
-    private static void resistWebSlowdown(Player player, JsonObject power) {
-        BlockPos pos = player.blockPosition();
-        if (!player.level().getBlockState(pos).is(Blocks.COBWEB) && !player.level().getBlockState(pos.below()).is(Blocks.COBWEB)) return;
-        double multiplier = FormPowerRuntime.doubleValue(power, "multiplier", 1.0D);
-        if (multiplier <= 0.0D) {
-            // vanilla cobweb multiplies by 0.25; resist should restore to ~1.0, not compound each tick
-            Vec3 motion = player.getDeltaMovement();
-            // already slowed 0.25, so *4 restores; but only if currently slowed, avoid exponential blowup by clamping
-            double restoredX = Math.abs(motion.x * 4.0D) > 0.5D ? motion.x : motion.x * 4.0D;
-            double restoredZ = Math.abs(motion.z * 4.0D) > 0.5D ? motion.z : motion.z * 4.0D;
-            setMotionAndSync(player, restoredX, Math.max(motion.y, -0.05D), restoredZ);
-            // alternative: set to original input velocity if needed; keep single restoration per tick without compounding
         }
     }
 
@@ -141,25 +138,51 @@ public final class MovementPowerService {
         return player.isShiftKeyDown() || shouldForceSneaking(player);
     }
 
-    private static void attractEntity(Player player, JsonObject power) {
-        if (!player.onGround() || player.isPassenger()) return;
-        double radius = FormPowerRuntime.doubleValue(power, "attraction_radius", 8.0D);
-        double stop = FormPowerRuntime.doubleValue(power, "stop_radius", 1.0D);
-        Entity closest = null;
-        double closestDistance = Double.MAX_VALUE;
-        for (Entity candidate : player.level().getEntities(player, player.getBoundingBox().inflate(radius),
-                entity -> entity.isAlive() && !entity.isSpectator()
-                        && FormPowerRuntime.test(player, entity, power.getAsJsonObject("entity_condition")))) {
-            double distance = candidate.distanceToSqr(player);
-            if (distance > stop * stop && distance < closestDistance) {
-                closest = candidate;
-                closestDistance = distance;
+    private static void attractEntity(Player player, ResourceLocation powerId, JsonObject power) {
+        if (player.isSpectator()) return;
+        AttractState state = ATTRACT_STATES.computeIfAbsent(player.getUUID(), ignored -> new AttractState(powerId));
+        if (!state.powerId.equals(powerId)) {
+            state.powerId = powerId;
+            state.ticks = 0;
+            state.target = null;
+        }
+        if (state.ticks++ % 5 == 0) {
+            state.target = null;
+            double radius = FormPowerRuntime.doubleValue(power, "attraction_radius", 8.0D);
+            double stop = FormPowerRuntime.doubleValue(power, "stop_radius", 1.0D);
+            double closestDistance = Double.MAX_VALUE;
+            AABB searchBox = AABB.unitCubeFromLowerCorner(player.position()).inflate(radius);
+            for (Entity candidate : player.level().getEntities(player, searchBox,
+                    entity -> entity.isAlive() && !entity.isSpectator()
+                            && FormPowerRuntime.test(player, entity, power.getAsJsonObject("entity_condition")))) {
+                double distance = candidate.distanceToSqr(player);
+                if (distance < closestDistance) {
+                    state.target = candidate;
+                    closestDistance = distance;
+                }
+            }
+            if (state.target != null && closestDistance < stop * stop) state.target = null;
+            Entity vehicle = player.getVehicle();
+            if (!player.onGround() || vehicle instanceof Boat || vehicle instanceof AbstractMinecart
+                    || (vehicle != null && (vehicle.getType().toShortString().contains("vehicle")
+                    || vehicle.getType().toShortString().contains("mount")))) {
+                state.target = null;
+            }
+            if (state.target != null && player.level().clip(new ClipContext(player.getEyePosition(),
+                    state.target.getEyePosition(), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                    player)).getType() == HitResult.Type.BLOCK) {
+                state.target = null;
             }
         }
-        if (closest == null) return;
+        Entity closest = state.target;
+        if (closest == null || closest.level() != player.level() || !closest.isAlive() || closest.isRemoved()) {
+            state.target = null;
+            return;
+        }
         Vec3 direction = new Vec3(closest.getX() - player.getX(), 0.0D, closest.getZ() - player.getZ()).normalize();
         double speed = FormPowerRuntime.doubleValue(power, "attraction_speed", 0.1D);
-        if (player.getLookAngle().dot(direction) < 0.0D) speed = FormPowerRuntime.doubleValue(power, "escape_attraction_speed", 0.025D);
+        Vec3 facing = player.getLookAngle().multiply(1.0D, 0.0D, 1.0D).normalize();
+        if (facing.dot(direction) < 0.0D) speed = FormPowerRuntime.doubleValue(power, "escape_attraction_speed", 0.025D);
         Vec3 motion = player.getDeltaMovement();
         setMotionAndSync(player, direction.x * speed, motion.y, direction.z * speed);
         FormPowerRuntime.execute(player, closest instanceof net.minecraft.world.entity.LivingEntity living ? living : player,

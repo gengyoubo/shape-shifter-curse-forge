@@ -67,7 +67,6 @@ public final class FormPowerEvents {
     /** Whether an owned modifier must preserve the player's health percentage on changes. */
     private static final Map<UUID, Map<UUID, Boolean>> UPDATE_HEALTH_MODIFIERS = new HashMap<>();
     private static final Map<UUID, Map<UUID, Integer>> DAMAGE_OVER_TIME_STARTED_TICKS = new HashMap<>();
-    private static final ThreadLocal<Boolean> SWEEP_DAMAGE = ThreadLocal.withInitial(() -> false);
     private static final ResourceLocation LEGACY_WATER_SPEED = ResourceLocation.fromNamespaceAndPath(
             "additionalentityattributes", "generic.water_speed");
 
@@ -312,35 +311,6 @@ public final class FormPowerEvents {
         });
         if (enhancedFallingAttack[0]) {
             event.setDamageModifier(event.getDamageModifier() * fallMultiplier);
-        }
-    }
-
-    @SubscribeEvent
-    public static void sweepingHit(LivingHurtEvent event) {
-        if (Boolean.TRUE.equals(SWEEP_DAMAGE.get())
-                || !(event.getSource().getEntity() instanceof Player player)
-                || event.getEntity() == player || !"player".equals(event.getSource().getMsgId())
-                || player.level().isClientSide) return;
-        final boolean[] enabled = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if ("shape-shifter-curse:always_sweeping".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("condition"))) {
-                enabled[0] = true;
-            }
-        });
-        if (!enabled[0]) return;
-
-        SWEEP_DAMAGE.set(true);
-        try {
-            float sweepDamage = Math.max(1.0F, event.getAmount() * 0.2F);
-            for (LivingEntity nearby : player.level().getEntitiesOfClass(LivingEntity.class,
-                    player.getBoundingBox().inflate(1.0D), candidate -> candidate != player
-                            && candidate != event.getEntity() && candidate.isAlive()
-                            && !player.isAlliedTo(candidate))) {
-                nearby.hurt(player.damageSources().playerAttack(player), sweepDamage);
-            }
-        } finally {
-            SWEEP_DAMAGE.set(false);
         }
     }
 

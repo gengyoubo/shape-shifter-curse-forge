@@ -2,12 +2,15 @@ package net.onixary.shapeShifterCurseForge.power;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -34,25 +37,29 @@ public final class CombatLootEvents {
         }
     }
 
-    @SubscribeEvent
-    public static void breakBlock(BlockEvent.BreakEvent event) {
-        Player player = event.getPlayer();
-        if (player.isCreative() || !(event.getLevel() instanceof net.minecraft.world.level.Level level)) return;
+    /** Called from Block.dropResources so ordinary breaking and post-break behavior remain intact. */
+    public static boolean replaceBlockDrops(BlockState state, ServerLevel level, BlockPos pos,
+                                            Player player, ItemStack tool, boolean dropXp) {
+        final boolean[] matched = {false};
+        final boolean[] replaced = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:modify_block_drop".equals(FormPowerRegistry.typeOf(power))
-                    || !matchesBlock(event.getState(), power.getAsJsonObject("block_condition"))
-                    || player.getRandom().nextFloat() >= Math.max(0.0F, Math.min(1.0F, FormPowerRuntime.floatValue(power, "chance", 0.0F)))) return;
-            // Replace this crop break completely so vanilla loot cannot also be collected.
-            event.setCanceled(true);
-            level.removeBlock(event.getPos(), false);
+            if (matched[0] || !"shape-shifter-curse:modify_block_drop".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    || !matchesBlock(state, power.getAsJsonObject("block_condition"))) return;
+            matched[0] = true;
+            if (player.getRandom().nextFloat() >= Math.max(0.0F, Math.min(1.0F,
+                    FormPowerRuntime.floatValue(power, "chance", 0.0F)))) return;
             if (power.has("target_item_stack_list") && power.get("target_item_stack_list").isJsonArray()) {
                 for (var element : power.getAsJsonArray("target_item_stack_list")) {
                     if (!element.isJsonObject()) continue;
                     ItemStack stack = stackFromJson(element.getAsJsonObject());
-                    if (!stack.isEmpty()) net.minecraft.world.level.block.Block.popResource(level, event.getPos(), stack);
+                    if (!stack.isEmpty()) Block.popResource(level, pos, stack);
                 }
             }
+            state.spawnAfterBreak(level, pos, tool, dropXp);
+            replaced[0] = true;
         });
+        return replaced[0];
     }
 
     private static boolean matchesBlock(net.minecraft.world.level.block.state.BlockState state, com.google.gson.JsonObject condition) {
