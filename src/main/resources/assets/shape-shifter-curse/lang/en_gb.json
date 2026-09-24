@@ -714,5 +714,9 @@
     "screen.shape-shifter-curse.form_attuner.purchase.insufficient_experience": "Not enough experience levels.",
     "message.shapeShifterCurseFabric.authing": "The server is requesting authentication data. This typically occurs when first joining the world (it may also be caused by a bug where a counter wasn't reset, triggering this message on login). If this prompt appears during gameplay, be cautious – the server-side JAR file may have been tampered with. Total requests: %s",
     "text.cloth-config.boolean.value.true": "True",
-    "text.cloth-config.boolean.value.false": "False"
+    "text.cloth-config.boolean.value.false": "False",
+    "gui.shape_shifter_curse.category.altar": "Altar",
+    "gui.shape_shifter_curse.category.alter": "Alter",
+    "gui.shape_shifter_curse.jei.machine_details": "%s s; fuel: %s"
+
 }

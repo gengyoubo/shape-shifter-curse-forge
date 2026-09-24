@@ -714,5 +714,9 @@
     "text.autoconfig.shape-shifter-curse-common.option.enableCursedMoonTransform": "Enable Cursed Moon Transform",
     "message.shapeShifterCurseFabric.authing": "The server is requesting authentication data. This typically occurs when first joining the world (it may also be caused by a bug where a counter wasn't reset, triggering this message on login). If this prompt appears during gameplay, be cautious – the server-side JAR file may have been tampered with. Total requests: %s",
     "text.cloth-config.boolean.value.true": "Вкл",
-    "text.cloth-config.boolean.value.false": "Выкл"
+    "text.cloth-config.boolean.value.false": "Выкл",
+    "gui.shape_shifter_curse.category.altar": "Алтарь",
+    "gui.shape_shifter_curse.category.alter": "Алтер",
+    "gui.shape_shifter_curse.jei.machine_details": "Время: %s сек.; топливо: %s"
+
 }
