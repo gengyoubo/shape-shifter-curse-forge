@@ -6,6 +6,8 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -15,6 +17,7 @@ import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
+import net.onixary.shapeShifterCurseForge.power.FormPowerEvents;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,6 +25,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -35,6 +39,16 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
 
     protected PlayerEntityPoseMixin(EntityType<? extends LivingEntity> entityType, Level level) {
         super(entityType, level);
+    }
+
+    /** Fabric reverses turtle helmet activation for custom water breathers. */
+    @Redirect(method = "turtleHelmetTick",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/player/Player;isEyeInFluid(Lnet/minecraft/tags/TagKey;)Z"),
+            require = 1)
+    private boolean ssc$reverseTurtleHelmetBreathing(Player player, TagKey<Fluid> fluid) {
+        boolean submerged = player.isEyeInFluid(fluid);
+        return FormPowerEvents.hasCustomWaterBreathing(player) ? !submerged : submerged;
     }
 
     /** Applies the Fabric swimming-state fallback at the same point vanilla updates it. */

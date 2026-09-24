@@ -10,6 +10,7 @@ import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
+import net.onixary.shapeShifterCurseForge.power.FormPowerEvents;
 import net.onixary.shapeShifterCurseForge.power.ClimbingExService;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
@@ -53,6 +54,29 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     private float ssc$tripleActiveMultiplier = 1.0F;
     @Unique
     private boolean ssc$jumpStartedOnBlock;
+
+    /** Forge replaces vanilla's baseTick air update with ForgeHooks.onLivingBreathe. */
+    @ModifyArg(method = "baseTick",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraftforge/common/ForgeHooks;onLivingBreathe(Lnet/minecraft/world/entity/LivingEntity;II)V",
+                    remap = false), index = 2, require = 1)
+    private int ssc$suppressDryLandAirRefill(int refill) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self instanceof Player player
+                && FormPowerEvents.hasCustomWaterBreathing(player)
+                && FormPowerEvents.isDryLandForCustomWaterBreathing(player)) {
+            return 0;
+        }
+        return refill;
+    }
+
+    @Inject(method = "canBreatheUnderwater", at = @At("HEAD"), cancellable = true)
+    private void ssc$canBreatheUnderwaterWithCustomPower(CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self instanceof Player player && FormPowerEvents.hasCustomWaterBreathing(player)) {
+            cir.setReturnValue(true);
+        }
+    }
 
     @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
             at = @At(value = "INVOKE",
@@ -331,6 +355,21 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         if (climbing[0]) {
             cir.setReturnValue(true);
         }
+    }
+
+    @Inject(method = "isSuppressingSlidingDownLadder", at = @At("HEAD"), cancellable = true)
+    private void ssc$climbingExHolding(CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (!(self instanceof Player player)) return;
+        final boolean[] active = {false};
+        final boolean[] holding = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))
+                    || !ClimbingExService.isActive(player, id, power)) return;
+            active[0] = true;
+            holding[0] |= ClimbingExService.canHold(player, power);
+        });
+        if (active[0]) cir.setReturnValue(holding[0]);
     }
 
     /**

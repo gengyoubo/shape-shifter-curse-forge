@@ -3,7 +3,6 @@ package net.onixary.shapeShifterCurseForge.client.render;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
@@ -16,11 +15,12 @@ import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import net.onixary.shapeShifterCurseForge.power.ItemStoreService;
+import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-/** Client HUD for active virtual item slots, matching Fabric's 12-slot / 4-column layout. */
+/** Shared 12-slot HUD for item_store and render_accessory_slot, as in Fabric. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
 public final class ItemStoreHudRenderer {
     private ItemStoreHudRenderer() { }
@@ -30,18 +30,31 @@ public final class ItemStoreHudRenderer {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
         if (player == null || minecraft.options.hideGui) return;
-        List<Entry> entries = new ArrayList<>();
+        Map<Integer, Entry> entries = new HashMap<>();
         CompoundTag stores = SscApi.currentForm(player).map(data -> data.getItemStores()).orElse(new CompoundTag());
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:item_store".equals(FormPowerRegistry.typeOf(power))
-                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            String type = FormPowerRegistry.typeOf(power);
+            if (!"shape-shifter-curse:item_store".equals(type)
+                    && !"shape-shifter-curse:render_accessory_slot".equals(type)) return;
+            if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
             int slot = FormPowerRuntime.intValue(power, "slot", 0);
             if (slot < 0 || slot >= 12) return;
-            entries.add(new Entry(slot, id, stores.getCompound(id.toString()).getInt("Bobbing")));
+            if ("shape-shifter-curse:item_store".equals(type)) {
+                entries.put(slot, new Entry(slot, ItemStoreService.get(player, id),
+                        stores.getCompound(id.toString()).getInt("Bobbing")));
+            } else {
+                int index = FormPowerRuntime.intValue(power, "accessory_slot_index", 0);
+                ItemStack stack = index < 0 ? ItemStack.EMPTY : AccessoryUtils.getEntitySlot(player,
+                        FormPowerRuntime.stringValue(power, "accessory_mod", "auto"),
+                        FormPowerRuntime.stringValue(power, "accessory_group", ""),
+                        FormPowerRuntime.stringValue(power, "accessory_slot", ""),
+                        index);
+                entries.put(slot, new Entry(slot, stack == null ? ItemStack.EMPTY : stack, 0));
+            }
         });
         if (entries.isEmpty()) return;
-        int columns = entries.stream().mapToInt(entry -> entry.slot % 4 + 1).max().orElse(1);
-        int rows = entries.stream().mapToInt(entry -> entry.slot / 4 + 1).max().orElse(1);
+        int columns = entries.values().stream().mapToInt(entry -> entry.slot % 4 + 1).max().orElse(1);
+        int rows = entries.values().stream().mapToInt(entry -> entry.slot / 4 + 1).max().orElse(1);
         GuiGraphics graphics = event.getGuiGraphics();
         int anchor = SscClientConfig.ITEM_STORE_POSITION.get();
         int x = switch ((anchor - 1) % 3) {
@@ -56,12 +69,12 @@ public final class ItemStoreHudRenderer {
         };
         x += SscClientConfig.ITEM_STORE_OFFSET_X.get() - columns * 20;
         y += SscClientConfig.ITEM_STORE_OFFSET_Y.get() - rows * 20;
-        for (Entry entry : entries) {
+        for (Entry entry : entries.values()) {
             int slotX = x + entry.slot % 4 * 20;
             int slotY = y + entry.slot / 4 * 20;
             graphics.fill(slotX - 2, slotY - 3, slotX + 18, slotY + 18, 0xAA171717);
             graphics.fill(slotX - 2, slotY - 3, slotX + 18, slotY - 2, 0xFF777777);
-            ItemStack stack = ItemStoreService.get(player, entry.id);
+            ItemStack stack = entry.stack;
             if (stack.isEmpty()) continue;
             if (entry.bobbing > 0) {
                 float height = 1.0F + entry.bobbing / 5.0F;
@@ -76,5 +89,5 @@ public final class ItemStoreHudRenderer {
         }
     }
 
-    private record Entry(int slot, ResourceLocation id, int bobbing) { }
+    private record Entry(int slot, ItemStack stack, int bobbing) { }
 }

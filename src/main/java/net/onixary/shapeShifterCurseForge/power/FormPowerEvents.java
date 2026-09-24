@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.power;
 
 import com.google.gson.JsonObject;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -87,7 +88,6 @@ public final class FormPowerEvents {
             logAxolotlMovementState(player);
             enforceSprinting(player);
             applyClimbing(player);
-            tickCustomWaterBreathing(player);
             BatAttachService.tick(player);
             return;
         }
@@ -122,6 +122,8 @@ public final class FormPowerEvents {
         if (event.phase != TickEvent.Phase.END) return;
         Player player = event.player;
         FormActivePowerService.postTravelTick(player);
+        // Fabric updates moisture at Player.tick TAIL, after vanilla breathing.
+        tickCustomWaterBreathing(player);
         final float[] multiplier = {1.0F};
         final boolean[] modified = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
@@ -962,21 +964,21 @@ public final class FormPowerEvents {
                 }
             }
         });
-        tickCustomWaterBreathing(player);
     }
 
     /**
      * Forge port of Fabric's CustomWaterBreathingMixin UpdateAir tick (moisture/oxygen).
-     * Vanilla's own air change is neutralized in {@link #onLivingBreathe} so the values
-     * below are net changes, matching Fabric where the mixin owns the whole section:
+     * Vanilla's underwater air drain is neutralized in {@link #onLivingBreathe}. This runs
+     * at the end of Player.tick, matching Fabric's UpdateAir mixin:
      * <ul>
      *   <li>creative/spectator refills to maxAir (Fabric first branch); without this,
      *       creative air sticks at &le;0 and every air&gt;0-gated power (e.g. axolotl
      *       sprinting_speed) silently stops working;</li>
-     *   <li>land drain follows Fabric's respiration-style roll: normally one air
-     *       point is consumed with probability {@code 1 / (level + 1)} per tick;
+     *   <li>land drain follows the current Fabric respiration-style roll: normally
+     *       one air point is consumed with probability {@code 1 / (level + 1)} per tick;
      *       {@code level &gt;= 1000} prevents the drain;</li>
-     *   <li>rain and eye-in-water recover via vanilla {@code increaseAirSupply} (+4);</li>
+     *   <li>eye-in-water recovers by +4; rain and breathing effects retain vanilla's
+     *       baseTick +4 and this tick's +4, as in Fabric;</li>
      *   <li>depleted state: without damage configured negatives clamp to -1
      *       ("oxygen (moisture)"); with damage configured the -20 loop deals the
      *       custom gills damage instead of vanilla drown (see {@link #onLivingDrown}).</li>
@@ -1001,15 +1003,7 @@ public final class FormPowerEvents {
             }
             return;
         }
-        if (player.hasEffect(MobEffects.WATER_BREATHING) || player.hasEffect(MobEffects.CONDUIT_POWER)) {
-            if (player.getAirSupply() < player.getMaxAirSupply()) {
-                player.setAirSupply(Math.min(player.getAirSupply() + 4, player.getMaxAirSupply()));
-            }
-        } else if (player.level().isRainingAt(player.blockPosition())) {
-            if (player.getAirSupply() < player.getMaxAirSupply()) {
-                player.setAirSupply(Math.min(player.getAirSupply() + 4, player.getMaxAirSupply()));
-            }
-        } else if (player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)) {
+        if (!isDryLandForCustomWaterBreathing(player)) {
             if (player.getAirSupply() < player.getMaxAirSupply()) {
                 player.setAirSupply(Math.min(player.getAirSupply() + 4, player.getMaxAirSupply()));
             }
@@ -1035,6 +1029,32 @@ public final class FormPowerEvents {
         }
     }
 
+    /** Matches Entity.isInRain, which checks both the feet and top of the bounding box. */
+    private static boolean isInRain(Player player) {
+        BlockPos pos = player.blockPosition();
+        return player.level().isRainingAt(pos) || player.level().isRainingAt(
+                BlockPos.containing(pos.getX(), player.getBoundingBox().maxY, pos.getZ()));
+    }
+
+    /** Shared by the baseTick hook and the Player.tick moisture update. */
+    public static boolean isDryLandForCustomWaterBreathing(Player player) {
+        return !player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)
+                && !player.hasEffect(MobEffects.WATER_BREATHING)
+                && !player.hasEffect(MobEffects.CONDUIT_POWER)
+                && !isInRain(player);
+    }
+
+    public static boolean hasCustomWaterBreathing(Player player) {
+        final boolean[] active = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!active[0] && "shape-shifter-curse:custom_water_breathing".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                active[0] = true;
+            }
+        });
+        return active[0];
+    }
+
     private static net.minecraft.world.damagesource.DamageSource gillsDamageSource(Player player) {
         var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE,
                 ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "no_water_for_gills"));
@@ -1044,23 +1064,20 @@ public final class FormPowerEvents {
     }
 
     /**
-     * Neutralizes vanilla's own air delta for power holders so {@link #tickCustomWaterBreathing}
-     * is the single owner of moisture values (Fabric's mixin replaces the whole section).
-     * Without this, vanilla's underwater -1 would stack on top of the custom logic.
+     * Stops vanilla's underwater drain and dry-land refill for custom water breathers.
+     * Rain and breathing effects keep their normal baseTick refill, followed by the
+     * Player.tick refill in {@link #tickCustomWaterBreathing}, matching Fabric.
      */
-    @SubscribeEvent
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
     public static void onLivingBreathe(net.minecraftforge.event.entity.living.LivingBreatheEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
-        final boolean[] active = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!active[0] && "shape-shifter-curse:custom_water_breathing".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                active[0] = true;
-            }
-        });
-        if (!active[0]) return;
+        if (!hasCustomWaterBreathing(player)) return;
         event.setConsumeAirAmount(0);
-        event.setCanRefillAir(false);
+        if (isDryLandForCustomWaterBreathing(player)
+                || player.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)) {
+            event.setCanRefillAir(false);
+            event.setRefillAirAmount(0);
+        }
     }
 
     /**
@@ -1071,14 +1088,7 @@ public final class FormPowerEvents {
     @SubscribeEvent
     public static void onLivingDrown(net.minecraftforge.event.entity.living.LivingDrownEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
-        final boolean[] active = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!active[0] && "shape-shifter-curse:custom_water_breathing".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                active[0] = true;
-            }
-        });
-        if (active[0]) {
+        if (hasCustomWaterBreathing(player)) {
             event.setCanceled(true);
         }
     }

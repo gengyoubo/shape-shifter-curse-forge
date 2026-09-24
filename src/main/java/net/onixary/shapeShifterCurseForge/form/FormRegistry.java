@@ -88,9 +88,6 @@ public final class FormRegistry {
             if (path.equals("bat") && tier >= 3) {
                 flags.add("slow_fall");
             }
-            if (path.equals("axolotl")) {
-                flags.add("water_breathing");
-            }
             if (path.equals("spider") && tier >= 3) {
                 flags.add("night_vision");
                 flags.add("climb");

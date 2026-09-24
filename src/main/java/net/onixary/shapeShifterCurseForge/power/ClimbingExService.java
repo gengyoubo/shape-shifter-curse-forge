@@ -40,4 +40,12 @@ public final class ClimbingExService {
         state.wasClimbing.put(powerId, active);
         return active;
     }
+
+    /** Fabric's ClimbingEXPower.canHold: disabled, custom condition, or Shift by default. */
+    public static boolean canHold(Player player, JsonObject power) {
+        if (!FormPowerRuntime.booleanValue(power, "allow_holding", true)) return false;
+        JsonObject condition = power.getAsJsonObject("holding_condition");
+        return condition == null ? player.isShiftKeyDown()
+                : FormPowerRuntime.test(player, player, condition);
+    }
 }
