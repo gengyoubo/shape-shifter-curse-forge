@@ -5,8 +5,7 @@
     "y": 0.8,
     "space": "world"
   },
-  "cooldown": 0,
-  "max_y_velocity": 0.8,
+  "cooldown": 10,
   "hud_render": {
     "should_render": false
   },
@@ -26,7 +25,7 @@
       {
         "type": "apoli:fluid_height",
         "fluid": "minecraft:water",
-        "comparison": "<=",
+        "comparison": "<",
         "compare_to": 0.2
       }
     ]

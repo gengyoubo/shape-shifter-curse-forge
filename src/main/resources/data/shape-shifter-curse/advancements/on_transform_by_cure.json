@@ -20,5 +20,9 @@
       "trigger": "shape-shifter-curse:on_transform_by_cure"
     }
   },
-  "requirements": []
+  "requirements": [
+    [
+      "on_transform_by_cure"
+    ]
+  ]
 }

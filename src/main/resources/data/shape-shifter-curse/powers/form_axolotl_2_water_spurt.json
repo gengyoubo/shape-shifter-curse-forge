@@ -3,7 +3,7 @@
   "entity_action": {
     "type": "apoli:add_velocity",
     "z": 1.6,
-    "space": "local"
+    "space": "local_horizontal"
   },
   "cooldown": 100,
   "hud_render": {

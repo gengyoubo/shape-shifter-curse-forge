@@ -6,7 +6,9 @@
       "conditions": {
         "items": [
           {
-            "items": ["minecraft:gunpowder"]
+            "items": [
+              "minecraft:gunpowder"
+            ]
           }
         ]
       }
@@ -16,5 +18,10 @@
     "recipes": [
       "shape-shifter-curse:fire_charm_paper"
     ]
-  }
+  },
+  "requirements": [
+    [
+      "has_untreated_moon_dust"
+    ]
+  ]
 }

@@ -25,6 +25,14 @@ public final class SscCommonConfig {
             .comment("Log detailed player movement, swimming, and jump diagnostics on this side.")
             .define("debug.movement_logging", false);
 
+    public static final ForgeConfigSpec.BooleanValue WITCH_POTION_FOR_PRE_BOOK = BUILDER
+            .comment("Allow witches to throw the familiar fox transformative potion at players who have not enabled the codex yet.")
+            .define("transformative_effects.witch_potion_for_pre_book", false);
+
+    public static final ForgeConfigSpec.BooleanValue STATUS_POTION_WITH_CURSE = BUILDER
+            .comment("Allow transformative effects to be applied to players who have not enabled the codex yet.")
+            .define("transformative_effects.status_potion_with_curse", false);
+
     public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_BAT_SPAWN_CHANCE = spawnChance("transformative_bat_spawn_chance");
     public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_AXOLOTL_SPAWN_CHANCE = spawnChance("transformative_axolotl_spawn_chance");
     public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_OCELOT_SPAWN_CHANCE = spawnChance("transformative_ocelot_spawn_chance");

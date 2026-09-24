@@ -6,13 +6,22 @@
       "conditions": {
         "items": [
           {
-            "items": ["shape-shifter-curse:untreated_moondust"]
+            "items": [
+              "shape-shifter-curse:untreated_moondust"
+            ]
           }
         ]
       }
     }
   },
   "rewards": {
-    "recipes": ["shape-shifter-curse:moondust_matrix"]
-  }
+    "recipes": [
+      "shape-shifter-curse:moondust_matrix"
+    ]
+  },
+  "requirements": [
+    [
+      "has_untreated_moon_dust"
+    ]
+  ]
 }

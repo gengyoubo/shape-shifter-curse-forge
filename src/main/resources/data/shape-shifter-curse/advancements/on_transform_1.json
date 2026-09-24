@@ -19,12 +19,18 @@
     "on_transform_1": {
       "trigger": "shape-shifter-curse:on_transform_form",
       "conditions": {
-        "form_tier": [2],
+        "form_tier": [
+          2
+        ],
         "not_flags": [
           "special_form"
         ]
       }
     }
   },
-  "requirements": []
+  "requirements": [
+    [
+      "on_transform_1"
+    ]
+  ]
 }

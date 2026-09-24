@@ -20,5 +20,9 @@
       "trigger": "shape-shifter-curse:on_use_golden_apple"
     }
   },
-  "requirements": []
+  "requirements": [
+    [
+      "on_use_golden_apple"
+    ]
+  ]
 }

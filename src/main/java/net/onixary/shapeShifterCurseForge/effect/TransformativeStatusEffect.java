@@ -13,10 +13,8 @@ public final class TransformativeStatusEffect extends MobEffect {
         super(MobEffectCategory.NEUTRAL, 0xB98BEE);
         this.targetForm = targetForm;
     }
-    /** Queue the transformation when the effect is first applied, rather than after
-     * its visible potion timer elapses.  The queued transformation has its own
-     * lifetime and is activated by sleeping, like Fabric's transformative effect. */
-    public void queue(ServerPlayer player) {
-        TransformativeEffectService.apply(player, targetForm);
+    /** Queue the transformation for the same lifetime as the visible status effect. */
+    public void queue(ServerPlayer player, int durationTicks) {
+        TransformativeEffectService.apply(player, targetForm, durationTicks);
     }
 }

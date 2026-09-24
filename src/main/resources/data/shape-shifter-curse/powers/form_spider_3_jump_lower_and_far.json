@@ -8,7 +8,7 @@
         {
           "type": "apoli:add_velocity",
           "z": 0.22,
-          "space": "local"
+          "space": "local_horizontal"
         },
         {
           "type": "apoli:exhaust",
@@ -29,7 +29,6 @@
           "command": "particle cloud ~ ~ ~ 0.3 0.3 0.3 0.01 16 normal @a"
         }
       ]
-
     },
     "entity_condition": {
       "type": "apoli:and",

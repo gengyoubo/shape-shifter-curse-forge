@@ -160,7 +160,7 @@ public final class FormPowerEvents {
         if (!event.isCanceled()
                 && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer
                 && event.getEffectInstance().getEffect() instanceof TransformativeStatusEffect transformative) {
-            transformative.queue(serverPlayer);
+            transformative.queue(serverPlayer, event.getEffectInstance().getDuration());
         }
     }
 

@@ -24,7 +24,8 @@ public final class SpecialPowerEvents {
     private SpecialPowerEvents() { }
 
     /** One usable virtual_totem power, ordered by priority like Fabric's comparator. */
-    private record TotemCandidate(net.minecraft.resources.ResourceLocation id, JsonObject power, double priority) { }
+    private record TotemCandidate(net.minecraft.resources.ResourceLocation id, JsonObject power,
+                                  double priority, int priorityTier) { }
 
     @SubscribeEvent
     public static void death(LivingDeathEvent event) {
@@ -35,11 +36,17 @@ public final class SpecialPowerEvents {
             if (!"shape-shifter-curse:virtual_totem".equals(FormPowerRegistry.typeOf(power))
                     || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
                     || FormActivePowerService.resource(player, id) >= 1.0D) return;
-            candidates.add(new TotemCandidate(id, power, FormPowerRuntime.doubleValue(power, "priority", 0.0D)));
+            boolean highPriority = FormPowerRuntime.booleanValue(power, "high_priority", false);
+            boolean lowPriority = FormPowerRuntime.booleanValue(power, "low_priority", false);
+            if (highPriority && lowPriority) return;
+            int tier = highPriority ? 2 : lowPriority ? 0 : 1;
+            candidates.add(new TotemCandidate(id, power,
+                    FormPowerRuntime.doubleValue(power, "priority", 1000.0D), tier));
         });
         if (candidates.isEmpty()) return;
-        // Highest "priority" wins (Fabric sorts the usable VirtualTotemPowers).
-        candidates.sort(java.util.Comparator.comparingDouble(TotemCandidate::priority).reversed());
+        // Fabric checks high, normal, then low priority groups, sorting each by priority.
+        candidates.sort(java.util.Comparator.comparingInt(TotemCandidate::priorityTier).reversed()
+                .thenComparing(java.util.Comparator.comparingDouble(TotemCandidate::priority).reversed()));
         TotemCandidate chosen = candidates.get(0);
         JsonObject power = chosen.power();
 

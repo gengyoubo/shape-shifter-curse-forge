@@ -20,5 +20,9 @@
       "trigger": "shape-shifter-curse:on_transform_effect_fade"
     }
   },
-  "requirements": []
+  "requirements": [
+    [
+      "on_transform_effect_fade"
+    ]
+  ]
 }

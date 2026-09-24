@@ -405,8 +405,8 @@ public final class FormActivePowerService {
                         player.getGameProfile().getName(), player.getFluidHeight(FluidTags.WATER), before);
             }
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
-            double maxY = FormPowerRuntime.doubleValue(power, "max_y_velocity", 0.8D);
-            if (maxY >= 0.0D && player.getDeltaMovement().y > maxY) {
+            double maxY = FormPowerRuntime.doubleValue(power, "max_y_velocity", -1.0D);
+            if (power.has("max_y_velocity") && maxY >= 0.0D && player.getDeltaMovement().y > maxY) {
                 Vec3 capped = player.getDeltaMovement();
                 player.setDeltaMovement(capped.x, maxY, capped.z);
             }

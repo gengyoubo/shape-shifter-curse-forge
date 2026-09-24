@@ -2,12 +2,14 @@ package net.onixary.shapeShifterCurseForge.power;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
+import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
@@ -28,13 +30,17 @@ public final class TransformativeEffectService {
     }
 
     public static void apply(ServerPlayer player, ResourceLocation targetId) {
+        apply(player, targetId, DEFAULT_DURATION);
+    }
+
+    public static void apply(ServerPlayer player, ResourceLocation targetId, int durationTicks) {
         FormDefinition target = FormRegistry.get(targetId);
-        if (target == null || !canHaveEffect(player)) {
+        if (target == null || durationTicks <= 0 || !canHaveEffect(player)) {
             return;
         }
         SscApi.currentForm(player).ifPresent(data -> {
             data.setTransformativeEffectFormId(target.id().toString());
-            data.setTransformativeEffectTicks(DEFAULT_DURATION);
+            data.setTransformativeEffectTicks(durationTicks);
         });
         SscAdvancementTriggers.ON_GET_TRANSFORM_EFFECT.trigger(player);
     }
@@ -67,6 +73,11 @@ public final class TransformativeEffectService {
                 && FormRegistry.get(targetId) != null
                 && FormManager.setForm(player, targetId);
         clear(player);
+        for (MobEffectInstance effect : new java.util.ArrayList<>(player.getActiveEffects())) {
+            if (effect.getEffect() instanceof net.onixary.shapeShifterCurseForge.effect.TransformativeStatusEffect) {
+                player.removeEffect(effect.getEffect());
+            }
+        }
     }
 
     @SubscribeEvent
@@ -97,6 +108,10 @@ public final class TransformativeEffectService {
 
     private static boolean canHaveEffect(Player player) {
         FormDefinition form = FormManager.current(player);
+        if (SscCommonConfig.STATUS_POTION_WITH_CURSE.get()
+                && form.id().equals(FormRegistry.ORIGINAL_BEFORE_ENABLE)) {
+            return true;
+        }
         return form.hasFlag("can_have_transform_effect")
                 && form.hasFlag("transform_effect_can_apply");
     }

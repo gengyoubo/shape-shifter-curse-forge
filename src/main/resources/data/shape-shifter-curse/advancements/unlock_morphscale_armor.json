@@ -6,13 +6,25 @@
       "conditions": {
         "items": [
           {
-            "items": ["minecraft:diamond"]
+            "items": [
+              "minecraft:diamond"
+            ]
           }
         ]
       }
     }
   },
   "rewards": {
-    "recipes": ["shape-shifter-curse:morphscale_headring", "shape-shifter-curse:morphscale_cuish", "shape-shifter-curse:morphscale_vest", "shape-shifter-curse:morphscale_anklet"]
-  }
+    "recipes": [
+      "shape-shifter-curse:morphscale_headring",
+      "shape-shifter-curse:morphscale_cuish",
+      "shape-shifter-curse:morphscale_vest",
+      "shape-shifter-curse:morphscale_anklet"
+    ]
+  },
+  "requirements": [
+    [
+      "has_untreated_moon_dust"
+    ]
+  ]
 }

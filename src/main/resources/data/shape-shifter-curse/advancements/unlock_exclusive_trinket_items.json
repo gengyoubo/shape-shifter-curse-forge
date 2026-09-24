@@ -6,7 +6,9 @@
       "conditions": {
         "items": [
           {
-            "items": ["shape-shifter-curse:moondust_crystal_shard"]
+            "items": [
+              "shape-shifter-curse:moondust_crystal_shard"
+            ]
           }
         ]
       }
@@ -32,5 +34,10 @@
       "shape-shifter-curse:venom_spindle",
       "shape-shifter-curse:withered_bandage"
     ]
-  }
+  },
+  "requirements": [
+    [
+      "has_untreated_moon_dust"
+    ]
+  ]
 }

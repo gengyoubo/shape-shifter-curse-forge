@@ -13,6 +13,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.power.TransformativeEffectService;
 
 /** Forge registration and brewing paths corresponding to Fabric RegCustomPotions. */
 public final class ModPotions {
@@ -20,19 +21,24 @@ public final class ModPotions {
             ForgeRegistries.POTIONS, ShapeShifterCurseForge.RESOURCE_NAMESPACE);
 
     public static final RegistryObject<Potion> MOONDUST = POTIONS.register("moondust_potion", Potion::new);
-    public static final RegistryObject<Potion> TO_BAT = effectPotion("to_bat_0_potion", ModEffects.TO_BAT);
-    public static final RegistryObject<Potion> TO_AXOLOTL = effectPotion("to_axolotl_0_potion", ModEffects.TO_AXOLOTL);
-    public static final RegistryObject<Potion> TO_OCELOT = effectPotion("to_ocelot_0_potion", ModEffects.TO_OCELOT);
-    public static final RegistryObject<Potion> TO_FAMILIAR_FOX = effectPotion("to_familiar_fox_0_potion", ModEffects.TO_FAMILIAR_FOX);
-    public static final RegistryObject<Potion> TO_SNOW_FOX = effectPotion("to_snow_fox_0_potion", ModEffects.TO_SNOW_FOX);
-    public static final RegistryObject<Potion> TO_ANUBIS_WOLF = effectPotion("to_anubis_wolf_0_potion", ModEffects.TO_ANUBIS_WOLF);
-    public static final RegistryObject<Potion> TO_SPIDER = effectPotion("to_spider_0_potion", ModEffects.TO_SPIDER);
-    public static final RegistryObject<Potion> TO_ALLAY = effectPotion("to_allay_sp_potion", ModEffects.TO_ALLAY);
-    public static final RegistryObject<Potion> TO_FERAL_CAT = effectPotion("to_feral_cat_sp_potion", ModEffects.TO_FERAL_CAT);
+    public static final RegistryObject<Potion> TO_BAT = transformativePotion("to_bat_0_potion", ModEffects.TO_BAT);
+    public static final RegistryObject<Potion> TO_AXOLOTL = transformativePotion("to_axolotl_0_potion", ModEffects.TO_AXOLOTL);
+    public static final RegistryObject<Potion> TO_OCELOT = transformativePotion("to_ocelot_0_potion", ModEffects.TO_OCELOT);
+    public static final RegistryObject<Potion> TO_FAMILIAR_FOX = transformativePotion("to_familiar_fox_0_potion", ModEffects.TO_FAMILIAR_FOX);
+    public static final RegistryObject<Potion> TO_SNOW_FOX = transformativePotion("to_snow_fox_0_potion", ModEffects.TO_SNOW_FOX);
+    public static final RegistryObject<Potion> TO_ANUBIS_WOLF = transformativePotion("to_anubis_wolf_0_potion", ModEffects.TO_ANUBIS_WOLF);
+    public static final RegistryObject<Potion> TO_SPIDER = transformativePotion("to_spider_0_potion", ModEffects.TO_SPIDER);
+    public static final RegistryObject<Potion> TO_ALLAY = transformativePotion("to_allay_sp_potion", ModEffects.TO_ALLAY);
+    public static final RegistryObject<Potion> TO_FERAL_CAT = transformativePotion("to_feral_cat_sp_potion", ModEffects.TO_FERAL_CAT);
     public static final RegistryObject<Potion> FEED = effectPotion("feed_potion", ModEffects.FEED);
 
     private static RegistryObject<Potion> effectPotion(String id, RegistryObject<net.minecraft.world.effect.MobEffect> effect) {
         return POTIONS.register(id, () -> new Potion(new MobEffectInstance(effect.get(), 3600)));
+    }
+
+    private static RegistryObject<Potion> transformativePotion(String id, RegistryObject<net.minecraft.world.effect.MobEffect> effect) {
+        return POTIONS.register(id, () -> new Potion(new MobEffectInstance(
+                effect.get(), TransformativeEffectService.DEFAULT_DURATION)));
     }
 
     public static void registerBrewing() {

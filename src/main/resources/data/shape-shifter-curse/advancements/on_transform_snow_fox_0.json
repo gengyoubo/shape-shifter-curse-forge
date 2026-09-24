@@ -25,6 +25,9 @@
       }
     }
   },
-  "requirements": []
+  "requirements": [
+    [
+      "on_transform_snow_fox_0"
+    ]
+  ]
 }
-
