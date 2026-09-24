@@ -13,9 +13,6 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderArmEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -47,11 +44,7 @@ public final class FormFirstPersonArmEvents {
     private FormFirstPersonArmEvents() {
     }
 
-    /**
-     * Must run even when the event was already cancelled: the no_render_arm power
-     * (ClientPowerRenderEvents) cancels first-person arms before this handler, and
-     * without {@code receiveCanceled} the form arm would never render for those forms.
-     */
+    /** Also receives canceled events so another renderer cannot make form arms reappear. */
     @SubscribeEvent(receiveCanceled = true)
     public static void renderArm(RenderArmEvent event) {
         AbstractClientPlayer player = event.getPlayer();
@@ -62,6 +55,7 @@ public final class FormFirstPersonArmEvents {
         boolean hideArms = shouldHideArms(player);
         if (hideArms) {
             event.setCanceled(true);
+            return;
         }
 
         FormDefinition form = FormManager.current(player);
@@ -117,7 +111,6 @@ public final class FormFirstPersonArmEvents {
             return;
         }
         float partialTick = minecraft.getFrameTime();
-        if (!hideArms) {
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         try {
@@ -145,18 +138,9 @@ public final class FormFirstPersonArmEvents {
         } finally {
             poseStack.popPose();
         }
-        }
-
-        // Fabric has no item layer: the vanilla hand item renders through its own path.
-        // When the arm event died (power or Hidden_*), vanilla skipped the item too, so
-        // draw it here on the event's hand matrix, exactly where vanilla would have.
-        if (event.isCanceled()) {
-            renderHeldItem(event.getPoseStack(), animatable, event.getMultiBufferSource(),
-                    event.getPackedLight(), right);
-        }
     }
 
-    private static boolean shouldHideArms(AbstractClientPlayer player) {
+    public static boolean shouldHideArms(AbstractClientPlayer player) {
         final boolean[] hide = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!hide[0] && "shape-shifter-curse:no_render_arm".equals(FormPowerRegistry.typeOf(power))
@@ -165,59 +149,5 @@ public final class FormFirstPersonArmEvents {
             }
         });
         return hide[0];
-    }
-
-    private static void renderHeldItem(
-            PoseStack poseStack,
-            FormGeoAnimatable animatable,
-            MultiBufferSource bufferSource,
-            int packedLight,
-            boolean right
-    ) {
-        Player player = animatable.getPlayer();
-        if (player == null) {
-            return;
-        }
-
-        HumanoidArm mainArm = player.getMainArm();
-
-        ItemStack stack =
-                right == (mainArm == HumanoidArm.RIGHT)
-                        ? player.getMainHandItem()
-                        : player.getOffhandItem();
-
-        if (stack.isEmpty()) {
-            return;
-        }
-
-        poseStack.pushPose();
-
-        try {
-            poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
-            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
-
-            poseStack.translate(
-                    (right ? 1.0F : -1.0F) / 16.0F,
-                    0.125F,
-                    -0.625F
-            );
-
-            Minecraft.getInstance()
-                    .getEntityRenderDispatcher()
-                    .getItemInHandRenderer()
-                    .renderItem(
-                            player,
-                            stack,
-                            right
-                                    ? ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
-                                    : ItemDisplayContext.THIRD_PERSON_LEFT_HAND,
-                            !right,
-                            poseStack,
-                            bufferSource,
-                            packedLight
-                    );
-        } finally {
-            poseStack.popPose();
-        }
     }
 }

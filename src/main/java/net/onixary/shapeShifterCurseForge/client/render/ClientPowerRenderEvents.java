@@ -5,7 +5,6 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderArmEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -19,19 +18,6 @@ import java.util.Objects;
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
 public final class ClientPowerRenderEvents {
     private ClientPowerRenderEvents() { }
-
-    @SubscribeEvent
-    public static void renderArm(RenderArmEvent event) {
-        AbstractClientPlayer player = event.getPlayer();
-        final boolean[] hide = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if ("shape-shifter-curse:no_render_arm".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                hide[0] = true;
-            }
-        });
-        if (hide[0]) event.setCanceled(true);
-    }
 
     @SubscribeEvent
     public static void cameraAngles(ViewportEvent.ComputeCameraAngles event) {

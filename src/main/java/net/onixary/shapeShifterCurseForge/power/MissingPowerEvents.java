@@ -9,9 +9,6 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -25,7 +22,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -39,7 +35,6 @@ public final class MissingPowerEvents {
     private static final Map<UUID, Set<MobEffect>> OWNED_EFFECTS = new HashMap<>();
     /** Pre-power MobEffectInstance per (player, effect), restored when the power stops applying it. */
     private static final Map<UUID, Map<MobEffect, MobEffectInstance>> OWNED_EFFECT_SNAPSHOTS = new HashMap<>();
-    private static final Map<UUID, Set<UUID>> OWNED_LOOT_MODIFIERS = new HashMap<>();
     private static final Map<UUID, Set<UUID>> OWNED_GLOW_TARGETS = new HashMap<>();
     /** Glow flag of an entity before the first power-driven glow, so other sources are not cleared. */
     private static final Map<UUID, Boolean> GLOW_PREVIOUS_STATE = new HashMap<>();
@@ -64,7 +59,6 @@ public final class MissingPowerEvents {
         maintainParticles(player);
         maintainEntityGlow(player);
         maintainSimpleMovement(player);
-        maintainLooting(player);
         maintainPotionStacks(player);
         tickJumpClash(player);
 
@@ -270,25 +264,6 @@ public final class MissingPowerEvents {
             // erasing the horizontal speed accumulated by client-side swimming.
             player.setDeltaMovement(velocity.x, limitedY, velocity.z);
         }
-    }
-
-    private static void maintainLooting(Player player) {
-        AttributeInstance luck = player.getAttribute(Attributes.LUCK);
-        if (luck == null) return;
-        Set<UUID> wanted = new HashSet<>();
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:simple_looting".equals(FormPowerRegistry.typeOf(power))) return;
-            UUID modifierId = UUID.nameUUIDFromBytes((id + "|looting").getBytes(StandardCharsets.UTF_8));
-            wanted.add(modifierId);
-            if (luck.getModifier(modifierId) == null) {
-                luck.addTransientModifier(new AttributeModifier(modifierId, id.toString(),
-                        FormPowerRuntime.doubleValue(power, "level", 1.0D), AttributeModifier.Operation.ADDITION));
-            }
-        });
-        Set<UUID> previous = OWNED_LOOT_MODIFIERS.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>());
-        for (UUID old : previous) if (!wanted.contains(old)) luck.removeModifier(old);
-        previous.clear();
-        previous.addAll(wanted);
     }
 
     private static void maintainPotionStacks(Player player) {

@@ -7,6 +7,7 @@
     "refmap": "shape_shifter_curse.mixins.refmap.json",
     "mixins": [
         "LivingEntityMixin",
+        "EnchantmentHelperLootingMixin",
         "PlayerEntityPoseMixin",
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
@@ -27,6 +28,7 @@
         "client.PlayerEdgeClipMixin",
         "client.GameRendererBlockSelectionMixin",
         "client.NightVisionStrengthMixin",
+        "client.NoRenderArmMixin",
         "client.DisablePlayerRotationRendererMixin"
     ],
     "injectors": {
