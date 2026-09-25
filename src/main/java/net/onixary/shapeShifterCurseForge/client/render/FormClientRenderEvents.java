@@ -149,6 +149,8 @@ public final class FormClientRenderEvents {
     public static void renderPlayerPost(RenderPlayerEvent.Post event) {
         if (event.getEntity() instanceof Player) {
             setAllPartsVisible(event.getRenderer().getModel());
+            FormGeoRenderer renderer = rendererFor(FormManager.current(event.getEntity()));
+            if (renderer != null) renderer.getAnimatable().clearPreparedPose();
         }
     }
 

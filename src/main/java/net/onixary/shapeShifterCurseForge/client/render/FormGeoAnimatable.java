@@ -35,6 +35,8 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private FormAnimationSystem.Selection extraSecondary;
     private float extraSecondaryTime;
     private float extraBlend = 1.0F;
+    private boolean preparingVanillaPlayerPose;
+    private Player preparedPlayer;
 
     public void setPlayer(Player player) {
         this.player = player;
@@ -56,6 +58,14 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         return bodyTransform;
     }
 
+    public boolean isPreparingVanillaPlayerPose() {
+        return preparingVanillaPlayerPose;
+    }
+
+    public void clearPreparedPose() {
+        preparedPlayer = null;
+    }
+
     /**
      * Forge fires RenderPlayerEvent.Pre before LivingEntityRenderer calls setupAnim.
      * Fabric's form feature runs after that preparation, so recreate the vanilla pose here.
@@ -65,6 +75,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         // A renderer instance is reused for the same form. Never let a body transform
         // from a previous render survive a missing/partial player-model render pass.
         bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
+        preparedPlayer = null;
         if (player == null || vanillaPlayerModel == null) {
             return;
         }
@@ -108,9 +119,15 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         rawModel.young = player.isBaby();
         rawModel.prepareMobModel(player,
                 limbSwing, limbSwingAmount, partialTick);
-        rawModel.setupAnim(player,
-                limbSwing, limbSwingAmount, age, netHeadYaw, headPitch);
+        preparingVanillaPlayerPose = true;
+        try {
+            rawModel.setupAnim(player,
+                    limbSwing, limbSwingAmount, age, netHeadYaw, headPitch);
+        } finally {
+            preparingVanillaPlayerPose = false;
+        }
         bodyTransform = applySelection(player, rawModel, partialTick);
+        preparedPlayer = player;
     }
 
     private BedrockAnimationPlayer.BodyTransform applySelection(Player player, PlayerModel<?> model,
@@ -139,16 +156,22 @@ public final class FormGeoAnimatable implements GeoAnimatable {
      * setupAnim itself rather than replacing the renderer.
      */
     public void reapplySelection(Player player, PlayerModel<?> model, float partialTick) {
-        if (player == null || model == null) {
+        if (player == null || model == null || preparedPlayer != player || extraPrimary == null) {
             return;
         }
-        Player prevPlayer = this.player;
-        this.player = player;
-        try {
-            applySelection(player, model, partialTick);
-        } finally {
-            this.player = prevPlayer;
+        if (extraSecondary == null || extraBlend >= 1.0F) {
+            BedrockAnimationPlayer.applyToPlayerModel(model, extraPrimary,
+                    extraPrimaryTime, extraPrimaryForceLoop);
+            return;
         }
+        PlayerModelPose baseline = PlayerModelPose.capture(model);
+        BedrockAnimationPlayer.applyToPlayerModel(model, extraSecondary, extraSecondaryTime);
+        PlayerModelPose previousPose = PlayerModelPose.capture(model);
+        baseline.apply(model);
+        BedrockAnimationPlayer.applyToPlayerModel(model, extraPrimary,
+                extraPrimaryTime, extraPrimaryForceLoop);
+        PlayerModelPose currentPose = PlayerModelPose.capture(model);
+        PlayerModelPose.lerp(previousPose, currentPose, extraBlend).apply(model);
     }
 
     /** A malformed data animation must fall back to vanilla rendering, never hide a player. */
@@ -189,7 +212,9 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 || extraPrimary != null && ("axolotl_2_crawling_jump".equals(extraPrimary.id())
                 || "bat_3_attach_bottom".equals(extraPrimary.id())
                 || "bat_3_attach_side".equals(extraPrimary.id())
-                || "avali_attach_side".equals(extraPrimary.id()));
+                || "avali_attach_side".equals(extraPrimary.id())
+                || "form_feral_common_climb".equals(extraPrimary.id())
+                || "form_feral_common_climb_idle".equals(extraPrimary.id()));
     }
 
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,

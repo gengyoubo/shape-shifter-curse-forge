@@ -6,8 +6,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
@@ -46,6 +48,9 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Shadow protected float zza;
     @Shadow protected abstract void hurtCurrentlyUsedShield(float amount);
     @Shadow protected abstract Vec3 getFluidFallingAdjustedMovement(double gravity, boolean falling, Vec3 velocity);
+    @Shadow private Optional<BlockPos> lastClimbablePos;
+    @Unique private int ssc$lastClimbDebugTick = Integer.MIN_VALUE;
+    @Unique private boolean ssc$lastClimbDebugResult;
 
     @ModifyVariable(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
             at = @At(value = "INVOKE",
@@ -415,45 +420,67 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     // TODO[TEST] Newly added mapping of Apoli's apoli:climbing power onto LivingEntity#onClimbable;
     //   verify the spider form can climb cobwebs and that the condition/hold_condition window matches
     //   Fabric's ClimbingPower.
-    @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "onClimbable", at = @At("RETURN"), cancellable = true)
     private void ssc$powerClimbing(CallbackInfoReturnable<Boolean> cir) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (!(self instanceof Player player)) {
+        if (!(self instanceof Player player) || player.isSpectator()) {
             return;
         }
         final boolean[] climbing = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (climbing[0]) return;
-            if ("shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))) {
-                climbing[0] = ClimbingExService.isActive(player, id, power);
-                return;
-            }
-            if (!"apoli:climbing".equals(FormPowerRegistry.typeOf(power))) return;
-            JsonObject start = power.getAsJsonObject("condition");
-            JsonObject hold = power.getAsJsonObject("hold_condition");
-            if (FormPowerRuntime.test(player, player, start)
-                    || (hold != null && FormPowerRuntime.test(player, player, hold))) {
-                climbing[0] = true;
-            }
-        });
+        boolean vanilla = cir.getReturnValue();
+        if (!vanilla) {
+            FormPowerRegistry.visitActive(player, (id, power) -> {
+                if (climbing[0]) return;
+                if ("shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))) {
+                    climbing[0] = ClimbingExService.isActive(player, id, power);
+                    return;
+                }
+                if (!"apoli:climbing".equals(FormPowerRegistry.typeOf(power))) return;
+                JsonObject start = power.getAsJsonObject("condition");
+                if (FormPowerRuntime.test(player, player, start)) {
+                    climbing[0] = true;
+                }
+            });
+        }
         if (climbing[0]) {
+            this.lastClimbablePos = Optional.of(player.blockPosition());
             cir.setReturnValue(true);
+        }
+        boolean result = vanilla || climbing[0];
+        if (SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING.get()
+                && FormManager.current(player).id().getPath().startsWith("ocelot_")
+                && (ssc$lastClimbDebugTick != player.tickCount || ssc$lastClimbDebugResult != result)) {
+            ssc$lastClimbDebugTick = player.tickCount;
+            ssc$lastClimbDebugResult = result;
+            ShapeShifterCurseForge.LOGGER.info(
+                    "[SSC-CLIMB-DEBUG] stage=onClimbable side={} tick={} vanilla={} power={} result={} onGround={} horizontalCollision={} velocity={}",
+                    player.level().isClientSide ? "client" : "server", player.tickCount, vanilla,
+                    climbing[0], result, player.onGround(), player.horizontalCollision, player.getDeltaMovement());
         }
     }
 
-    @Inject(method = "isSuppressingSlidingDownLadder", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "isSuppressingSlidingDownLadder", at = @At("RETURN"), cancellable = true)
     private void ssc$climbingExHolding(CallbackInfoReturnable<Boolean> cir) {
         LivingEntity self = (LivingEntity) (Object) this;
         if (!(self instanceof Player player)) return;
-        final boolean[] active = {false};
+        final boolean[] hasClimbingPower = {false};
         final boolean[] holding = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))
-                    || !ClimbingExService.isActive(player, id, power)) return;
-            active[0] = true;
-            holding[0] |= ClimbingExService.canHold(player, power);
+            String type = FormPowerRegistry.typeOf(power);
+            if ("shape-shifter-curse:climbing_ex".equals(type)) {
+                if (!ClimbingExService.isActive(player, id, power)) return;
+                hasClimbingPower[0] = true;
+                holding[0] |= ClimbingExService.canHold(player, power);
+            } else if ("apoli:climbing".equals(type)
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                hasClimbingPower[0] = true;
+                JsonObject holdCondition = power.getAsJsonObject("hold_condition");
+                holding[0] |= FormPowerRuntime.booleanValue(power, "allow_holding", true)
+                        && (holdCondition == null ? player.isShiftKeyDown()
+                        : FormPowerRuntime.test(player, player, holdCondition));
+            }
         });
-        if (active[0]) cir.setReturnValue(holding[0]);
+        if (hasClimbingPower[0]) cir.setReturnValue(holding[0]);
     }
 
     /**

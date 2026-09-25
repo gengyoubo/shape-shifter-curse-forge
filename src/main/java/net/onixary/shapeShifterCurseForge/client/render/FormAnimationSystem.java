@@ -467,9 +467,12 @@ public final class FormAnimationSystem {
      * into a climb pose at ladder bottoms. */
     private static boolean isClimbingForAnimation(Player player, boolean onGround) {
         if (!player.onClimbable() || onGround || player.getAbilities().flying || player.isFallFlying()) return false;
-        AABB box = player.getBoundingBox().move(0.0D, -0.6D, 0.0D);
-        AABB probe = new AABB(box.minX, box.minY, box.minZ, box.maxX, player.getY(), box.maxZ);
-        return player.level().noCollision(player, probe);
+        net.minecraft.core.BlockPos below = player.blockPosition().below();
+        net.minecraft.world.phys.Vec3 start = player.position();
+        net.minecraft.world.phys.BlockHitResult hit = player.level().getBlockState(below)
+                .getCollisionShape(player.level(), below)
+                .clip(start, start.add(0.0D, -0.6D, 0.0D), below);
+        return hit == null || hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
     }
 
     private static String rideAnimation(Player player, String normal, String boatOrMinecart) {

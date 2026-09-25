@@ -48,7 +48,8 @@ public abstract class PlayerModelAnimMixin {
         // getAnimatable() is overridden to never go null (see FormGeoRenderer);
         // player association is handled explicitly inside reapplySelection.
         FormGeoAnimatable animatable = renderer.getAnimatable();
-        if (animatable == null || animatable.isInventoryPreview()) {
+        if (animatable == null || animatable.isInventoryPreview()
+                || animatable.isPreparingVanillaPlayerPose()) {
             return;
         }
         animatable.reapplySelection(player, (PlayerModel<?>)(Object) this,

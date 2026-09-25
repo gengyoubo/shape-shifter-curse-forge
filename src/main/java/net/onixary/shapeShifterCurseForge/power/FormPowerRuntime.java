@@ -1189,11 +1189,21 @@ public final class FormPowerRuntime {
     }
 
     private static boolean matchesBlockCollision(Player actor, JsonObject condition) {
-        if (!actor.horizontalCollision) return false;
-        Vec3 direction = actor.getLookAngle();
-        BlockPos pos = BlockPos.containing(actor.getX() + direction.x * 0.45D + doubleValue(condition, "offset_x", 0.0D),
-                actor.getY() + 0.2D, actor.getZ() + direction.z * 0.45D + doubleValue(condition, "offset_z", 0.0D));
-        return matchesBlockAt(actor, pos, condition.getAsJsonObject("block_condition"));
+        var box = actor.getBoundingBox();
+        var offsetBox = box.move(
+                doubleValue(condition, "offset_x", 0.0D) * box.getXsize(),
+                doubleValue(condition, "offset_y", 0.0D) * box.getYsize(),
+                doubleValue(condition, "offset_z", 0.0D) * box.getZsize());
+        JsonObject blockCondition = condition.getAsJsonObject("block_condition");
+        if (blockCondition == null) return actor.level().getBlockCollisions(actor, offsetBox).iterator().hasNext();
+        BlockPos min = BlockPos.containing(offsetBox.minX + 0.001D,
+                offsetBox.minY + 0.001D, offsetBox.minZ + 0.001D);
+        BlockPos max = BlockPos.containing(offsetBox.maxX - 0.001D,
+                offsetBox.maxY - 0.001D, offsetBox.maxZ - 0.001D);
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            if (matchesBlockAt(actor, pos, blockCondition)) return true;
+        }
+        return false;
     }
 
     /**
