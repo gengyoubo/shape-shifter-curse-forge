@@ -118,6 +118,7 @@ public final class FormClientRenderEvents {
             // PAL injects the body transform at the RETURN of setupRotations, i.e. BEFORE
             // vanilla's scale(-1,-1,1). That scale conjugates (negates) the body X/Y
             // rotations, so the transform must stay ahead of it to match Fabric exactly.
+            poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
             applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick(),
                     renderer.getAnimatable().suppressesVanillaSwimRotation());
             applyPlayerAnimationBodyTransform(renderer.getAnimatable().getBodyTransform(), poseStack);
