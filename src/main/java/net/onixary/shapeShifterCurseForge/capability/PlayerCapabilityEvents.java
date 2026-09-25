@@ -38,28 +38,31 @@ public final class PlayerCapabilityEvents {
         if (event.getObject() instanceof Player) {
             PlayerFormProvider formProvider = new PlayerFormProvider();
             event.addCapability(PLAYER_FORM_ID, formProvider);
-            event.addListener(formProvider.getCapability(ModCapabilities.PLAYER_FORM, null)::invalidate);
+            event.addListener(formProvider::invalidate);
             PlayerSkinProvider skinProvider = new PlayerSkinProvider();
             event.addCapability(PLAYER_SKIN_ID, skinProvider);
-            event.addListener(skinProvider.getCapability(ModCapabilities.PLAYER_SKIN, null)::invalidate);
+            event.addListener(skinProvider::invalidate);
         }
     }
 
     @SubscribeEvent
     public static void clonePlayer(PlayerEvent.Clone event) {
         event.getOriginal().reviveCaps();
-        SscApi.copyPlayerData(event.getOriginal(), event.getEntity());
-        if (event.isWasDeath()
-                && !event.getEntity().level().getGameRules().getBoolean(SscGameRules.KEEP_FORM_AFTER_DEATH)) {
-            SscApi.currentForm(event.getEntity()).ifPresent(data -> {
-                data.setFormId(FormRegistry.ORIGINAL_BEFORE_ENABLE.toString());
-                data.setPreviousFormId(FormRegistry.ORIGINAL_BEFORE_ENABLE.toString());
-                data.setFormGroupId(FormRegistry.get(FormRegistry.ORIGINAL_BEFORE_ENABLE).groupId().toString());
-                data.setFormTier(-1);
-                data.setContentEnabled(false);
-            });
+        try {
+            SscApi.copyPlayerData(event.getOriginal(), event.getEntity());
+            if (event.isWasDeath()
+                    && !event.getEntity().level().getGameRules().getBoolean(SscGameRules.KEEP_FORM_AFTER_DEATH)) {
+                SscApi.currentForm(event.getEntity()).ifPresent(data -> {
+                    data.setFormId(FormRegistry.ORIGINAL_BEFORE_ENABLE.toString());
+                    data.setPreviousFormId(FormRegistry.ORIGINAL_BEFORE_ENABLE.toString());
+                    data.setFormGroupId(FormRegistry.get(FormRegistry.ORIGINAL_BEFORE_ENABLE).groupId().toString());
+                    data.setFormTier(-1);
+                    data.setContentEnabled(false);
+                });
+            }
+        } finally {
+            event.getOriginal().invalidateCaps();
         }
-        event.getOriginal().invalidateCaps();
     }
 
     @SubscribeEvent

@@ -12,12 +12,20 @@ import net.minecraftforge.common.util.LazyOptional;
 @SuppressWarnings("deprecation")
 public final class PlayerFormProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
     private final PlayerFormData data = new PlayerFormData();
-    private final LazyOptional<IPlayerFormData> optional = LazyOptional.of(() -> data);
+    private LazyOptional<IPlayerFormData> optional = LazyOptional.of(() -> data);
 
     @Override
     @Nonnull
     public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> capability, @Nullable Direction direction) {
-        return capability == ModCapabilities.PLAYER_FORM ? optional.cast() : LazyOptional.empty();
+        if (capability != ModCapabilities.PLAYER_FORM) return LazyOptional.empty();
+        // Forge invalidates the old player's optional before PlayerEvent.Clone.
+        // reviveCaps() reopens the entity, so create a fresh optional for the copy.
+        if (!optional.isPresent()) optional = LazyOptional.of(() -> data);
+        return optional.cast();
+    }
+
+    public void invalidate() {
+        optional.invalidate();
     }
 
     @Override

@@ -12,12 +12,18 @@ import net.minecraftforge.common.util.LazyOptional;
 @SuppressWarnings("deprecation")
 public final class PlayerSkinProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
     private final PlayerSkinData data = new PlayerSkinData();
-    private final LazyOptional<IPlayerSkinData> optional = LazyOptional.of(() -> data);
+    private LazyOptional<IPlayerSkinData> optional = LazyOptional.of(() -> data);
 
     @Override
     @Nonnull
     public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> capability, @Nullable Direction direction) {
-        return capability == ModCapabilities.PLAYER_SKIN ? optional.cast() : LazyOptional.empty();
+        if (capability != ModCapabilities.PLAYER_SKIN) return LazyOptional.empty();
+        if (!optional.isPresent()) optional = LazyOptional.of(() -> data);
+        return optional.cast();
+    }
+
+    public void invalidate() {
+        optional.invalidate();
     }
 
     @Override
