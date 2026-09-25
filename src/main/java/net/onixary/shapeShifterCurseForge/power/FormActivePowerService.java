@@ -21,6 +21,8 @@ import java.util.UUID;
 @SuppressWarnings("deprecation")
 public final class FormActivePowerService {
     private static final float DEFAULT_MANA = 20.0F;
+    private static final String FAMILIAR_FOX_MANA = "shape-shifter-curse:familiar_fox_mana";
+    private static final float FAMILIAR_FOX_MAX_MANA = 100.0F;
     private static final Map<UUID, Map<String, Boolean>> PRESSED_KEYS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> CHARGES = new HashMap<>();
@@ -105,6 +107,11 @@ public final class FormActivePowerService {
         if (player.level().isClientSide) {
             return;
         }
+        if (FAMILIAR_FOX_MANA.equals(manaType(player))
+                && net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService
+                .isInCursedMoon(player.level()) && mana(player) < maximumMana(player)) {
+            gainMana(player, 0.02F);
+        }
         tickCooldowns(player.getUUID());
         JUMP_INPUT_GRACE.computeIfPresent(player.getUUID(), (id, ticks) -> ticks <= 1 ? null : ticks - 1);
         if (player.onGround()) {
@@ -160,6 +167,10 @@ public final class FormActivePowerService {
 
     public static boolean hasMana(Player player, float amount) {
         return mana(player) >= amount;
+    }
+
+    public static boolean hasFamiliarFoxMana(Player player) {
+        return FAMILIAR_FOX_MANA.equals(manaType(player));
     }
 
     public static boolean isToggleActive(Player player, ResourceLocation id) {
@@ -306,21 +317,27 @@ public final class FormActivePowerService {
 
     public static float mana(Player player) {
         String type = manaType(player);
-        return SscApi.currentForm(player).map(data -> data.getManaPools().getOrDefault(type, DEFAULT_MANA))
-                .orElse(DEFAULT_MANA);
+        float initial = FAMILIAR_FOX_MANA.equals(type) ? 0.0F : DEFAULT_MANA;
+        return SscApi.currentForm(player).map(data -> data.getManaPools().getOrDefault(type, initial))
+                .orElse(initial);
     }
 
     /** The retained SSC data expresses mana thresholds as a 0..1 fraction. */
     public static float manaPercent(Player player) {
-        return mana(player) / DEFAULT_MANA;
+        return mana(player) / maximumMana(player);
+    }
+
+    private static float maximumMana(Player player) {
+        return FAMILIAR_FOX_MANA.equals(manaType(player)) ? FAMILIAR_FOX_MAX_MANA : DEFAULT_MANA;
     }
 
     private static void setMana(Player player, float value) {
         String type = manaType(player);
-        float clamped = Math.max(0.0F, Math.min(DEFAULT_MANA, value));
+        float maximum = maximumMana(player);
+        float clamped = Math.max(0.0F, Math.min(maximum, value));
         SscApi.currentForm(player).ifPresent(data -> data.setManaPool(type, clamped));
         if (player instanceof ServerPlayer serverPlayer) {
-            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(serverPlayer, type, clamped, DEFAULT_MANA);
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(serverPlayer, type, clamped, maximum);
         }
     }
 
@@ -331,7 +348,7 @@ public final class FormActivePowerService {
             return;
         }
         String type = manaType(player);
-        net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(player, type, mana(player), DEFAULT_MANA);
+        net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(player, type, mana(player), maximumMana(player));
     }
 
     private static boolean hasActiveManaType(Player player) {

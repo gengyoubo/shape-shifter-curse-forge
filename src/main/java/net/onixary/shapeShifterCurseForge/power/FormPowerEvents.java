@@ -468,7 +468,7 @@ public final class FormPowerEvents {
                 event.setCanceled(true);
                 return;
             }
-            runInteraction(event.getEntity(), null, "apoli:action_on_block_use", event.getFace());
+            runInteraction(event.getEntity(), null, "apoli:action_on_block_use", event.getFace(), event.getHand());
         }
     }
 
@@ -487,7 +487,7 @@ public final class FormPowerEvents {
                 event.setCanceled(true);
                 return;
             }
-            runInteraction(event.getEntity(), target, "apoli:action_on_entity_use", null);
+            runInteraction(event.getEntity(), target, "apoli:action_on_entity_use", null, event.getHand());
         }
     }
 
@@ -601,8 +601,20 @@ public final class FormPowerEvents {
         }
     }
 
-    private static void runInteraction(Player player, LivingEntity target, String expectedType, Direction face) {
+    private static void runInteraction(Player player, LivingEntity target, String expectedType, Direction face,
+                                       net.minecraft.world.InteractionHand hand) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (power.has("hands") && power.get("hands").isJsonArray()) {
+                boolean handAllowed = false;
+                String usedHand = hand == net.minecraft.world.InteractionHand.MAIN_HAND ? "main_hand" : "off_hand";
+                for (var allowed : power.getAsJsonArray("hands")) {
+                    if (allowed.isJsonPrimitive() && usedHand.equals(allowed.getAsString())) {
+                        handAllowed = true;
+                        break;
+                    }
+                }
+                if (!handAllowed) return;
+            }
             if (power.has("directions") && power.get("directions").isJsonArray()) {
                 boolean faceAllowed = false;
                 for (var direction : power.getAsJsonArray("directions")) {
@@ -622,6 +634,10 @@ public final class FormPowerEvents {
                     || FormPowerRuntime.matchesHeldItem(player, power.getAsJsonObject("item_condition")))) {
                 FormPowerRuntime.execute(player, target, power.getAsJsonObject("entity_action"));
                 FormPowerRuntime.executeHeldItemAction(player, power.getAsJsonObject("item_action"));
+                if (target != null) {
+                    FormPowerRuntime.executeBiEntity(player, target, power.getAsJsonObject("bientity_action"));
+                }
+                FormPowerRuntime.executeHeldItemAction(player, power.getAsJsonObject("held_item_action"));
             }
         });
     }

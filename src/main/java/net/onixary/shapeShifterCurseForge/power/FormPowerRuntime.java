@@ -146,7 +146,8 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:has_accessory" -> hasAccessory(actor, condition);
             case "shape-shifter-curse:has_mana" -> FormActivePowerService.hasMana(actor,
                     floatValue(condition, "mana", 0.0F));
-            case "shape-shifter-curse:has_mana_percent" -> compare(FormActivePowerService.manaPercent(actor), condition);
+            case "shape-shifter-curse:has_mana_percent" -> FormActivePowerService.manaPercent(actor)
+                    >= doubleValue(condition, "mana_percent", 0.0D);
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);
             case "shape-shifter-curse:is_sleep" -> actor.isSleeping();
             case "shape-shifter-curse:check_stored_item" -> ItemStoreService.check(
@@ -393,7 +394,7 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:fire_web_bullet" -> WebPowerActions.fireBullet(actor, action);
             case "shape-shifter-curse:web_bridge" -> WebPowerActions.buildBridge(actor, action);
             case "shape-shifter-curse:fire_arrow" -> fireArrow(actor, action);
-            case "shape-shifter-curse:explosion_damage_entity" -> explosionDamage(actor, action);
+            case "shape-shifter-curse:explosion_damage_entity" -> explosionDamage(actor, recipient, action);
             case "shape-shifter-curse:spawn_particles_in_circle" -> spawnParticlesInCircle(actor, action);
             case "shape-shifter-curse:summon_anubis_wolf_minion", "shape-shifter-curse:bi_summon_anubis_wolf_minion"
                     -> AnubisMinionService.summon(actor, target == null ? actor : target, action);
@@ -1595,8 +1596,16 @@ public final class FormPowerRuntime {
             if ("minecraft:small_fireball".equals(id)) {
                 Vec3 look = actor.getLookAngle();
                 SmallFireball fireball = new SmallFireball(actor.level(), actor, look.x, look.y, look.z);
-                fireball.setPos(actor.getX(), actor.getEyeY() - 0.1D, actor.getZ());
+                float speed = floatValue(action, "speed", 1.5F);
+                fireball.xPower = look.x * speed;
+                fireball.yPower = look.y * speed;
+                fireball.zPower = look.z * speed;
+                fireball.setPos(actor.getX(), actor.getEyeY(), actor.getZ());
+                fireball.shootFromRotation(actor, actor.getXRot(), actor.getYRot(), 0.0F,
+                        speed, floatValue(action, "divergence", 1.0F));
                 actor.level().addFreshEntity(fireball);
+                JsonObject projectileAction = action.getAsJsonObject("projectile_action");
+                if (projectileAction != null) executeProjectileAction(actor, fireball, projectileAction);
             } else if ("minecraft:snowball".equals(id)) {
                 Snowball snowball = new Snowball(actor.level(), actor);
                 snowball.shootFromRotation(actor, actor.getXRot(), actor.getYRot(), 0.0F, 1.5F,
@@ -1604,6 +1613,27 @@ public final class FormPowerRuntime {
                 actor.level().addFreshEntity(snowball);
             }
         }
+    }
+
+    private static void executeProjectileAction(Player actor, Projectile projectile, JsonObject action) {
+        if ("apoli:and".equals(FormPowerRegistry.typeOf(action))) {
+            JsonArray actions = action.getAsJsonArray("actions");
+            if (actions != null) for (JsonElement element : actions) {
+                if (element.isJsonObject()) executeProjectileAction(actor, projectile, element.getAsJsonObject());
+            }
+            return;
+        }
+        if (!"apoli:spawn_particles".equals(FormPowerRegistry.typeOf(action))
+                || !(projectile.level() instanceof net.minecraft.server.level.ServerLevel server)) return;
+        ResourceLocation particleId = ResourceLocation.tryParse(stringValue(action, "particle", ""));
+        if (particleId == null) return;
+        var particle = net.minecraft.core.registries.BuiltInRegistries.PARTICLE_TYPE.get(particleId);
+        if (!(particle instanceof net.minecraft.core.particles.ParticleOptions options)) return;
+        JsonObject spread = action.getAsJsonObject("spread");
+        server.sendParticles(options, projectile.getX(), projectile.getY(), projectile.getZ(),
+                intValue(action, "count", 1), doubleValue(spread, "x", 0.0D),
+                doubleValue(spread, "y", 0.0D), doubleValue(spread, "z", 0.0D),
+                doubleValue(action, "speed", 0.0D));
     }
 
     private static void fireArrow(Player actor, JsonObject action) {
@@ -1624,11 +1654,11 @@ public final class FormPowerRuntime {
         }
     }
 
-    private static void explosionDamage(Player actor, JsonObject action) {
+    private static void explosionDamage(Player actor, LivingEntity sourceEntity, JsonObject action) {
         if (actor.level().isClientSide) return;
-        Vec3 center = actor.position();
+        Vec3 center = sourceEntity.position();
         float diameter = intValue(action, "power", 0) * 2.0F;
-        actor.level().gameEvent(actor, net.minecraft.world.level.gameevent.GameEvent.EXPLODE, center);
+        actor.level().gameEvent(sourceEntity, net.minecraft.world.level.gameevent.GameEvent.EXPLODE, center);
         if (diameter <= 0.0F) return;
         int minX = net.minecraft.util.Mth.floor(center.x - diameter - 1.0D);
         int maxX = net.minecraft.util.Mth.floor(center.x + diameter + 1.0D);
@@ -1640,7 +1670,7 @@ public final class FormPowerRuntime {
         float multiplier = floatValue(action, "damage_multiplier", 1.0F);
         float baseDamage = floatValue(action, "base_damage", 0.0F);
         JsonObject condition = action.getAsJsonObject("entity_condition");
-        for (Entity candidate : actor.level().getEntities(actor,
+        for (Entity candidate : actor.level().getEntities(sourceEntity,
                 new AABB(minX, minY, minZ, maxX, maxY, maxZ))) {
             if (candidate.ignoreExplosion() || !testEntity(actor, candidate, condition)) continue;
             double distance = Math.sqrt(candidate.distanceToSqr(center)) / diameter;
@@ -1659,7 +1689,7 @@ public final class FormPowerRuntime {
             if (causesDamage) {
                 float vanillaDamage = (float) ((int) ((impact * impact + impact) / 2.0D
                         * 7.0D * diameter + 1.0D));
-                candidate.hurt(actor.damageSources().explosion(actor, actor),
+                candidate.hurt(actor.damageSources().explosion(sourceEntity, sourceEntity),
                         vanillaDamage * multiplier + baseDamage);
             }
             double knockback = candidate instanceof LivingEntity living

@@ -182,7 +182,7 @@ public final class MovementPowerService {
             double radius = FormPowerRuntime.doubleValue(power, "attraction_radius", 8.0D);
             double stop = FormPowerRuntime.doubleValue(power, "stop_radius", 1.0D);
             double closestDistance = Double.MAX_VALUE;
-            AABB searchBox = AABB.unitCubeFromLowerCorner(player.position()).inflate(radius);
+            AABB searchBox = new AABB(player.position(), player.position()).inflate(radius);
             for (Entity candidate : player.level().getEntities(player, searchBox,
                     entity -> entity.isAlive() && !entity.isSpectator()
                             && FormPowerRuntime.test(player, entity, power.getAsJsonObject("entity_condition")))) {

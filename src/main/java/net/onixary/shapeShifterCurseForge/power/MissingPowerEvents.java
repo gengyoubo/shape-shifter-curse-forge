@@ -12,6 +12,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -70,6 +71,7 @@ public final class MissingPowerEvents {
 
     private static void maintainEffects(Player player) {
         Set<MobEffect> wanted = new HashSet<>();
+        Set<MobEffect> previous = OWNED_EFFECTS.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>());
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
             if ("shape-shifter-curse:apply_effect".equals(type)
@@ -77,13 +79,19 @@ public final class MissingPowerEvents {
                 if (power.has("status_effects") && power.get("status_effects").isJsonArray()) {
                     for (var element : power.getAsJsonArray("status_effects")) {
                         if (!element.isJsonObject()) continue;
-                        MobEffect applied = applyEffect(player, element.getAsJsonObject());
-                        if (applied != null) wanted.add(applied);
+                        JsonObject effectData = element.getAsJsonObject();
+                        ResourceLocation effectId = ResourceLocation.tryParse(
+                                FormPowerRuntime.stringValue(effectData, "effect", ""));
+                        MobEffect effect = effectId == null ? null : BuiltInRegistries.MOB_EFFECT.get(effectId);
+                        if (effect == null) continue;
+                        wanted.add(effect);
+                        if (!previous.contains(effect) || player.tickCount % 20 == 0 && !player.hasEffect(effect)) {
+                            applyEffect(player, effectData);
+                        }
                     }
                 }
             }
         });
-        Set<MobEffect> previous = OWNED_EFFECTS.computeIfAbsent(player.getUUID(), ignored -> new HashSet<>());
         for (MobEffect old : previous) {
             if (wanted.contains(old)) continue;
             // Restore any effect instance that existed before the power was applied.
@@ -110,6 +118,7 @@ public final class MissingPowerEvents {
         MobEffect effect = id == null ? null : BuiltInRegistries.MOB_EFFECT.get(id);
         if (effect == null) return null;
         snapshotEffect(player, effect);
+        player.removeEffect(effect);
         player.addEffect(new MobEffectInstance(effect,
                 Math.max(20, FormPowerRuntime.intValue(data, "duration", 40)),
                 FormPowerRuntime.intValue(data, "amplifier", 0), false,
@@ -399,13 +408,9 @@ public final class MissingPowerEvents {
         return inverted(condition, result);
     }
 
-    @SubscribeEvent
-    public static void itemOnItem(PlayerInteractEvent.RightClickItem event) {
-        Player player = event.getEntity();
-        if (player.level().isClientSide) return;
-        ItemStack using = event.getItemStack();
-        ItemStack other = player.getOffhandItem();
-        if (using.isEmpty() || other.isEmpty()) return;
+    /** Apoli item_on_item runs when the cursor stack is clicked onto an inventory slot. */
+    public static boolean itemOnItem(Player player, ItemStack using, ItemStack other, Slot slot) {
+        if (using.isEmpty() || other.isEmpty()) return false;
         final boolean[] handled = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (handled[0]) return;
@@ -413,22 +418,26 @@ public final class MissingPowerEvents {
                     || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
             if (!FormPowerRuntime.matchesItem(using, power.getAsJsonObject("using_item_condition"))
                     || !FormPowerRuntime.matchesItem(other, power.getAsJsonObject("on_item_condition"))) return;
-            consume(using, power.getAsJsonObject("using_item_action"), player);
-            consume(other, power.getAsJsonObject("on_item_action"), player);
-            if (power.has("result") && power.get("result").isJsonObject()) {
-                ItemStack result = itemFromJson(power.getAsJsonObject("result"));
-                if (!player.getInventory().add(result)) player.level().addFreshEntity(
-                        new ItemEntity(player.level(), player.getX(), player.getY(), player.getZ(), result));
+            if (!player.level().isClientSide) {
+                consume(using, power.getAsJsonObject("using_item_action"));
+                consume(other, power.getAsJsonObject("on_item_action"));
+                if (power.has("result") && power.get("result").isJsonObject()) {
+                    ItemStack result = itemFromJson(power.getAsJsonObject("result"));
+                    if (!player.getInventory().add(result)) player.level().addFreshEntity(
+                            new ItemEntity(player.level(), player.getX(), player.getY(), player.getZ(), result));
+                }
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+                slot.setChanged();
             }
-            FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
-            event.setCanceled(true);
             handled[0] = true;
         });
+        return handled[0];
     }
 
-    private static void consume(ItemStack stack, JsonObject action, Player player) {
-        if (action != null && "apoli:consume".equals(FormPowerRegistry.typeOf(action))
-                && !player.getAbilities().instabuild) stack.shrink(FormPowerRuntime.intValue(action, "amount", 1));
+    private static void consume(ItemStack stack, JsonObject action) {
+        if (action != null && "apoli:consume".equals(FormPowerRegistry.typeOf(action))) {
+            stack.shrink(FormPowerRuntime.intValue(action, "amount", 1));
+        }
     }
 
     private static ItemStack itemFromJson(JsonObject data) {
