@@ -1,6 +1,5 @@
 package net.onixary.shapeShifterCurseForge.other.command;
 
-import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -75,13 +74,19 @@ public final class FormColorCommand {
                                                 .executes(context -> modify(context, "delete", true)))
                                         .executes(context -> modify(context, "delete", false)))))
                 .then(Commands.literal("config")
-                        .then(Commands.argument("value", BoolArgumentType.bool())
+                        .then(Commands.argument("type", StringArgumentType.word())
+                                .suggests((context, builder) -> suggestStrings(builder, "enable_default_color"))
                                 .executes(context -> {
                                     ServerPlayer player = context.getSource().getPlayerOrException();
+                                    String type = StringArgumentType.getString(context, "type");
+                                    if (!"enable_default_color".equals(type)) {
+                                        context.getSource().sendFailure(Component.literal("Unknown form color setting: " + type));
+                                        return 0;
+                                    }
                                     ModNetwork.CHANNEL.send(
                                             net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
                                             new ModifyFcdPacket("config", EMPTY_FORM.toString(),
-                                                    String.valueOf(BoolArgumentType.getBool(context, "value")),
+                                                    type,
                                                     "", "", ""));
                                     return SINGLE_SUCCESS;
                                 })))
@@ -103,6 +108,7 @@ public final class FormColorCommand {
                 .then(Commands.literal("set_color_from_string")
                         .then(Commands.argument("data", StringArgumentType.greedyString())
                                 .executes(FormColorCommand::setColorFromString)));
+        event.getDispatcher().register(Commands.literal("shape_shifter_curse").then(formColor));
         event.getDispatcher().register(Commands.literal("ssc").then(formColor));
     }
 
@@ -134,9 +140,10 @@ public final class FormColorCommand {
         }
         String encoded = net.onixary.shapeShifterCurseForge.client.color.FormColorData.colorSettingToString(
                 color, "base64".equals(format));
-        Component message = "command".equals(mode)
-                ? net.onixary.shapeShifterCurseForge.client.color.FormColorData.toCopyableText(encoded, encoded)
-                : Component.literal(encoded);
+        String shared = "command".equals(mode)
+                ? "/shape_shifter_curse form_color set_color_from_string \"" + encoded + "\""
+                : encoded;
+        Component message = net.onixary.shapeShifterCurseForge.client.color.FormColorData.toCopyableText(shared, shared);
         if ("server".equals(target)) {
             PlayerList players = player.server.getPlayerList();
             players.broadcastSystemMessage(message, false);

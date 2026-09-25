@@ -30,7 +30,11 @@ public final class FormColorClientHandler {
             case "save" -> saveSlot(packet.arg1(), packet.arg2(), packet.formId());
             case "load" -> loadSlot(packet.arg1(), packet.arg2(), packet.formId());
             case "delete" -> deleteSlot(packet.arg1(), packet.arg2(), packet.formId());
-            case "config" -> setEnableDefault(Boolean.parseBoolean(packet.arg1()));
+            case "config" -> {
+                if ("enable_default_color".equals(packet.arg1())) {
+                    setEnableDefault(!FormColorData.client().enableDefaultFormColor);
+                }
+            }
             case "list" -> listSlots(packet.arg1(), packet.formId());
             default -> {
             }

@@ -166,6 +166,10 @@ public final class PlayerFormData implements IPlayerFormData {
         manaPools.put(manaType, Math.max(0.0F, amount));
     }
 
+    public void clearManaPools() {
+        manaPools.clear();
+    }
+
     @Override public CompoundTag getItemStores() { return itemStores.copy(); }
 
     @Override public void setItemStores(CompoundTag stores) {

@@ -9,6 +9,7 @@ import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.other.SscGameRules;
 import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModCreativeModeTabs;
@@ -30,6 +31,7 @@ public final class ShapeShifterCurseForge {
 
     @SuppressWarnings("removal")
     public ShapeShifterCurseForge() {
+        SscGameRules.initialize();
         var modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, SscClientConfig.SPEC,
                 "shape-shifter-curse-client.toml");

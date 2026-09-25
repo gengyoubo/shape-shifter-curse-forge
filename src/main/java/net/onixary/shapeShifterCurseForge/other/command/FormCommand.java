@@ -106,7 +106,7 @@ public final class FormCommand {
         return (next ? FormManager.next(player) : FormManager.previous(player)) ? SINGLE_SUCCESS : 0;
     }
 
-    private static int showPowerStatus(ServerPlayer player, com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context) {
+    static int showPowerStatus(ServerPlayer player, com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> context) {
         FormPowerRegistry.DebugInfo info = FormPowerRegistry.debug(player);
         context.getSource().sendSuccess(() -> Component.literal("Power data: " + info.loadedPowers()
                 + " definitions, " + info.assignedForms() + " form assignments. Current " + info.currentForm()
