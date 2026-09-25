@@ -718,8 +718,6 @@
     "gamerule.category.ssc_gamerule": "Shape Shifter Curse",
     "gamerule.sscUseInitialForm": "Use SSC custom initial form",
     "gamerule.sscUseInitialForm.description": "When enabled, players who have not chosen a form will immediately transform into the server-configured initial form on join",
-    "gamerule.sscKeepFormAfterDeath": "Keep current form after death",
-    "gamerule.sscKeepFormAfterDeath.description": "When enabled, players retain their current form after respawning. Enabled by default",
     "text.cloth-config.boolean.value.true": "True",
     "text.cloth-config.boolean.value.false": "False",
     "gui.shape_shifter_curse.category.altar": "Altar",

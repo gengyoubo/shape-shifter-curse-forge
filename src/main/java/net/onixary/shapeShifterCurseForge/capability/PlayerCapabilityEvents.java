@@ -15,8 +15,6 @@ import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTrigge
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
 import net.onixary.shapeShifterCurseForge.power.BatAttachService;
-import net.onixary.shapeShifterCurseForge.form.FormRegistry;
-import net.onixary.shapeShifterCurseForge.other.SscGameRules;
 
 @SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
@@ -50,16 +48,6 @@ public final class PlayerCapabilityEvents {
         event.getOriginal().reviveCaps();
         try {
             SscApi.copyPlayerData(event.getOriginal(), event.getEntity());
-            if (event.isWasDeath()
-                    && !event.getEntity().level().getGameRules().getBoolean(SscGameRules.KEEP_FORM_AFTER_DEATH)) {
-                SscApi.currentForm(event.getEntity()).ifPresent(data -> {
-                    data.setFormId(FormRegistry.ORIGINAL_BEFORE_ENABLE.toString());
-                    data.setPreviousFormId(FormRegistry.ORIGINAL_BEFORE_ENABLE.toString());
-                    data.setFormGroupId(FormRegistry.get(FormRegistry.ORIGINAL_BEFORE_ENABLE).groupId().toString());
-                    data.setFormTier(-1);
-                    data.setContentEnabled(false);
-                });
-            }
         } finally {
             event.getOriginal().invalidateCaps();
         }

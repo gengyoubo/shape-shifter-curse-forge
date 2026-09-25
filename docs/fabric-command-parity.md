@@ -13,4 +13,4 @@ Forge 现已注册 Fabric 的 `/shape_shifter_curse` 根指令。保留 `/ssc` �
 
 语义差异：Fabric 的 `transform_to_*` 有完整的延迟变身流程；Forge 目前立即切换 Form 并播放变身动画。`set_sub_form` 的建议筛选了子形态，但 Forge 尚无 Fabric `NeedCheckUsableForm` 的完整权限检查。
 
-新增游戏规则 `/gamerule sscKeepFormAfterDeath`，默认 `true`。设为 `false` 后，玩家死亡重生时回到 `shape-shifter-curse:original_before_enable`；跨维度传送不会重置形态。Fabric 源码本身无此规则，其默认行为是保留形态。
+SCCF 本体与 Fabric 一样，玩家死亡重生时默认保留当前形态。可选扩展 SCCFE 注册 `/gamerule sscKeepFormAfterDeath`，默认 `true`；设为 `false` 后，死亡重生时回到 `shape-shifter-curse:original_before_enable`。跨维度传送不会重置形态。
