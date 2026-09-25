@@ -1252,28 +1252,40 @@ public final class FormPowerRuntime {
         double z = doubleValue(action, "z", 0.0D);
         String space = stringValue(action, "space", "");
         double dx = x;
+        double dy = y;
         double dz = z;
         if ("local".equals(space) || "local_horizontal".equals(space) || "local_horizontal_normalized".equals(space)) {
             Vec3 forward = actor.getLookAngle();
             if ("local_horizontal".equals(space) || "local_horizontal_normalized".equals(space)) {
                 forward = new Vec3(forward.x, 0.0D, forward.z);
-                if ("local_horizontal_normalized".equals(space)) {
-                    double len2 = forward.x * forward.x + forward.z * forward.z;
-                    forward = len2 < 1e-8 ? new Vec3(0, 0, 1) : forward.normalize();
-                }
             }
-            Vec3 side = new Vec3(forward.z, 0.0D, -forward.x);
-            double sideLen2 = side.x*side.x + side.z*side.z;
-            if (sideLen2 > 1e-8) side = side.normalize(); else side = new Vec3(1,0,0);
-            dx = side.x * x + forward.x * z;
-            dz = side.z * x + forward.z * z;
+            double length = forward.length();
+            if (length <= 0.007D) {
+                dx = dy = dz = 0.0D;
+            } else {
+                Vec3 localForward = forward.scale(1.0D / length);
+                Vec3 right = new Vec3(localForward.z, 0.0D, -localForward.x);
+                if (right.lengthSqr() > 1.0E-8D) {
+                    right = right.normalize();
+                } else {
+                    double yaw = Math.toRadians(actor.getYRot());
+                    right = new Vec3(Math.cos(yaw), 0.0D, Math.sin(yaw));
+                }
+                Vec3 up = localForward.cross(right);
+                double scale = "local_horizontal_normalized".equals(space) ? 1.0D : length;
+                Vec3 transformed = right.scale(x * scale).add(up.scale(y * scale))
+                        .add(localForward.scale(z * scale));
+                dx = transformed.x;
+                dy = transformed.y;
+                dz = transformed.z;
+            }
         }
         // Apoli's add_velocity "set" flag replaces the velocity instead of adding to it.
         if (action.has("set") && action.get("set").getAsBoolean()) {
-            actor.setDeltaMovement(dx, y, dz);
+            actor.setDeltaMovement(dx, dy, dz);
             if (!actor.level().isClientSide) actor.hurtMarked = true;
         } else {
-            actor.push(dx, y, dz);
+            actor.push(dx, dy, dz);
         }
     }
 
