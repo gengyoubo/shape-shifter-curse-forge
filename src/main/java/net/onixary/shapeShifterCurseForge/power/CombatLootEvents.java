@@ -6,12 +6,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
@@ -23,18 +21,18 @@ import java.util.Objects;
 public final class CombatLootEvents {
     private CombatLootEvents() { }
 
-    @SubscribeEvent
-    public static void livingDrops(LivingDropsEvent event) {
-        if (!(event.getSource().getEntity() instanceof Player player)) return;
-        for (ItemEntity drop : event.getDrops()) {
-            FormPowerRegistry.visitActive(player, (id, power) -> {
-                if (!"shape-shifter-curse:modify_entity_loot".equals(FormPowerRegistry.typeOf(power))
-                        || !FormPowerRuntime.matchesItem(drop.getItem(), power.getAsJsonObject("from_item_condition"))
-                        || player.getRandom().nextFloat() >= Math.max(0.0F, Math.min(1.0F, FormPowerRuntime.floatValue(power, "chance", 0.0F)))) return;
-                ItemStack replacement = stackFromLootPower(power, drop.getItem());
-                if (!replacement.isEmpty()) drop.setItem(replacement);
-            });
-        }
+    /** Called from the loot-table consumer, before each generated stack is spawned. */
+    public static ItemStack modifyEntityLoot(LivingEntity victim, ItemStack original) {
+        if (!(victim.getLastHurtByMob() instanceof Player player)) return original;
+        final ItemStack[] result = {original};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"shape-shifter-curse:modify_entity_loot".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    || !FormPowerRuntime.matchesItem(result[0], power.getAsJsonObject("from_item_condition"))
+                    || victim.getRandom().nextFloat() >= FormPowerRuntime.floatValue(power, "chance", 0.0F)) return;
+            result[0] = stackFromLootPower(power, result[0]);
+        });
+        return result[0];
     }
 
     /** Called from Block.dropResources so ordinary breaking and post-break behavior remain intact. */
@@ -72,13 +70,17 @@ public final class CombatLootEvents {
     }
 
     private static ItemStack stackFromLootPower(com.google.gson.JsonObject power, ItemStack original) {
-        if (power.has("target_item_stack") && power.get("target_item_stack").isJsonObject()) return stackFromJson(power.getAsJsonObject("target_item_stack"));
         ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(power, "target_item", ""));
         Item item = id == null ? null : BuiltInRegistries.ITEM.get(id);
-        if (item == null) return ItemStack.EMPTY;
-        ItemStack replacement = new ItemStack(item, original.getCount());
-        if (original.hasTag()) replacement.setTag(Objects.requireNonNull(original.getTag()).copy());
-        return replacement;
+        if (item != null) {
+            ItemStack replacement = new ItemStack(item, original.getCount());
+            if (original.hasTag()) replacement.setTag(Objects.requireNonNull(original.getTag()).copy());
+            return replacement;
+        }
+        if (power.has("target_item_stack") && power.get("target_item_stack").isJsonObject()) {
+            return stackFromJson(power.getAsJsonObject("target_item_stack"));
+        }
+        return original;
     }
 
     private static ItemStack stackFromJson(com.google.gson.JsonObject data) {

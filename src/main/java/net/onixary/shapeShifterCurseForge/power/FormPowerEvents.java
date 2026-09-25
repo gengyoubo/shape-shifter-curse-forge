@@ -208,10 +208,6 @@ public final class FormPowerEvents {
                     event.setCanceled(true);
                     return;
                 }
-                if ("shape-shifter-curse:virtual_shield".equals(type)
-                        && blocksWithVirtualShield(defender, event, power)) {
-                    event.setCanceled(true);
-                }
                 if ("apoli:modify_damage_taken".equals(type)
                         && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("condition"))) {
                     event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
@@ -869,10 +865,23 @@ public final class FormPowerEvents {
         return id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
     }
 
-    private static boolean blocksWithVirtualShield(Player defender, LivingHurtEvent event, JsonObject power) {
-        if (!FormPowerRuntime.test(defender, event.getSource().getEntity(),
+    /** Called at LivingEntity.isDamageSourceBlocked, before vanilla shield processing. */
+    public static boolean blocksWithVirtualShield(Player defender,
+                                                   net.minecraft.world.damagesource.DamageSource source) {
+        final boolean[] blocked = {false};
+        FormPowerRegistry.visitActive(defender, (id, power) -> {
+            if ("shape-shifter-curse:virtual_shield".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(defender, defender, power.getAsJsonObject("condition"))
+                    && blocksWithOneVirtualShield(defender, source, power)) blocked[0] = true;
+        });
+        return blocked[0];
+    }
+
+    private static boolean blocksWithOneVirtualShield(Player defender,
+                                                       net.minecraft.world.damagesource.DamageSource source,
+                                                       JsonObject power) {
+        if (!FormPowerRuntime.test(defender, defender,
                 power.getAsJsonObject("active_shield_condition"))) return false;
-        var source = event.getSource();
         if (source.is(DamageTypeTags.BYPASSES_SHIELD)) return false;
         if (source.getDirectEntity() instanceof AbstractArrow arrow && arrow.getPierceLevel() > 0) return false;
         Vec3 sourcePosition = source.getSourcePosition();

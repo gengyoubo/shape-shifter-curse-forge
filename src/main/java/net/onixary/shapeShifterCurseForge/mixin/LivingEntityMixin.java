@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
@@ -20,6 +21,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -41,6 +43,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Shadow protected float xxa;
     @Shadow protected float zza;
+    @Shadow protected abstract void hurtCurrentlyUsedShield(float amount);
 
     @Unique
     private static final float SSC_MAX_WATER_FLEXIBILITY = 0.98F;
@@ -54,6 +57,30 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     private float ssc$tripleActiveMultiplier = 1.0F;
     @Unique
     private boolean ssc$jumpStartedOnBlock;
+    @Unique
+    private boolean ssc$virtualShieldBlocked;
+
+    @Inject(method = "hurt", at = @At("HEAD"))
+    private void ssc$resetVirtualShieldBlock(DamageSource source, float amount,
+                                             CallbackInfoReturnable<Boolean> cir) {
+        ssc$virtualShieldBlocked = false;
+    }
+
+    @Inject(method = "isDamageSourceBlocked", at = @At("HEAD"), cancellable = true)
+    private void ssc$blockWithVirtualShield(DamageSource source, CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self instanceof Player player && FormPowerEvents.blocksWithVirtualShield(player, source)) {
+            ssc$virtualShieldBlocked = true;
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Redirect(method = "hurt", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/entity/LivingEntity;hurtCurrentlyUsedShield(F)V"), require = 1)
+    private void ssc$preserveRealShieldDurability(LivingEntity instance, float amount) {
+        if (!ssc$virtualShieldBlocked) this.hurtCurrentlyUsedShield(amount);
+        ssc$virtualShieldBlocked = false;
+    }
 
     /** Forge replaces vanilla's baseTick air update with ForgeHooks.onLivingBreathe. */
     @ModifyArg(method = "baseTick",

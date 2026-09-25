@@ -36,7 +36,6 @@ public final class MissingPowerEvents {
     private static final Map<UUID, Set<UUID>> OWNED_GLOW_TARGETS = new HashMap<>();
     /** Glow flag of an entity before the first power-driven glow, so other sources are not cleared. */
     private static final Map<UUID, Boolean> GLOW_PREVIOUS_STATE = new HashMap<>();
-    private static final Map<UUID, Integer> CLASH_COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Boolean> MAY_FLY_BEFORE_POWER = new HashMap<>();
 
     private MissingPowerEvents() { }
@@ -48,7 +47,7 @@ public final class MissingPowerEvents {
         maintainFlight(player);
         maintainEntityGlow(player);
         ItemStoreService.tick(player);
-        CLASH_COOLDOWNS.remove(player.getUUID());
+        maintainArmor(player, true);
         CLASH_STATE.remove(player.getUUID());
     }
 
@@ -64,14 +63,13 @@ public final class MissingPowerEvents {
 
         maintainEffects(player);
         maintainFlight(player);
-        maintainArmor(player);
+        maintainArmor(player, false);
         maintainParticles(player);
         maintainEntityGlow(player);
         maintainSimpleMovement(player);
         ItemStoreService.tick(player);
         tickJumpClash(player);
 
-        CLASH_COOLDOWNS.computeIfPresent(player.getUUID(), (id, value) -> value <= 1 ? null : value - 1);
     }
 
     private static void maintainEffects(Player player) {
@@ -158,22 +156,41 @@ public final class MissingPowerEvents {
         }
     }
 
-    private static void maintainArmor(Player player) {
-        // TODO[TEST] restrict_armor previously suffered a double "inverted" bug; verify helmet/armor
-        //   stripping in-game for every form that uses it.
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"apoli:restrict_armor".equals(FormPowerRegistry.typeOf(power))) return;
-            for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
-                    EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
-                JsonObject condition = power.getAsJsonObject(slotName(slot));
-                ItemStack stack = player.getItemBySlot(slot);
-                if (condition == null || stack.isEmpty() || !matchesArmorCondition(player, stack, condition)) continue;
-                player.setItemSlot(slot, ItemStack.EMPTY);
-                if (!player.getInventory().add(stack)) {
-                    player.level().addFreshEntity(new ItemEntity(player.level(), player.getX(), player.getY(), player.getZ(), stack));
-                }
+    private static void maintainArmor(Player player, boolean justGainedPower) {
+        for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+                EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (stack.isEmpty() || !isArmorRestricted(player, slot, stack)) continue;
+            player.setItemSlot(slot, ItemStack.EMPTY);
+            // Apoli drops armor that was already equipped when the power is gained.
+            // Later, unexpected programmatic equips are returned to inventory.
+            if (justGainedPower || !player.getInventory().add(stack)) {
+                player.spawnAtLocation(stack, player.getEyeHeight(player.getPose()));
             }
+        }
+    }
+
+    /** Shared by the armor slot, right-click equip and server fallback paths. */
+    public static boolean isArmorRestricted(Player player, EquipmentSlot slot, ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        final boolean[] restricted = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (restricted[0] || !"apoli:restrict_armor".equals(FormPowerRegistry.typeOf(power))) return;
+            JsonObject condition = power.getAsJsonObject(slotName(slot));
+            if (condition != null && matchesArmorCondition(player, stack, condition)) restricted[0] = true;
         });
+        return restricted[0];
+    }
+
+    @SubscribeEvent
+    public static void preventRightClickArmorEquip(PlayerInteractEvent.RightClickItem event) {
+        Player player = event.getEntity();
+        ItemStack stack = event.getItemStack();
+        if (!(stack.getItem() instanceof net.minecraft.world.item.Equipable)) return;
+        EquipmentSlot slot = net.minecraft.world.entity.Mob.getEquipmentSlotForItem(stack);
+        if (!isArmorRestricted(player, slot, stack)) return;
+        event.setCancellationResult(net.minecraft.world.InteractionResult.FAIL);
+        event.setCanceled(true);
     }
 
     private static String slotName(EquipmentSlot slot) {
@@ -285,12 +302,11 @@ public final class MissingPowerEvents {
     }
 
     private static void tickJumpClash(Player player) {
-        // TODO[TEST] Reimplemented from Fabric SneakingJumpClashPower (edge trigger + box raycast);
-        //   needs in-game verification of the trigger window and damage.
-        if (CLASH_COOLDOWNS.containsKey(player.getUUID())) return;
+        // Fabric's power has an active window after takeoff, with no extra cooldown on hit.
         final java.util.List<JsonObject> clashPowers = new java.util.ArrayList<>();
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if ("shape-shifter-curse:sneaking_jump_clash".equals(FormPowerRegistry.typeOf(power))) {
+            if ("shape-shifter-curse:sneaking_jump_clash".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                 clashPowers.add(power);
             }
         });
@@ -324,7 +340,6 @@ public final class MissingPowerEvents {
             }
             double expansion = FormPowerRuntime.doubleValue(power, "expansion_distance", 1.0D);
             if (checkClashCollision(player, power, expansion)) {
-                CLASH_COOLDOWNS.put(player.getUUID(), duration);
                 state.isActive = false;
                 state.activeTicks = 0;
                 return;

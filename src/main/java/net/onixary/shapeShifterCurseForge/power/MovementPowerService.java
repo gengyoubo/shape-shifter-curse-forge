@@ -18,8 +18,9 @@ import java.util.UUID;
 
 /** Server-authoritative implementations for continuous movement and defensive form powers. */
 public final class MovementPowerService {
-    private static final Map<UUID, Integer> DODGE_COOLDOWNS = new HashMap<>();
-    private static final Map<UUID, Boolean> DODGE_RIGHT = new HashMap<>();
+    private record DodgeKey(UUID playerId, ResourceLocation powerId) { }
+    private static final Map<DodgeKey, Integer> DODGE_COOLDOWNS = new HashMap<>();
+    private static final Map<DodgeKey, Boolean> DODGE_RIGHT = new HashMap<>();
     private static final Map<UUID, AttractState> ATTRACT_STATES = new HashMap<>();
 
     private static final class AttractState {
@@ -35,12 +36,10 @@ public final class MovementPowerService {
     private MovementPowerService() { }
 
     public static void tick(Player player) {
-        DODGE_COOLDOWNS.computeIfPresent(player.getUUID(), (id, ticks) -> ticks <= 1 ? null : ticks - 1);
-
         final boolean[] hasAttraction = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             switch (FormPowerRegistry.typeOf(power)) {
-                case "shape-shifter-curse:projectile_dodge" -> dodgeProjectiles(player, power);
+                case "shape-shifter-curse:projectile_dodge" -> dodgeProjectiles(player, id, power);
                 case "shape-shifter-curse:attract_by_entity" -> {
                     if (FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
                         hasAttraction[0] = true;
@@ -54,30 +53,39 @@ public final class MovementPowerService {
         if (!hasAttraction[0]) ATTRACT_STATES.remove(player.getUUID());
     }
 
-    private static void dodgeProjectiles(Player player, JsonObject power) {
-        if (DODGE_COOLDOWNS.containsKey(player.getUUID())
+    private static void dodgeProjectiles(Player player, ResourceLocation powerId, JsonObject power) {
+        if (player.isSpectator()
+                || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
                 || !FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) return;
+        DodgeKey key = new DodgeKey(player.getUUID(), powerId);
         double range = FormPowerRuntime.doubleValue(power, "range", 5.0D);
         double triggerDistance = FormPowerRuntime.doubleValue(power, "trigger_distance", 4.0D);
-        for (Projectile projectile : player.level().getEntitiesOfClass(Projectile.class,
-                player.getBoundingBox().inflate(range), candidate -> candidate.getOwner() != player && !candidate.isRemoved())) {
+        var projectiles = player.level().getEntitiesOfClass(Projectile.class,
+                player.getBoundingBox().inflate(range), candidate -> candidate.getOwner() != player
+                        && !candidate.isRemoved() && !candidate.onGround()
+                        && (candidate.xo == 0.0D || new Vec3(candidate.xo, candidate.yo, candidate.zo)
+                        .distanceTo(candidate.position()) >= 0.1D));
+        // Fabric advances this power's timer only after its condition and projectile query.
+        DODGE_COOLDOWNS.computeIfPresent(key, (id, ticks) -> ticks <= 1 ? null : ticks - 1);
+        if (DODGE_COOLDOWNS.containsKey(key)) return;
+        for (Projectile projectile : projectiles) {
             Vec3 velocity = projectile.getDeltaMovement();
-            if (velocity.lengthSqr() < 0.01D || projectile.position().distanceTo(player.position()) > triggerDistance) continue;
+            if (projectile.position().distanceTo(player.position()) > triggerDistance) continue;
             Vec3 normVel = velocity.lengthSqr() < 1e-8 ? Vec3.ZERO : velocity.normalize();
             Vec3 towardPlayer = player.position().subtract(projectile.position());
             double len2 = towardPlayer.lengthSqr();
             Vec3 towardNorm = len2 < 1e-8 ? Vec3.ZERO : towardPlayer.normalize();
             if (normVel.dot(towardNorm) <= 0.7D) continue;
-            boolean right = !DODGE_RIGHT.getOrDefault(player.getUUID(), false);
-            DODGE_RIGHT.put(player.getUUID(), right);
+            boolean right = !DODGE_RIGHT.getOrDefault(key, true);
+            DODGE_RIGHT.put(key, right);
             double horizLen2 = velocity.x*velocity.x + velocity.z*velocity.z;
-            Vec3 horizontal = horizLen2 < 1e-8 ? new Vec3(1,0,0) : new Vec3(velocity.x, 0.0D, velocity.z).normalize();
+            Vec3 horizontal = horizLen2 < 1e-8 ? Vec3.ZERO : new Vec3(velocity.x, 0.0D, velocity.z).normalize();
             Vec3 dodge = right ? new Vec3(-horizontal.z, 0.0D, horizontal.x) : new Vec3(horizontal.z, 0.0D, -horizontal.x);
             player.push(dodge.x * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D), 0.0D,
                     dodge.z * FormPowerRuntime.doubleValue(power, "dodge_speed", 1.0D));
             markMotionForOwner(player);
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("action"));
-            DODGE_COOLDOWNS.put(player.getUUID(), Math.max(1, FormPowerRuntime.intValue(power, "cooldown", 20)));
+            DODGE_COOLDOWNS.put(key, Math.max(0, FormPowerRuntime.intValue(power, "cooldown", 20)));
             break;
         }
     }
@@ -111,7 +119,9 @@ public final class MovementPowerService {
      * Forge port of Fabric's KeepSneakingPower.shouldForceSneak: while any active
      * {@code shape-shifter-curse:keep_sneaking} power has its condition met (and the
      * player is not in water), the player is treated as holding sneak for pose and
-     * {@code apoli:sneaking} checks. Fabric explicitly returns false in water.
+     * {@code apoli:sneaking} checks. Fabric's power helper returns false in water;
+     * its server sync currently sends only Power.isActive(), so the Forge input
+     * hook uses this helper to keep swimming input from being forced downward.
      */
     // TODO[TEST] Newly wired into pose + apoli:sneaking; verify the axolotl no-air / head-collide
     //   forced crawl behaves like Fabric.

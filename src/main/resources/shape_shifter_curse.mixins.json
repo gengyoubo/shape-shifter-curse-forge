@@ -7,6 +7,8 @@
     "refmap": "shape_shifter_curse.mixins.refmap.json",
     "mixins": [
         "LivingEntityMixin",
+        "ArmorSlotRestrictionMixin",
+        "EntityLootingMixin",
         "BatAttachMovementMixin",
         "ElytraFlightLivingMixin",
         "ElytraFlightPlayerMixin",
@@ -29,6 +31,7 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "client.KeepSneakingInputMixin",
         "PlayerModelAnimMixin",
         "client.ElytraLayerMixin",
         "PlayerRendererBodyMixin",
