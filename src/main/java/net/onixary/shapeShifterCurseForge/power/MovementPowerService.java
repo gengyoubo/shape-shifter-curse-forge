@@ -127,7 +127,7 @@ public final class MovementPowerService {
     //   forced crawl behaves like Fabric.
     public static boolean shouldForceSneaking(Player player) {
         if (Boolean.TRUE.equals(FORCE_SNEAK_GUARD.get())) return false;
-        if (player.isInWaterOrBubble() || player.isPassenger()) return false;
+        if (player.isUnderWater() || player.isInWaterOrBubble()) return false;
         final boolean[] force = {false};
         FORCE_SNEAK_GUARD.set(true);
         try {

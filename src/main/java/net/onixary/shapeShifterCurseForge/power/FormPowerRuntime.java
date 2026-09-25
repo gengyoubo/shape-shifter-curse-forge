@@ -67,14 +67,9 @@ public final class FormPowerRuntime {
         boolean result = javaResult != null ? javaResult : switch (type) {
             case "apoli:and" -> testAll(actor, target, condition.getAsJsonArray("conditions"));
             case "apoli:or" -> testAny(actor, target, condition.getAsJsonArray("conditions"));
-            // A dry-land axolotl in Minecraft's actual crawling pose needs the
-            // same movement modifiers as held Shift. Otherwise a one-block gap
-            // applies crawl drag while the explicit-Shift path receives its
-            // compensating sneaking-speed modifier. Ordinary CROUCHING alone
-            // still does not count as sneaking.
-            case "apoli:sneaking" -> actor.isShiftKeyDown()
-                    || net.onixary.shapeShifterCurseForge.power.MovementPowerService.shouldForceSneaking(actor)
-                    || actor.isVisuallyCrawling() && !actor.isInWaterOrBubble();
+            // Apoli's EntityConditions.sneaking reads only the shared Shift flag.
+            // A swimming/crawling pose alone must not enable sneaking powers.
+            case "apoli:sneaking" -> actor.isShiftKeyDown();
             case "apoli:sprinting" -> actor.isSprinting();
             case "apoli:on_ground" -> actor.onGround();
             case "apoli:moving" -> moving(actor, condition);

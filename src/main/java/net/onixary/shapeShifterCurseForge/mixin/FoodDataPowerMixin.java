@@ -12,16 +12,19 @@ import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArgs;
-import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 /** Applies Apoli modify_food before vanilla clamps hunger and saturation. */
 @Mixin(FoodData.class)
 public abstract class FoodDataPowerMixin {
-    @ModifyArgs(method = "eat(Lnet/minecraft/world/item/Item;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/LivingEntity;)V",
+    @Redirect(method = "eat(Lnet/minecraft/world/item/Item;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/LivingEntity;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/food/FoodData;eat(IF)V"))
-    private void ssc$modifyFood(Args args, Item item, ItemStack stack, LivingEntity entity) {
-        if (!(entity instanceof Player player)) return;
+    private void ssc$modifyFood(FoodData foodData, int food, float saturation,
+                                Item item, ItemStack stack, LivingEntity entity) {
+        if (!(entity instanceof Player player)) {
+            foodData.eat(food, saturation);
+            return;
+        }
         List<JsonObject> foodModifiers = new ArrayList<>();
         List<JsonObject> saturationModifiers = new ArrayList<>();
         FormPowerRegistry.visitActive(player, (id, power) -> {
@@ -31,11 +34,13 @@ public abstract class FoodDataPowerMixin {
             ssc$collect(power, "food_modifier", "food_modifiers", foodModifiers);
             ssc$collect(power, "saturation_modifier", "saturation_modifiers", saturationModifiers);
         });
-        if (foodModifiers.isEmpty() && saturationModifiers.isEmpty()) return;
-        int food = args.get(0);
-        float saturation = args.get(1);
-        args.set(0, (int) FormPowerRuntime.applyModifierList(player, food, foodModifiers));
-        args.set(1, (float) FormPowerRuntime.applyModifierList(player, saturation, saturationModifiers));
+        if (!foodModifiers.isEmpty()) {
+            food = (int) FormPowerRuntime.applyModifierList(player, food, foodModifiers);
+        }
+        if (!saturationModifiers.isEmpty()) {
+            saturation = (float) FormPowerRuntime.applyModifierList(player, saturation, saturationModifiers);
+        }
+        foodData.eat(food, saturation);
     }
 
     private static void ssc$collect(JsonObject power, String single, String plural, List<JsonObject> into) {

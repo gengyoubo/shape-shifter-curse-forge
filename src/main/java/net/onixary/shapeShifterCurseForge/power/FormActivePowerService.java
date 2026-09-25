@@ -27,7 +27,7 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<ResourceLocation, Double>> RESOURCES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
-    private static final Map<UUID, Boolean> CROUCHING = new HashMap<>();
+    private static final Map<UUID, Boolean> SPRINT_TO_SNEAK_TRIGGERED = new HashMap<>();
     private static final Map<UUID, Integer> JUMPS = new HashMap<>();
     private static final Map<UUID, Integer> GROUND_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> LEVITATE_TICKS = new HashMap<>();
@@ -57,7 +57,7 @@ public final class FormActivePowerService {
         RESOURCES.remove(id);
         TOGGLES.remove(id);
         SPRINTING.remove(id);
-        CROUCHING.remove(id);
+        SPRINT_TO_SNEAK_TRIGGERED.remove(id);
         JUMPS.remove(id);
         GROUND_TICKS.remove(id);
         LEVITATE_TICKS.remove(id);
@@ -120,12 +120,19 @@ public final class FormActivePowerService {
         }
         boolean wasSprinting = SPRINTING.getOrDefault(player.getUUID(), false);
         SPRINTING.put(player.getUUID(), player.isSprinting());
-        boolean wasCrouching = CROUCHING.getOrDefault(player.getUUID(), false);
-        CROUCHING.put(player.getUUID(), player.isCrouching());
+        if (!wasSprinting && player.isSprinting()) {
+            SPRINT_TO_SNEAK_TRIGGERED.put(player.getUUID(), false);
+        }
         if (player.isSprinting() && !wasSprinting && player instanceof ServerPlayer serverPlayer) {
             triggerActive(serverPlayer, "key.sprint");
         }
-        if (wasSprinting && player.isCrouching() && !wasCrouching && player instanceof ServerPlayer serverPlayer) {
+        // Fabric's SprintingStateTracker checks the prior sprint tick against
+        // the current Shift input, and fires once per sprint episode. Crouch
+        // pose is not equivalent to Shift while an axolotl is crawling.
+        if (wasSprinting && player.isShiftKeyDown()
+                && !SPRINT_TO_SNEAK_TRIGGERED.getOrDefault(player.getUUID(), false)
+                && player instanceof ServerPlayer serverPlayer) {
+            SPRINT_TO_SNEAK_TRIGGERED.put(player.getUUID(), true);
             FormPowerRegistry.visitActive(serverPlayer, (id, power) -> {
                 if ("shape-shifter-curse:action_on_sprinting_to_sneaking".equals(FormPowerRegistry.typeOf(power))
                         && FormPowerRuntime.test(serverPlayer, serverPlayer, power.getAsJsonObject("entity_condition"))) {

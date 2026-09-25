@@ -51,3 +51,10 @@
 | 3 | `form_axolotl_2_new_oxygen_health_0`–`form_axolotl_2_new_oxygen_health_9` | 十级氧气区间的条件属性；源码对照 |
 
 验证：`gradlew compileJava --offline` 成功；`runClient --offline` 到达主菜单，启动日志没有 Mixin 注入错误。尚未逐项在游戏内触发上述动作，因此不能宣称四阶 Power 全部正常。
+
+## 移动 Power 复查
+
+- `form_axolotl_3_sprinting_sneaking_rush`：Forge 原来用进入 `CROUCHING` 的边沿触发；Fabric 用上一 tick 冲刺、当前 `isShiftKeyDown()`，每次冲刺只触发一次。已将 Forge 改成同一状态机，避免爬行姿态下漏触发。
+- `sneaking_speed_up`、`form_axolotl_3_sneaking_speed`、`form_axolotl_3_ground_speed_down` 和两个 `crawling` 的条件依赖 `apoli:sneaking`。Fabric 的条件只读 `isShiftKeyDown()`；Forge 原来还将视觉爬行和计算出的强制潜行当成 Shift，已删除额外判定。`keep_sneaking` 在水中的排除与 Fabric 相同，也不额外排除骑乘。
+- 水速属性、`water_flexibility`、`always_sprint_swimming`、三阶地面速度与滑动摩擦的源码路径已经逐项核对。主动 `water_spurt`、`jump_out_water` 的实际位移仍需游戏内比较；`jump_out_water` 的 Forge 执行点和水面起跳保护与 Fabric 不同。
+- `crawling` 仍有结构差异：Fabric 对 Pehkui 的眼高及碰撞箱高度设置 0.6/0.35 比例；Forge 以原版 `SWIMMING` 姿态处理陆地爬行并避免重复缩放。两者不能仅凭静态代码认定碰撞箱、爬行阻力和速度完全一致。
