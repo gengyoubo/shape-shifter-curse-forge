@@ -36,6 +36,9 @@ public abstract class PlayerRendererBodyMixin {
         if (!form.hasFlag("special_form") && form.stage() <= 0) {
             return;
         }
+        // Pehkui wraps the whole Fabric player renderer in the form's WIDTH/
+        // HEIGHT scale. Apply it before the body clip so its offset is scaled too.
+        poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
         FormGeoRenderer renderer = FormClientRenderEvents.rendererFor(form);
         if (renderer == null) {
             return;

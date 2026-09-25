@@ -57,9 +57,14 @@ public final class CrawlingScaleService {
         EntityDimensions base = vanillaPlayerDimensions(pose);
         FormDefinition form = FormManager.current(player);
         float formScale = conditionalScale(player, form.widthScale());
+        // Fabric's normal form applies the same eye_scale to EYE_HEIGHT and
+        // HITBOX_HEIGHT. CrawlingPower replaces HITBOX_HEIGHT with its own
+        // active/inactive scale when that Power is installed.
+        float hitboxHeightScale = crawlingPower(player) == null
+                ? conditionalEyeScale(player, form.eyeScale()) : heightScale(player);
         return EntityDimensions.scalable(
                 base.width * formScale,
-                base.height * conditionalScale(player, form.heightScale()) * heightScale(player));
+                base.height * conditionalScale(player, form.heightScale()) * hitboxHeightScale);
     }
 
     private static EntityDimensions vanillaPlayerDimensions(Pose pose) {
@@ -93,11 +98,13 @@ public final class CrawlingScaleService {
         };
     }
 
-    /** Authoritative eye height: pristine vanilla eye × form eye × crawling eye. */
+    /** Authoritative eye height: vanilla eye × HEIGHT × active EYE_HEIGHT type scale. */
     public static float expectedEyeHeight(Player player, Pose pose) {
         FormDefinition form = FormManager.current(player);
-        return vanillaPlayerEyeHeight(pose) * conditionalEyeScale(player, form.eyeScale())
-                * eyeScale(player);
+        float eyeTypeScale = crawlingPower(player) == null
+                ? conditionalEyeScale(player, form.eyeScale()) : eyeScale(player);
+        return vanillaPlayerEyeHeight(pose)
+                * conditionalScale(player, form.heightScale()) * eyeTypeScale;
     }
 
     private static float conditionalScale(Player player, float fallback) {

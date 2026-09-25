@@ -8,6 +8,7 @@
 | `slow_falling`（2 阶起） | 删除 Forge 形态标志的额外缓降；将 `apoli:modify_falling` 从服务端 tick 的 Y 速度钳制改为在 `LivingEntity.travel()` 中修改重力参数，并在 `take_fall_damage=false` 时清零落距，与 Apoli 源码的注入位置一致。 |
 | `form_bat_3_jump_high` | 删除 Forge 形态定义的额外 0.2 跳跃加成，保留 Power 的 `modify_jump`，避免末阶重复加成。`form_bat_3_jump_boost` 的动作路径保持原样。 |
 | `form_bat_3_block_attach` | 侧面贴附的第一次定位改为 Fabric 的方块中心加 0.75 法线位移和 -0.5 Y；维持贴附的位置仍使用原有路径。服务端及客户端同步入口同时修改。 |
+| 倒挂位置与尺寸 | 两端都把玩家定位在方块中心下方 1.5 格，倒挂动画 `body` 位移相同；Forge 的 Geo 形态模型原本也按 0.6 缩放。遗漏的是 Fabric 还把蝙蝠 3 阶 `HITBOX_HEIGHT` 和 `EYE_HEIGHT` 设为 0.7，且它们各自再乘 `HEIGHT=0.6`。Forge 原先漏乘这些倍率，挂在底面时碰撞箱伸入方块并可能误判匍匐。现已补齐尺寸/视点计算，并让原版玩家图层与 Geo 模型保持同一缩放。 |
 | `drop_tool_after_digging`、饰品附带的 `action_on_block_break` | 从 Forge 的破坏前事件移到 `ServerPlayerGameMode.destroyBlock()` 成功采收后，按 Apoli 的默认 `only_when_harvested=true` 执行动作；加入 Power 条件判断。 |
 | `drop_weapon_after_hit`、饰品附带的 `self_action_on_hit` | 从 `LivingHurtEvent` 移到目标 `LivingEntity.hurt()` 返回 `true` 后执行，避免未成功命中时掉落武器或消耗饰品耐久。这个修正也影响其他形态使用相同 Apoli 类型的 Power。 |
 | `form_bat_hit_wall_damage_reduce`（2 阶起） | 补上 `modify_damage_taken` 的 `damage_condition` 判断。原先所有伤害都会经过 `set_total 0`，导致蝙蝠免疫普通伤害甚至 `/kill`；现在仅匹配 `bat_immune_damage_tag` 中的 `minecraft:fly_into_wall`。同时将 Power 的实体条件作用于受伤玩家本人。 |
