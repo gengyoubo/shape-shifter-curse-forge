@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.power;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -46,7 +47,6 @@ public final class MovementPowerService {
                         attractEntity(player, id, power);
                     }
                 }
-                case "apoli:modify_falling" -> modifyFalling(player, power);
                 default -> { }
             }
         });
@@ -90,13 +90,34 @@ public final class MovementPowerService {
         }
     }
 
-    private static void modifyFalling(Player player, JsonObject power) {
-        if (player.onGround() || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
-        double velocity = FormPowerRuntime.doubleValue(power, "velocity", 0.0D);
-        Vec3 motion = player.getDeltaMovement();
-        if (velocity >= 0.0D && motion.y < 0.0D) {
-            setMotionAndSync(player, motion.x, Math.max(motion.y, -velocity), motion.z);
-        }
+    /** Apoli changes travel's gravity value before physics, on both logical sides. */
+    public static double modifyFallingGravity(Player player, double gravity) {
+        if (player.getDeltaMovement().y > 0.0D) return gravity;
+        java.util.List<JsonObject> modifiers = new java.util.ArrayList<>();
+        final boolean[] preventFallDamage = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"apoli:modify_falling".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            if (!FormPowerRuntime.booleanValue(power, "take_fall_damage", true)) {
+                preventFallDamage[0] = true;
+            }
+            if (power.has("velocity")) {
+                JsonObject velocity = new JsonObject();
+                velocity.addProperty("operation", "set_total");
+                velocity.add("value", power.get("velocity"));
+                modifiers.add(velocity);
+            }
+            if (power.has("modifier") && power.get("modifier").isJsonObject()) {
+                modifiers.add(power.getAsJsonObject("modifier"));
+            }
+            if (power.has("modifiers") && power.get("modifiers").isJsonArray()) {
+                for (JsonElement modifier : power.getAsJsonArray("modifiers")) {
+                    if (modifier.isJsonObject()) modifiers.add(modifier.getAsJsonObject());
+                }
+            }
+        });
+        if (preventFallDamage[0]) player.fallDistance = 0.0F;
+        return FormPowerRuntime.applyModifierList(player, gravity, modifiers);
     }
 
     /**

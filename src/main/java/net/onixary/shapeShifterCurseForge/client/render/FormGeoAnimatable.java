@@ -181,13 +181,15 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     }
 
     /**
-     * The crawling jump starts while vanilla's {@code swimAmount} is still
-     * interpolating away.  It is already authored as a land crawl jump, so the
-     * residual vanilla swim rotation would incorrectly turn it another 90°.
+     * Attachment power clips and axolotl crawl clips author their own body pose.
+     * Vanilla's interpolated swimming/crawling rotation must not be stacked on top.
      */
     public boolean suppressesVanillaSwimRotation() {
         return usesAxolotlCrawlBodyTransform()
-                || extraPrimary != null && "axolotl_2_crawling_jump".equals(extraPrimary.id());
+                || extraPrimary != null && ("axolotl_2_crawling_jump".equals(extraPrimary.id())
+                || "bat_3_attach_bottom".equals(extraPrimary.id())
+                || "bat_3_attach_side".equals(extraPrimary.id())
+                || "avali_attach_side".equals(extraPrimary.id()));
     }
 
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,

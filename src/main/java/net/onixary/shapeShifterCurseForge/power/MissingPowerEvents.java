@@ -120,7 +120,6 @@ public final class MissingPowerEvents {
 
     private static void maintainFlight(Player player) {
         boolean creativeFlight = hasActive(player, "apoli:creative_flight");
-        boolean elytraFlight = ElytraFlightPowerService.hasFlight(player);
         if (creativeFlight) {
             MAY_FLY_BEFORE_POWER.putIfAbsent(player.getUUID(), player.getAbilities().mayfly);
             player.getAbilities().mayfly = true;
@@ -135,9 +134,6 @@ public final class MissingPowerEvents {
                 }
                 player.onUpdateAbilities();
             }
-        }
-        if (elytraFlight && !player.onGround() && player.isSprinting() && !player.isFallFlying()) {
-            player.startFallFlying();
         }
     }
 
@@ -368,12 +364,12 @@ public final class MissingPowerEvents {
         if (bypass[0]) event.setCanceled(true);
     }
 
-    @SubscribeEvent
-    public static void breakBlock(BlockEvent.BreakEvent event) {        Player player = event.getPlayer();
-        if (player.level().isClientSide) return;
+    /** Called only after Forge has harvested the block with a valid tool. */
+    public static void onHarvestedBlock(Player player, BlockState state) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"apoli:action_on_block_break".equals(FormPowerRegistry.typeOf(power))
-                    || !matchesBlockBreak(player, event.getState(), power.getAsJsonObject("block_condition"))) return;
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    || !matchesBlockBreak(player, state, power.getAsJsonObject("block_condition"))) return;
             FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
         });
     }

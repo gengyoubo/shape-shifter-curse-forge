@@ -47,6 +47,16 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Shadow protected abstract void hurtCurrentlyUsedShield(float amount);
     @Shadow protected abstract Vec3 getFluidFallingAdjustedMovement(double gravity, boolean falling, Vec3 velocity);
 
+    @ModifyVariable(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/level/Level;getFluidState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;"),
+            ordinal = 0, require = 1)
+    private double ssc$modifyFallingGravity(double gravity) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        return self instanceof Player player
+                ? MovementPowerService.modifyFallingGravity(player, gravity) : gravity;
+    }
+
     @Unique
     private static final float SSC_MAX_WATER_FLEXIBILITY = 0.98F;
 
@@ -80,6 +90,14 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     private void ssc$resetVirtualShieldBlock(DamageSource source, float amount,
                                              CallbackInfoReturnable<Boolean> cir) {
         ssc$virtualShieldBlocked = false;
+    }
+
+    @Inject(method = "hurt", at = @At("RETURN"))
+    private void ssc$runSuccessfulHitActions(DamageSource source, float amount,
+                                              CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValue()) {
+            FormPowerEvents.onSuccessfulHit((LivingEntity) (Object) this, source, amount);
+        }
     }
 
     @Inject(method = "isDamageSourceBlocked", at = @At("HEAD"), cancellable = true)

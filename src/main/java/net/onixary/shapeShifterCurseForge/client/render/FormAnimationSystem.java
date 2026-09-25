@@ -241,13 +241,13 @@ public final class FormAnimationSystem {
             case "axolotl_2" -> {
                 if (state == State.SWIM)
                     add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
-                else if (sneak) {
+                else if (sneak || player.isVisuallyCrawling()) {
                     switch (state) {
                         case IDLE -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
                         // Form_Axolotl2 only overrides WALK. Sprint, physical crawling and
                         // falling deliberately inherit the normal-form controller.
                         case WALK -> add(result, "axolotl_2_crawling_new");
-                        case JUMP -> add(result, "axolotl_2_crawling_jump");
+                        case JUMP -> add(result, player.isVisuallyCrawling() ? "axolotl_2_crawling_jump" : null);
                         case ATTACK -> add(result, "axolotl_2_crawling_attack_once");
                         case MINING -> add(result, "axolotl_2_crawling_tool_swing");
                         default -> {
@@ -262,9 +262,10 @@ public final class FormAnimationSystem {
                     case IDLE -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
                     case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
                     case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
-                    case JUMP -> add(result, sneak ? "axolotl_2_crawling_jump"
+                    case JUMP -> add(result, player.isVisuallyCrawling() ? "axolotl_2_crawling_jump"
                             : isRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
-                    case FALL -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
+                    case FALL -> add(result, player.isVisuallyCrawling()
+                            ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
                     // The Fabric WithSneak controllers intentionally have no normal
                     // attack/mining animation for Axolotl 3.
                     case ATTACK -> add(result, sneak ? "axolotl_2_crawling_attack_once" : null);

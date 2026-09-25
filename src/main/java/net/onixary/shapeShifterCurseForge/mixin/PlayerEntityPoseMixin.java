@@ -36,6 +36,8 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
     private boolean ssc$wasSwimming;
     @Unique
     private boolean ssc$debugAxolotlSwimmingTravel;
+    @Unique
+    private boolean ssc$forcedCrawlActive;
 
     protected PlayerEntityPoseMixin(EntityType<? extends LivingEntity> entityType, Level level) {
         super(entityType, level);
@@ -211,15 +213,17 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
     }
 
     @Unique
-    private static boolean ssc$shouldForceVanillaCrawl(Player player) {
-        // This is an on-ground substitute for vanilla's crawl entry.  Do not
-        // turn a held Shift into crawling while jumping/falling or flying in
-        // Creative; those states must retain their normal vanilla poses.
-        // keep_sneaking counts as held Shift so axolotl head-collide / no-air
-        // powers keep the crawl without requiring the key.
-        if (!player.onGround() || player.getAbilities().flying
+    private boolean ssc$shouldForceVanillaCrawl(Player player) {
+        // Shift may start a crawl only on the ground. Once entered, preserve
+        // the swimming pose through a jump or fall until the input/Power ends.
+        // keep_sneaking counts as held Shift for head-collide / no-air powers.
+        if (player.getAbilities().flying
                 || !MovementPowerService.isSneakingOrForced(player) || player.isInWaterOrBubble() || player.isPassenger()
                 || player.isFallFlying() || player.isSleeping() || player.isAutoSpinAttack()) {
+            ssc$forcedCrawlActive = false;
+            return false;
+        }
+        if (!player.onGround() && !ssc$forcedCrawlActive) {
             return false;
         }
         final boolean[] hasCrawlingPower = {false};
@@ -228,6 +232,7 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
                 hasCrawlingPower[0] = true;
             }
         });
-        return hasCrawlingPower[0];
+        ssc$forcedCrawlActive = hasCrawlingPower[0];
+        return ssc$forcedCrawlActive;
     }
 }

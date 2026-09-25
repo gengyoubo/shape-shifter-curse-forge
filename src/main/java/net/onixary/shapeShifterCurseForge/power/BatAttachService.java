@@ -57,7 +57,7 @@ public final class BatAttachService {
                 power.getAsJsonObject("side_attach_action"), power.getAsJsonObject("bottom_attach_action"),
                 Math.max(1, FormPowerRuntime.intValue(power, "bottom_attach_interval", 20)), 0);
         ATTACHMENTS.put(player.getUUID(), attachment);
-        lockToAttachment(player, attachment);
+        initialAttachPosition(player, attachment);
         ModNetwork.sendBatAttachState(player, attachment.pos(), attachment.side());
         PowerAnimationService.playLoop(player, bottom
                 ? PowerAnimationService.ATTACH_BOTTOM : PowerAnimationService.ATTACH_SIDE);
@@ -121,7 +121,7 @@ public final class BatAttachService {
             Attachment attachment = new Attachment(pos, side, side == Direction.DOWN, null, null, 20, 0);
             CLIENT_ATTACHMENTS.put(playerId, attachment);
             level.players().stream().filter(player -> player.getUUID().equals(playerId)).findFirst()
-                    .ifPresent(player -> lockToAttachment(player, attachment));
+                    .ifPresent(player -> initialAttachPosition(player, attachment));
         }
     }
 
@@ -194,6 +194,19 @@ public final class BatAttachService {
             player.setYBodyRot(yaw);
             player.yBodyRotO = yaw;
         }
+        player.hurtMarked = true;
+    }
+
+    private static void initialAttachPosition(Player player, Attachment attachment) {
+        Vec3 center = Vec3.atCenterOf(attachment.pos());
+        Vec3 target = attachment.bottom()
+                ? center.add(0.0D, -1.5D, 0.0D)
+                : center.add(attachment.side().getStepX() * 0.75D, -0.5D,
+                        attachment.side().getStepZ() * 0.75D);
+        player.setPos(target.x, target.y, target.z);
+        player.setDeltaMovement(Vec3.ZERO);
+        player.setOnGround(true);
+        player.hasImpulse = true;
         player.hurtMarked = true;
     }
 

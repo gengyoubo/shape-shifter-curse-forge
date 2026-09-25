@@ -71,6 +71,8 @@ public final class FormPowerEvents {
     /** Apoli anchors action_over_time intervals to each power instance's first tick. */
     private static final Map<UUID, Map<ResourceLocation, Integer>> ACTION_OVER_TIME_PHASES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Boolean>> ACTION_OVER_TIME_ACTIVE = new HashMap<>();
+    /** The owning client predicts continuous velocity actions, as Apoli does. */
+    private static final Map<UUID, Map<ResourceLocation, Integer>> CLIENT_MOVEMENT_ACTION_PHASES = new HashMap<>();
     private static final ResourceLocation LEGACY_WATER_SPEED = ResourceLocation.fromNamespaceAndPath(
             "additionalentityattributes", "generic.water_speed");
 
@@ -88,6 +90,11 @@ public final class FormPowerEvents {
             // but omitting this left the owning client predicting vanilla movement
             // until a correction arrived.
             refreshAttributes(player);
+            Set<ResourceLocation> currentMovementActions = new HashSet<>();
+            FormPowerRegistry.visitActive(player, (id, power) ->
+                    tickClientMovementAction(player, id, power, currentMovementActions));
+            Map<ResourceLocation, Integer> phases = CLIENT_MOVEMENT_ACTION_PHASES.get(player.getUUID());
+            if (phases != null) phases.keySet().retainAll(currentMovementActions);
             logAxolotlMovementState(player);
             enforceSprinting(player);
             applyClimbing(player);
@@ -188,7 +195,9 @@ public final class FormPowerEvents {
                     return;
                 }
                 if ("apoli:modify_damage_taken".equals(type)
-                        && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("condition"))) {
+                        && FormPowerRuntime.test(defender, defender, power.getAsJsonObject("condition"))
+                        && FormPowerRuntime.testDamageCondition(defender, attacker, event.getSource(),
+                        event.getAmount(), power.getAsJsonObject("damage_condition"))) {
                     event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
                 }
                 if ("apoli:self_action_when_hit".equals(type)
@@ -222,15 +231,6 @@ public final class FormPowerEvents {
                         && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("condition"))) {
                     event.setAmount((float) FormPowerRuntime.applyModifier(event.getAmount(), power.getAsJsonObject("modifier")));
                 }
-                if ("apoli:self_action_on_hit".equals(type)
-                        && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
-                        && FormPowerRuntime.testDamageCondition(player, event.getEntity(), event.getSource(), event.getAmount(),
-                        power.getAsJsonObject("damage_condition"))
-                        && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("target_condition"))
-                        && FormActivePowerService.usePowerCooldown(player, id,
-                        FormPowerRuntime.intValue(power, "cooldown", 1))) {
-                    FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
-                }
                 if ("apoli:action_on_hit".equals(type)
                         && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
                         && FormPowerRuntime.testDamageCondition(player, event.getEntity(), event.getSource(), event.getAmount(),
@@ -253,6 +253,22 @@ public final class FormPowerEvents {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("self_action"));
             });
         }
+    }
+
+    /** Apoli invokes self_action_on_hit after LivingEntity.hurt returns true. */
+    public static void onSuccessfulHit(LivingEntity target, net.minecraft.world.damagesource.DamageSource source,
+                                       float amount) {
+        if (target.level().isClientSide || !(source.getEntity() instanceof Player player)) return;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (!"apoli:self_action_on_hit".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    || !FormPowerRuntime.testDamageCondition(player, target, source, amount,
+                    power.getAsJsonObject("damage_condition"))
+                    || !FormPowerRuntime.test(player, target, power.getAsJsonObject("target_condition"))
+                    || !FormActivePowerService.usePowerCooldown(player, id,
+                    FormPowerRuntime.intValue(power, "cooldown", 1))) return;
+            FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+        });
     }
 
     @SubscribeEvent
@@ -389,16 +405,6 @@ public final class FormPowerEvents {
         final float[] multiplier = {event.getDamageMultiplier()};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             String type = FormPowerRegistry.typeOf(power);
-            if ("shape-shifter-curse:bypass_landing_effect".equals(type)
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                distance[0] = 0.0F;
-                multiplier[0] = 0.0F;
-            }
-            if ("apoli:modify_falling".equals(type)
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
-                    && power.has("take_fall_damage") && !power.get("take_fall_damage").getAsBoolean()) {
-                multiplier[0] = 0.0F;
-            }
             if (!"shape-shifter-curse:modfiy_fall_damage".equals(type)) return;
             distance[0] = (float) applyFallModifiers(distance[0], power, "modifier_fall_distance", "modifiers_fall_distance");
             multiplier[0] = (float) applyFallModifiers(multiplier[0], power, "modifier_damage_multiplier", "modifiers_damage_multiplier");
@@ -414,7 +420,7 @@ public final class FormPowerEvents {
                 event.setCanceled(true);
                 return;
             }
-            if (preventsItemUse(event.getEntity())) {
+            if (preventsItemUse(event.getEntity(), event.getItemStack())) {
                 event.setCanceled(true);
                 return;
             }
@@ -579,6 +585,22 @@ public final class FormPowerEvents {
         }
     }
 
+    private static void tickClientMovementAction(Player player, ResourceLocation powerId, JsonObject power,
+                                                 Set<ResourceLocation> currentActions) {
+        if (!"apoli:action_over_time".equals(FormPowerRegistry.typeOf(power))) return;
+        JsonObject action = power.getAsJsonObject("entity_action");
+        if (action == null || !"apoli:add_velocity".equals(FormPowerRegistry.typeOf(action))) return;
+        currentActions.add(powerId);
+        int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
+        Map<ResourceLocation, Integer> phases = CLIENT_MOVEMENT_ACTION_PHASES.computeIfAbsent(
+                player.getUUID(), ignored -> new HashMap<>());
+        Integer phase = phases.putIfAbsent(powerId, player.tickCount % interval);
+        if (phase != null && player.tickCount % interval == phase
+                && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+            FormPowerRuntime.execute(player, player, action);
+        }
+    }
+
     private static void runInteraction(Player player, LivingEntity target, String expectedType, Direction face) {
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (power.has("directions") && power.get("directions").isJsonArray()) {
@@ -625,11 +647,12 @@ public final class FormPowerEvents {
         });
     }
 
-    private static boolean preventsItemUse(Player player) {
+    private static boolean preventsItemUse(Player player, ItemStack usedStack) {
         final boolean[] prevents = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("apoli:prevent_item_use".equals(FormPowerRegistry.typeOf(power))
-                    && FormPowerRuntime.matchesHeldItem(player, power.getAsJsonObject("item_condition"))) {
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    && FormPowerRuntime.matchesItem(usedStack, power.getAsJsonObject("item_condition"))) {
                 prevents[0] = true;
             }
         });
@@ -1293,7 +1316,9 @@ public final class FormPowerEvents {
 
         private DelayAttributeState(int delay) {
             this.delay = delay;
-            this.transitionTicks = 0;
+            // Fabric initializes NowDelay to TargetDelay so an already-active
+            // condition applies on the power's first tick.
+            this.transitionTicks = delay;
         }
     }
 

@@ -82,12 +82,6 @@ public final class FormRegistry {
                 case 4 -> Set.of("final_form", "inhibitor_immune", "no_instinct", "no_cursed_moon_effect");
                 default -> Set.of("");
             });
-            if (path.equals("bat")) {
-                flags.add("night_vision");
-            }
-            if (path.equals("bat") && tier >= 3) {
-                flags.add("slow_fall");
-            }
             if (path.equals("spider") && tier >= 3) {
                 flags.add("night_vision");
                 flags.add("climb");
@@ -117,7 +111,6 @@ public final class FormRegistry {
                 default -> 0.0F;
             };
             float jumpBoost = switch (path + "_" + tier) {
-                case "bat_4" -> 0.2F;
                 case "ocelot_4" -> 0.25F;
                 default -> 0.0F;
             };

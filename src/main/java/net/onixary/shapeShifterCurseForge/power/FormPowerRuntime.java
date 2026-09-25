@@ -55,6 +55,18 @@ public final class FormPowerRuntime {
     private FormPowerRuntime() {
     }
 
+    private static boolean exposedToSun(Entity entity) {
+        if (!entity.level().isDay()) return false;
+        if (entity.level().isClientSide) entity.level().updateSkyBrightness();
+        BlockPos rainPos = entity.blockPosition();
+        boolean inRain = entity.level().isRainingAt(rainPos)
+                || entity.level().isRainingAt(BlockPos.containing(
+                        rainPos.getX(), entity.getBoundingBox().maxY, rainPos.getZ()));
+        BlockPos feet = BlockPos.containing(entity.getX(), entity.getBoundingBox().minY, entity.getZ());
+        return !inRain && entity.level().getLightLevelDependentMagicValue(feet) > 0.5F
+                && entity.level().canSeeSky(feet);
+    }
+
     public static boolean test(Player actor, Entity target, JsonObject condition) {
         if (condition == null) {
             return true;
@@ -76,13 +88,16 @@ public final class FormPowerRuntime {
             case "apoli:food_level" -> compare(actor.getFoodData().getFoodLevel(), condition);
             case "apoli:fluid_height" -> compare(fluidHeight(actor, condition), condition);
             case "apoli:submerged_in" -> submergedIn(actor, condition);
-            case "apoli:exposed_to_sun" -> actor.level().canSeeSky(actor.blockPosition())
-                    && actor.level().isDay() && actor.level().getMaxLocalRawBrightness(actor.blockPosition()) >= 12;
+            case "apoli:exposed_to_sun" -> exposedToSun(actor);
             case "apoli:status_effect" -> hasEffect(actor, condition);
             case "apoli:biome" -> matchesBiome(actor, condition);
             case "apoli:temperature" -> compare(actor.level().getBiome(actor.blockPosition()).value().getBaseTemperature(), condition);
             case "apoli:time_of_day" -> compare(actor.level().getDayTime() % 24000L, condition);
-            case "apoli:brightness" -> compare(actor.level().getMaxLocalRawBrightness(actor.blockPosition()) / 15.0D, condition);
+            case "apoli:brightness" -> {
+                if (actor.level().isClientSide) actor.level().updateSkyBrightness();
+                yield compare(actor.level().getLightLevelDependentMagicValue(
+                        BlockPos.containing(actor.getX(), actor.getEyeY(), actor.getZ())), condition);
+            }
             case "apoli:inventory" -> matchesInventory(actor, condition);
             case "apoli:on_block" -> matchesBlock(actor, condition);
             case "apoli:in_block_anywhere" -> matchesBlockAnywhere(actor, condition.getAsJsonObject("block_condition"));
