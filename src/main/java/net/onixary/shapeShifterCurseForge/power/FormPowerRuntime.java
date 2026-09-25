@@ -107,6 +107,7 @@ public final class FormPowerRuntime {
             case "apoli:climbing" -> actor.onClimbable();
             case "apoli:health" -> compare(actor.getHealth(), condition);
             case "apoli:armor_value" -> compare(actor.getArmorValue(), condition);
+            case "apoli:enchantment" -> matchesEnchantment(actor, condition);
             case "apoli:distance" -> target != null && compare(actor.distanceTo(target), condition);
             case "apoli:on_fire" -> actor.isOnFire();
             case "apoli:collided_horizontally" -> actor.horizontalCollision;
@@ -115,8 +116,8 @@ public final class FormPowerRuntime {
                     || testEntity(actor, target, condition.getAsJsonObject("entity_condition")));
             case "apoli:raycast" -> raycast(actor, condition);
             case "shape-shifter-curse:barehand_digging" -> barehandDigging(actor);
-            case "shape-shifter-curse:chance" -> actor.getRandom().nextFloat()
-                    < Math.max(0.0F, Math.min(1.0F, floatValue(condition, "chance", 0.0F)));
+            case "shape-shifter-curse:chance" -> new java.util.Random().nextFloat()
+                    < floatValue(condition, "chance", 0.0F);
             case "shape-shifter-curse:can_render_gui" -> canRenderGui();
             case "shape-shifter-curse:enable_random_sound" -> SscApi.currentSkin(actor)
                     .map(PlayerSkinData::isEnableFormRandomSound).orElse(true);
@@ -159,6 +160,25 @@ public final class FormPowerRuntime {
         boolean movingHorizontally = velocity.x * velocity.x + velocity.z * velocity.z > 0.0004D;
         boolean movingVertically = Math.abs(velocity.y) > 0.0004D;
         return (horizontally && movingHorizontally) || (vertically && movingVertically);
+    }
+
+    /** Apoli's entity enchantment condition reads the enchantment's equipment slots. */
+    private static boolean matchesEnchantment(Player actor, JsonObject condition) {
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "enchantment", ""));
+        if (id == null) return false;
+        Enchantment enchantment = BuiltInRegistries.ENCHANTMENT.get(id);
+        if (enchantment == null || !BuiltInRegistries.ENCHANTMENT.containsKey(id)) return false;
+        int level = 0;
+        if ("max".equals(stringValue(condition, "calculation", "sum"))) {
+            level = EnchantmentHelper.getEnchantmentLevel(enchantment, actor);
+        } else if ("sum".equals(stringValue(condition, "calculation", "sum"))) {
+            for (ItemStack stack : enchantment.getSlotItems(actor).values()) {
+                level += EnchantmentHelper.getItemEnchantmentLevel(enchantment, stack);
+            }
+        } else {
+            return false;
+        }
+        return compare(level, condition);
     }
 
     /**
@@ -322,12 +342,12 @@ public final class FormPowerRuntime {
         switch (type) {
             case "apoli:apply_effect" -> applyEffect(recipient, action.getAsJsonObject("effect"));
             case "apoli:heal" -> recipient.heal(floatValue(action, "amount", 0.0F));
-            case "apoli:add_velocity" -> addVelocity(actor, action);
+            case "apoli:add_velocity" -> addVelocity(recipient, action);
             case "apoli:set_on_fire" -> recipient.setSecondsOnFire(intValue(action, "duration", 1));
             case "apoli:damage" -> dealActionDamage(actor, recipient, action);
-            case "apoli:play_sound" -> playSound(actor, action);
+            case "apoli:play_sound" -> playSound(recipient, action);
             case "apoli:feed" -> feed(actor, action);
-            case "apoli:gain_air" -> actor.setAirSupply(actor.getAirSupply() + intValue(action, "value", 0));
+            case "apoli:gain_air" -> recipient.setAirSupply(recipient.getAirSupply() + intValue(action, "value", 0));
             case "apoli:exhaust" -> actor.causeFoodExhaustion(floatValue(action, "amount", 0.0F));
             case "apoli:consume" -> consumeHeldItem(actor, intValue(action, "amount", 1));
             case "apoli:drop_inventory" -> dropInventory(actor, action);
@@ -386,6 +406,49 @@ public final class FormPowerRuntime {
                     LOGGER.warn("[ssc-power] No handler for action type '{}'; the action is ignored.", type);
                 }
             }
+        }
+    }
+
+    /** Apoli bi-entity actions keep actor and target separate; entity actions do not. */
+    public static void executeBiEntity(Player actor, LivingEntity target, JsonObject action) {
+        if (action == null) return;
+        switch (FormPowerRegistry.typeOf(action)) {
+            case "apoli:and" -> {
+                JsonArray children = action.getAsJsonArray("actions");
+                if (children != null) for (JsonElement child : children) {
+                    if (child.isJsonObject()) executeBiEntity(actor, target, child.getAsJsonObject());
+                }
+            }
+            case "apoli:actor_action" -> execute(actor, actor, action.getAsJsonObject("action"));
+            case "apoli:target_action" -> execute(actor, target, action.getAsJsonObject("action"));
+            case "apoli:add_velocity" -> {
+                if ((target.level().isClientSide && !booleanValue(action, "client", true))
+                        || (!target.level().isClientSide && !booleanValue(action, "server", true))) return;
+                Vec3 forward = target.position().subtract(actor.position());
+                if (forward.length() <= 0.007D) return;
+                forward = forward.normalize();
+                double sideX;
+                double sideZ;
+                if (Math.abs(forward.y) != 1.0D) {
+                    double factor = 1.0D / Math.sqrt(forward.x * forward.x + forward.z * forward.z);
+                    sideX = forward.z * factor;
+                    sideZ = -forward.x * factor;
+                } else {
+                    float yaw = -actor.getYRot() * 0.0174532925F;
+                    sideX = net.minecraft.util.Mth.cos(yaw);
+                    sideZ = -net.minecraft.util.Mth.sin(yaw);
+                }
+                double x = doubleValue(action, "x", 0.0D);
+                double y = doubleValue(action, "y", 0.0D);
+                double z = doubleValue(action, "z", 0.0D);
+                double vx = sideX * x + forward.y * sideZ * y + forward.x * z;
+                double vy = (forward.z * sideX - forward.x * sideZ) * y + forward.y * z;
+                double vz = sideZ * x - forward.y * sideX * y + forward.z * z;
+                if (booleanValue(action, "set", false)) target.setDeltaMovement(vx, vy, vz);
+                else target.push(vx, vy, vz);
+                target.hurtMarked = true;
+            }
+            default -> { }
         }
     }
 
@@ -1173,7 +1236,7 @@ public final class FormPowerRuntime {
         recipient.hurt(source, floatValue(action, "amount", 0.0F));
     }
 
-    private static void addVelocity(Player actor, JsonObject action) {
+    private static void addVelocity(LivingEntity actor, JsonObject action) {
         double x = doubleValue(action, "x", 0.0D);
         double y = doubleValue(action, "y", 0.0D);
         double z = doubleValue(action, "z", 0.0D);
@@ -1204,12 +1267,17 @@ public final class FormPowerRuntime {
         }
     }
 
-    private static void playSound(Player actor, JsonObject action) {
+    private static void playSound(LivingEntity actor, JsonObject action) {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "sound", ""));
         SoundEvent sound = id == null ? null : BuiltInRegistries.SOUND_EVENT.get(id);
         if (sound != null) {
             Level level = actor.level();
-            level.playSound(null, actor.blockPosition(), sound, actor.getSoundSource(),
+            net.minecraft.sounds.SoundSource category = actor instanceof Player
+                    ? net.minecraft.sounds.SoundSource.PLAYERS
+                    : actor instanceof net.minecraft.world.entity.monster.Monster
+                    ? net.minecraft.sounds.SoundSource.HOSTILE
+                    : net.minecraft.sounds.SoundSource.NEUTRAL;
+            level.playSound(null, actor.getX(), actor.getY(), actor.getZ(), sound, category,
                     floatValue(action, "volume", 1.0F), floatValue(action, "pitch", 1.0F));
         }
     }
@@ -1425,22 +1493,63 @@ public final class FormPowerRuntime {
     }
 
     private static void spawnParticles(Player actor, LivingEntity recipient, JsonObject action) {
+        if (!(recipient.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) return;
         JsonElement particle = action.get("particle");
         String id = particle != null && particle.isJsonObject()
                 ? stringValue(particle.getAsJsonObject(), "type", "minecraft:poof")
                 : particle == null ? "minecraft:poof" : particle.getAsString();
+        ResourceLocation particleId = ResourceLocation.tryParse(id);
+        if (particleId == null) return;
+        net.minecraft.core.particles.ParticleOptions options;
+        if ("minecraft:dust".equals(id) && particle != null && particle.isJsonObject()) {
+            String[] values = stringValue(particle.getAsJsonObject(), "params", "").trim().split("\\s+");
+            if (values.length != 4) return;
+            try {
+                options = new net.minecraft.core.particles.DustParticleOptions(
+                        new org.joml.Vector3f(Float.parseFloat(values[0]),
+                                Float.parseFloat(values[1]), Float.parseFloat(values[2])),
+                        Float.parseFloat(values[3]));
+            } catch (NumberFormatException invalid) {
+                return;
+            }
+        } else {
+            net.minecraft.core.particles.ParticleType<?> type = BuiltInRegistries.PARTICLE_TYPE.get(particleId);
+            if (!(type instanceof net.minecraft.core.particles.SimpleParticleType simple)) {
+                spawnParticlesViaCommand(actor, recipient, action, particle, id);
+                return;
+            }
+            options = simple;
+        }
+        JsonObject spread = action.getAsJsonObject("spread");
+        int count = intValue(action, "count", 0);
+        if (count <= 0) return;
+        double width = recipient.getBbWidth();
+        double height = recipient.getBbHeight();
+        serverLevel.sendParticles(options, recipient.getX(),
+                recipient.getY() + height * floatValue(action, "offset_y", 0.5F), recipient.getZ(),
+                count,
+                (float) (width * doubleValue(spread, "x", 0.5D)),
+                (float) (height * doubleValue(spread, "y", 0.25D)),
+                (float) (width * doubleValue(spread, "z", 0.5D)),
+                floatValue(action, "speed", 0.0F));
+    }
+
+    /** Preserve support for parameterized non-dust particles used by other forms. */
+    private static void spawnParticlesViaCommand(Player actor, LivingEntity recipient, JsonObject action,
+                                                  JsonElement particle, String id) {
         if (particle != null && particle.isJsonObject() && particle.getAsJsonObject().has("params")) {
             id += " " + particle.getAsJsonObject().get("params").getAsString();
         }
         JsonObject spread = action.getAsJsonObject("spread");
-        double offsetX = doubleValue(action, "offset_x", 0.0D);
-        double offsetY = doubleValue(action, "offset_y", 0.0D);
-        double offsetZ = doubleValue(action, "offset_z", 0.0D);
-        String command = "particle " + id + " ~" + offsetX + " ~" + offsetY + " ~" + offsetZ + " "
-                + doubleValue(spread, "x", 0.0D) + " "
-                + doubleValue(spread, "y", 0.0D) + " " + doubleValue(spread, "z", 0.0D) + " "
-                + doubleValue(action, "speed", 0.0D) + " " + intValue(action, "count", 1)
-                + (action.has("force") && action.get("force").getAsBoolean() ? " force" : " normal");
+        String command = "particle " + id + " ~" + doubleValue(action, "offset_x", 0.0D)
+                + " ~" + doubleValue(action, "offset_y", 0.0D)
+                + " ~" + doubleValue(action, "offset_z", 0.0D)
+                + " " + doubleValue(spread, "x", 0.0D)
+                + " " + doubleValue(spread, "y", 0.0D)
+                + " " + doubleValue(spread, "z", 0.0D)
+                + " " + doubleValue(action, "speed", 0.0D)
+                + " " + intValue(action, "count", 1)
+                + (booleanValue(action, "force", false) ? " force" : " normal");
         JsonObject commandAction = new JsonObject();
         commandAction.addProperty("command", command);
         executeCommand(actor, recipient, commandAction);
@@ -1485,32 +1594,52 @@ public final class FormPowerRuntime {
 
     private static void explosionDamage(Player actor, JsonObject action) {
         if (actor.level().isClientSide) return;
-        double radius = Math.max(0.0D, intValue(action, "power", 0) * 2.0D);
-        if (radius <= 0.0D) return;
-        // clamp radius to avoid huge damage (vanilla TNT ~4)
-        radius = Math.min(radius, 12.0D);
-        boolean causesDamage = !action.has("explosion_damage_entity") || action.get("explosion_damage_entity").getAsBoolean();
-        double multiplier = Math.max(0.0D, Math.min(5.0D, doubleValue(action, "damage_multiplier", 1.0D)));
-        double baseDamage = Math.max(0.0D, doubleValue(action, "base_damage", 0.0D));
-        for (Entity candidate : actor.level().getEntities(actor, actor.getBoundingBox().inflate(radius))) {
-            if (!(candidate instanceof LivingEntity living) || candidate.ignoreExplosion()
-                    || !test(actor, candidate, action.getAsJsonObject("entity_condition"))) continue;
-            double distance = candidate.position().distanceTo(actor.position());
-            if (distance > radius) continue;
-            double scale = 1.0D - distance / radius;
+        Vec3 center = actor.position();
+        float diameter = intValue(action, "power", 0) * 2.0F;
+        actor.level().gameEvent(actor, net.minecraft.world.level.gameevent.GameEvent.EXPLODE, center);
+        if (diameter <= 0.0F) return;
+        int minX = net.minecraft.util.Mth.floor(center.x - diameter - 1.0D);
+        int maxX = net.minecraft.util.Mth.floor(center.x + diameter + 1.0D);
+        int minY = net.minecraft.util.Mth.floor(center.y - diameter - 1.0D);
+        int maxY = net.minecraft.util.Mth.floor(center.y + diameter + 1.0D);
+        int minZ = net.minecraft.util.Mth.floor(center.z - diameter - 1.0D);
+        int maxZ = net.minecraft.util.Mth.floor(center.z + diameter + 1.0D);
+        boolean causesDamage = booleanValue(action, "explosion_damage_entity", true);
+        float multiplier = floatValue(action, "damage_multiplier", 1.0F);
+        float baseDamage = floatValue(action, "base_damage", 0.0F);
+        JsonObject condition = action.getAsJsonObject("entity_condition");
+        for (Entity candidate : actor.level().getEntities(actor,
+                new AABB(minX, minY, minZ, maxX, maxY, maxZ))) {
+            if (candidate.ignoreExplosion() || !testEntity(actor, candidate, condition)) continue;
+            double distance = Math.sqrt(candidate.distanceToSqr(center)) / diameter;
+            if (distance > 1.0D) continue;
+            double dx = candidate.getX() - center.x;
+            double dy = (candidate instanceof net.minecraft.world.entity.item.PrimedTnt
+                    ? candidate.getY() : candidate.getEyeY()) - center.y;
+            double dz = candidate.getZ() - center.z;
+            double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (length == 0.0D) continue;
+            dx /= length;
+            dy /= length;
+            dz /= length;
+            double exposure = net.minecraft.world.level.Explosion.getSeenPercent(center, candidate);
+            double impact = (1.0D - distance) * exposure;
             if (causesDamage) {
-                // vanilla-like: (scale^2+scale)/2 *8*radius +1
-                double vanilla = ((scale * scale + scale) * 0.5D * 8.0D * radius + 1.0D);
-                float damage = (float) Math.min(100.0D, vanilla * multiplier + baseDamage);
-                living.hurt(actor.damageSources().explosion(actor, actor), damage);
+                float vanillaDamage = (float) ((int) ((impact * impact + impact) / 2.0D
+                        * 7.0D * diameter + 1.0D));
+                candidate.hurt(actor.damageSources().explosion(actor, actor),
+                        vanillaDamage * multiplier + baseDamage);
             }
-            Vec3 diff = candidate.position().subtract(actor.position());
-            double len2 = diff.lengthSqr();
-            Vec3 push;
-            if (len2 < 1e-8) push = new Vec3(0, 0.3, 0);
-            else push = diff.normalize().scale(scale * 0.5D);
-            candidate.push(push.x, Math.max(0.1D, push.y), push.z);
-            execute(actor, living, action.getAsJsonObject("entity_action"));
+            double knockback = candidate instanceof LivingEntity living
+                    ? net.minecraft.world.item.enchantment.ProtectionEnchantment
+                            .getExplosionKnockbackAfterDampener(living, impact)
+                    : impact;
+            candidate.setDeltaMovement(candidate.getDeltaMovement().add(
+                    dx * knockback, dy * knockback, dz * knockback));
+            if (candidate instanceof LivingEntity living) {
+                execute(actor, living, action.getAsJsonObject("entity_action"));
+            }
+            candidate.hurtMarked = true;
         }
     }
 

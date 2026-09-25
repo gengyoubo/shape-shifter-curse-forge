@@ -7,12 +7,14 @@
     "refmap": "shape_shifter_curse.mixins.refmap.json",
     "mixins": [
         "LivingEntityMixin",
+        "FoodDataPowerMixin",
         "ArmorSlotRestrictionMixin",
         "EntityLootingMixin",
         "BatAttachMovementMixin",
         "ElytraFlightLivingMixin",
         "ElytraFlightPlayerMixin",
         "PotionStackMixin",
+        "SplashPotionPowerMixin",
         "StatusEffectMixin",
         "EnchantmentHelperLootingMixin",
         "EntityStuckSpeedMixin",
@@ -40,6 +42,8 @@
         "client.PlayerEdgeClipMixin",
         "client.GameRendererBlockSelectionMixin",
         "client.NightVisionStrengthMixin",
+        "client.NightVisionLightTextureMixin",
+        "client.NightVisionFogMixin",
         "client.NoRenderArmMixin",
         "client.DisablePlayerRotationRendererMixin"
     ],

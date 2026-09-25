@@ -560,6 +560,13 @@ public final class FormActivePowerService {
         return COOLDOWNS.getOrDefault(player.getUUID(), Map.of()).getOrDefault(id, 0) > 0;
     }
 
+    /** Claims an Apoli cooldown after every condition has passed. */
+    public static boolean usePowerCooldown(Player player, ResourceLocation id, int ticks) {
+        if (isOnCooldown(player, id)) return false;
+        startCooldown(player, id, ticks);
+        return true;
+    }
+
     private static void startCooldown(Player player, ResourceLocation id, int ticks) {
         if (ticks > 0) {
             COOLDOWNS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(id, ticks);

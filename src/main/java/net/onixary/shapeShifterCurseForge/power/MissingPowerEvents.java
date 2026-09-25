@@ -54,10 +54,7 @@ public final class MissingPowerEvents {
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
-        // LikeWaterMixin alters travel on both Fabric logical sides. Keep this
-        // local prediction separate from its server-authoritative counterpart.
         if (player.level().isClientSide) {
-            maintainSimpleMovement(player);
             return;
         }
 
@@ -66,7 +63,6 @@ public final class MissingPowerEvents {
         maintainArmor(player, false);
         maintainParticles(player);
         maintainEntityGlow(player);
-        maintainSimpleMovement(player);
         ItemStoreService.tick(player);
         tickJumpClash(player);
 
@@ -84,17 +80,6 @@ public final class MissingPowerEvents {
                         MobEffect applied = applyEffect(player, element.getAsJsonObject());
                         if (applied != null) wanted.add(applied);
                     }
-                }
-            }
-            // Apoli's night_vision "strength" is applied client-side via NightVisionStrengthMixin.
-            if ("apoli:night_vision".equals(type)
-                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                ResourceLocation effectId = ResourceLocation.fromNamespaceAndPath("minecraft", "night_vision");
-                MobEffect effect = BuiltInRegistries.MOB_EFFECT.get(effectId);
-                if (effect != null) {
-                    snapshotEffect(player, effect);
-                    wanted.add(effect);
-                    player.addEffect(new MobEffectInstance(effect, 50, 0, true, false, false));
                 }
             }
         });
@@ -284,21 +269,6 @@ public final class MissingPowerEvents {
         }
         previous.clear();
         previous.addAll(wanted);
-    }
-
-    // 请勿在此处设置 hurtMarked：ServerPlayer 的 X/Z 方向位移变化量并不
-    // 代表本地玩家由客户端驱动的游泳速度。
-    // 将其与所有者同步会清除客户端的水平游泳动量。
-    private static void maintainSimpleMovement(Player player) {
-        if (hasPowerId(player, "like_water") || !player.isInWater() || player.isShiftKeyDown()) return;
-        var velocity = player.getDeltaMovement();
-        double limitedY = Math.max(velocity.y, -0.02D);
-        if (limitedY != velocity.y) {
-            // The local player applies the same limit. Sending the server player's
-            // velocity to its owner also sends the server's zero X/Z components,
-            // erasing the horizontal speed accumulated by client-side swimming.
-            player.setDeltaMovement(velocity.x, limitedY, velocity.z);
-        }
     }
 
     private static void tickJumpClash(Player player) {

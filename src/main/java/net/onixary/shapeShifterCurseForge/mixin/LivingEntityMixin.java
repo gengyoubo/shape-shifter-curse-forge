@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -44,9 +45,24 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Shadow protected float xxa;
     @Shadow protected float zza;
     @Shadow protected abstract void hurtCurrentlyUsedShield(float amount);
+    @Shadow protected abstract Vec3 getFluidFallingAdjustedMovement(double gravity, boolean falling, Vec3 velocity);
 
     @Unique
     private static final float SSC_MAX_WATER_FLEXIBILITY = 0.98F;
+
+    /** Fabric subtracts falling protection inside calculateFallDamage, preserving the real fall distance. */
+    @ModifyVariable(method = "calculateFallDamage(FF)I", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private float ssc$protectedFallDistance(float distance) {
+        if (!((Object) this instanceof Player player)) return distance;
+        final float[] strongest = {0.0F};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:falling_protection".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                strongest[0] = Math.max(strongest[0], FormPowerRuntime.floatValue(power, "fall_distance", 0.0F));
+            }
+        });
+        return Math.max(0.0F, distance - strongest[0]);
+    }
     @Unique
     public int ssc$noJumpTick = 0;
     @Unique
@@ -269,35 +285,30 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         cir.setReturnValue(modified[0]);
     }
 
-    /**
-     * Fabric's conditioned_modify_slipperiness edits block friction (0.6 -&gt; 0.95),
-     * not the speed factor. getFriction lives on Forge's IForgeBlockState interface,
-     * so instead of a fragile interface mixin we adjust the friction value where
-     * LivingEntity.travel consumes it.
-     */
-    @ModifyArg(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+    /** Edit the block friction before vanilla derives both acceleration and damping from it. */
+    @Redirect(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
             at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/entity/LivingEntity;handleRelativeFrictionAndCalculateMovement(Lnet/minecraft/world/phys/Vec3;F)Lnet/minecraft/world/phys/Vec3;"),
-            index = 1)
-    private float ssc$modifyFriction(float friction) {
+                    target = "Lnet/minecraft/world/level/block/state/BlockState;getFriction(Lnet/minecraft/world/level/LevelReader;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/Entity;)F",
+                    remap = false),
+            require = 1)
+    private float ssc$modifyFriction(net.minecraft.world.level.block.state.BlockState state,
+                                     net.minecraft.world.level.LevelReader level,
+                                     BlockPos pos, net.minecraft.world.entity.Entity entity) {
+        float friction = state.getFriction(level, pos, entity);
         LivingEntity self = (LivingEntity) (Object) this;
         if (!(self instanceof Player player)) return friction;
         final float[] modified = {friction};
         final boolean[] applied = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!"shape-shifter-curse:conditioned_modify_slipperiness".equals(FormPowerRegistry.typeOf(power))) return;
-            BlockPos affecting = player.blockPosition().below();
-            if (!FormPowerRuntime.matchesBlockState(player.level(), affecting,
+            if (!FormPowerRuntime.matchesBlockState(player.level(), pos,
                     power.getAsJsonObject("block_condition"))) return;
             if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("entity_condition"))) return;
             com.google.gson.JsonElement modEl = power.get("modifier");
             if (modEl != null && modEl.isJsonPrimitive()) {
                 // Fabric: original 0.6 + 0.35 = 0.95 (addition)
                 float delta = modEl.getAsFloat();
-                float next = friction + delta;
-                if (next > 0.98F) next = 0.98F;
-                if (next < 0.1F) next = 0.1F;
-                modified[0] = next;
+                modified[0] = friction + delta;
                 applied[0] = true;
             } else if (modEl != null && modEl.isJsonObject()) {
                 modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], modEl.getAsJsonObject());
@@ -325,6 +336,27 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         return modified[0];
     }
 
+    /** Fabric's LikeWaterPower suppresses the gravity adjustment only at terminal water drift. */
+    @Redirect(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;getFluidFallingAdjustedMovement(DZLnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/Vec3;",
+                    ordinal = 0), require = 1)
+    private Vec3 ssc$likeWaterTravel(LivingEntity entity, double gravity, boolean falling, Vec3 velocity) {
+        Vec3 adjusted = this.getFluidFallingAdjustedMovement(gravity, falling, velocity);
+        if (!((Object) this instanceof Player player)) return adjusted;
+        final boolean[] likeWater = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:like_water".equals(id.toString())
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                likeWater[0] = true;
+            }
+        });
+        if (likeWater[0] && Math.abs(velocity.y - gravity / 16.0D) < 0.025D) {
+            return new Vec3(adjusted.x, 0.0D, adjusted.z);
+        }
+        return adjusted;
+    }
+
     /** Fabric's BreathingUnderWaterPower changes the vanilla water-air drain to a 1% chance. */
     @Inject(method = "decreaseAirSupply", at = @At("HEAD"), cancellable = true)
     private void ssc$modifyWaterAirDrain(int air, CallbackInfoReturnable<Integer> cir) {
@@ -347,6 +379,13 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
             cir.setReturnValue(player.getRandom().nextInt(101) == 0 ? air - 1 : air);
         } else if (holdBreath[0]) {
             cir.setReturnValue(player.getRandom().nextInt(4) > 0 ? air : air - 1);
+        }
+    }
+
+    @Inject(method = "canBreatheUnderwater", at = @At("HEAD"), cancellable = true)
+    private void ssc$customWaterBreather(CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this instanceof Player player && FormPowerEvents.hasCustomWaterBreathing(player)) {
+            cir.setReturnValue(true);
         }
     }
 
