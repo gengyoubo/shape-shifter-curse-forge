@@ -10,12 +10,13 @@ import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.block.entity.FormAttunerBlockEntity;
+import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 
 import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "6";
+    private static final String PROTOCOL_VERSION = "7";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -322,7 +323,10 @@ public final class ModNetwork {
     private static SyncFormPacket packetFor(ServerPlayer player,
                                             PlayerFormData data,
                                             boolean playTransformAnimation) {
+        ResourceLocation formId = ResourceLocation.tryParse(data.getFormId());
+        var assignedPowerIds = formId == null ? java.util.List.<ResourceLocation>of()
+                : FormPowerRegistry.idsForForm(formId);
         return new SyncFormPacket(player.getId(), data.getFormId(), data.getPreviousFormId(), data.getFormGroupId(),
-                data.getFormTier(), data.isContentEnabled(), playTransformAnimation);
+                data.getFormTier(), data.isContentEnabled(), assignedPowerIds, playTransformAnimation);
     }
 }

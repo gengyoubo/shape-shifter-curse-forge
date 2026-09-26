@@ -13,6 +13,7 @@ import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerEvents;
 import net.onixary.shapeShifterCurseForge.power.MissingPowerEvents;
 import net.onixary.shapeShifterCurseForge.power.PowerAnimationService;
+import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 
 public final class FormManager {
     private FormManager() {
@@ -110,15 +111,21 @@ public final class FormManager {
         return target != null && setForm(player, target.id());
     }
 
-    public static void applySyncedForm(Player player, String formId, String groupId, int tier, boolean enabled) {
-        SscApi.currentForm(player).ifPresent(data -> {
-            boolean changed = !data.getFormId().equals(formId);
+    public static void applySyncedForm(Player player, String formId, String groupId, int tier, boolean enabled,
+                                       java.util.List<ResourceLocation> assignedPowerIds) {
+        boolean changed = SscApi.currentForm(player).map(data -> {
+            boolean formChanged = !data.getFormId().equals(formId);
             data.setFormId(formId);
             data.setFormGroupId(groupId);
             data.setFormTier(tier);
             data.setContentEnabled(enabled);
             player.refreshDimensions();
-            if (changed) FormPowerEvents.onFormChanged(player);
-        });
+            return formChanged;
+        }).orElse(false);
+        ResourceLocation syncedFormId = ResourceLocation.tryParse(formId);
+        boolean powerSetChanged = FormPowerRegistry.applySyncedPowerIds(player, syncedFormId, assignedPowerIds);
+        if (changed || powerSetChanged) {
+            FormPowerEvents.onFormChanged(player);
+        }
     }
 }

@@ -4,8 +4,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
+import net.minecraftforge.event.entity.player.SleepingTimeCheckEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
@@ -17,16 +22,10 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.form.TransformManager;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 /** Forge-side state machine for Fabric's temporary transformative effects. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class TransformativeEffectService {
     public static final int DEFAULT_DURATION = 400 * 20;
-    private static final Map<UUID, Boolean> WAS_SLEEPING = new HashMap<>();
-
     private TransformativeEffectService() {
     }
 
@@ -61,16 +60,16 @@ public final class TransformativeEffectService {
         });
     }
 
-    public static void activate(ServerPlayer player) {
+    public static boolean activate(ServerPlayer player) {
         ResourceLocation targetId = SscApi.currentForm(player)
                 .map(PlayerFormData::getTransformativeEffectFormId)
                 .map(ResourceLocation::tryParse)
                 .orElse(null);
         if (targetId == null) {
-            return;
+            return false;
         }
         FormDefinition current = FormManager.current(player);
-        boolean applied = current.hasFlag("transform_effect_can_apply")
+        boolean started = current.hasFlag("transform_effect_can_apply")
                 && FormRegistry.get(targetId) != null
                 && TransformManager.forceTransform(player, targetId, false);
         clear(player);
@@ -79,21 +78,29 @@ public final class TransformativeEffectService {
                 player.removeEffect(effect.getEffect());
             }
         }
+        return started;
+    }
+
+    @SubscribeEvent
+    public static void allowSleepTime(SleepingTimeCheckEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && has(player)) {
+            event.setResult(Event.Result.ALLOW);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onWakeUp(PlayerWakeUpEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && has(player)) {
+            SscAdvancementTriggers.ON_SLEEP_WHEN_HAVE_TRANSFORM_EFFECT.trigger(player);
+            player.sendSystemMessage(Component.translatable(
+                    "info.shape-shifter-curse.origin_form_sleep_when_attached").withStyle(ChatFormatting.LIGHT_PURPLE));
+            activate(player);
+        }
     }
 
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
-        boolean sleeping = player.isSleeping();
-        boolean wasSleeping = WAS_SLEEPING.getOrDefault(player.getUUID(), false);
-        if (wasSleeping && !sleeping && has(player)) {
-            SscAdvancementTriggers.ON_SLEEP_WHEN_HAVE_TRANSFORM_EFFECT.trigger(player);
-            activate(player);
-        }
-        WAS_SLEEPING.put(player.getUUID(), sleeping);
-
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
         SscApi.currentForm(player).ifPresent(data -> {
             if (!hasData(data)) {
                 return;

@@ -54,11 +54,13 @@ public final class FormSyncClientHandler {
             INITIAL_SYNCED_PLAYERS.clear();
             FormAnimationSystem.clearClientState();
             PowerAnimationClientHandler.clear();
+            net.onixary.shapeShifterCurseForge.power.FormPowerRegistry.clearSyncedClientPowerIds();
         }
 
         Entity entity = minecraft.level.getEntity(packet.entityId());
         if (entity instanceof Player player) {
-            FormManager.applySyncedForm(player, packet.formId(), packet.groupId(), packet.tier(), packet.enabled());
+            FormManager.applySyncedForm(player, packet.formId(), packet.groupId(), packet.tier(), packet.enabled(),
+                    packet.assignedPowerIds());
             ResourceLocation syncedForm = ResourceLocation.tryParse(packet.formId());
             if (syncedForm != null) {
                 net.onixary.shapeShifterCurseForge.client.color.FormColorData.client().unlockForm(syncedForm);

@@ -30,15 +30,17 @@ public final class ModEffects {
             .addAttributeModifier(Attributes.MOVEMENT_SPEED, MOD_SPEED_UUID.toString(), -1D, AttributeModifier.Operation.MULTIPLY_BASE)
             .addAttributeModifier(Attributes.KNOCKBACK_RESISTANCE, MOD_KNOCKBACK_UUID.toString(), 100D, AttributeModifier.Operation.ADDITION)
             .addAttributeModifier(Attributes.ATTACK_SPEED, MOD_ATTACK_UUID.toString(), -0.8D, AttributeModifier.Operation.MULTIPLY_BASE));
-    public static final RegistryObject<MobEffect> TO_BAT = transform("to_bat_0_effect", "form_bat_0");
-    public static final RegistryObject<MobEffect> TO_AXOLOTL = transform("to_axolotl_0_effect", "form_axolotl_0");
-    public static final RegistryObject<MobEffect> TO_OCELOT = transform("to_ocelot_0_effect", "form_ocelot_0");
-    public static final RegistryObject<MobEffect> TO_FAMILIAR_FOX = transform("to_familiar_fox_0_effect", "form_familiar_fox_0");
-    public static final RegistryObject<MobEffect> TO_SNOW_FOX = transform("to_snow_fox_0_effect", "form_snow_fox_0");
-    public static final RegistryObject<MobEffect> TO_ANUBIS_WOLF = transform("to_anubis_wolf_0_effect", "form_anubis_wolf_0");
-    public static final RegistryObject<MobEffect> TO_SPIDER = transform("to_spider_0_effect", "form_spider_0");
-    public static final RegistryObject<MobEffect> TO_ALLAY = transform("to_allay_sp_effect", "form_allay_sp");
-    public static final RegistryObject<MobEffect> TO_FERAL_CAT = transform("to_feral_cat_sp_effect", "form_feral_cat_sp");
+    // Transformative effects target FormRegistry IDs. The "form_" prefix belongs
+    // to Origin resource IDs and is not part of the form ID.
+    public static final RegistryObject<MobEffect> TO_BAT = transform("to_bat_0_effect", "bat_0");
+    public static final RegistryObject<MobEffect> TO_AXOLOTL = transform("to_axolotl_0_effect", "axolotl_0");
+    public static final RegistryObject<MobEffect> TO_OCELOT = transform("to_ocelot_0_effect", "ocelot_0");
+    public static final RegistryObject<MobEffect> TO_FAMILIAR_FOX = transform("to_familiar_fox_0_effect", "familiar_fox_0");
+    public static final RegistryObject<MobEffect> TO_SNOW_FOX = transform("to_snow_fox_0_effect", "snow_fox_0");
+    public static final RegistryObject<MobEffect> TO_ANUBIS_WOLF = transform("to_anubis_wolf_0_effect", "anubis_wolf_0");
+    public static final RegistryObject<MobEffect> TO_SPIDER = transform("to_spider_0_effect", "spider_0");
+    public static final RegistryObject<MobEffect> TO_ALLAY = transform("to_allay_sp_effect", "allay_sp");
+    public static final RegistryObject<MobEffect> TO_FERAL_CAT = transform("to_feral_cat_sp_effect", "feral_cat_sp");
 
     private static RegistryObject<MobEffect> transform(String id, String form) { return EFFECTS.register(id, () -> new TransformativeStatusEffect(ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, form))); }
     private ModEffects() {}

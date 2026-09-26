@@ -46,6 +46,8 @@ public final class FormPowerRegistry {
     private static volatile Map<ResourceLocation, List<ResourceLocation>> dynamicPowerAdds = Map.of();
     private static volatile Map<ResourceLocation, List<ResourceLocation>> dynamicPowerRemoves = Map.of();
     private static volatile Map<ResourceLocation, List<ResourceLocation>> extraPowerAdds = Map.of();
+    /** Server-authoritative base assignments mirrored to clients alongside the current form. */
+    private static final Map<java.util.UUID, SyncedPowerSet> CLIENT_SYNCED_POWER_SETS = new java.util.HashMap<>();
 
     private FormPowerRegistry() {
     }
@@ -92,8 +94,34 @@ public final class FormPowerRegistry {
     }
 
     public static List<ResourceLocation> idsFor(Player player) {
-        return TrinketUtils.effectivePowerIds(player, idsForForm(FormManager.current(player).id()));
+        ResourceLocation formId = FormManager.current(player).id();
+        List<ResourceLocation> assigned = idsForForm(formId);
+        if (player.level().isClientSide) {
+            SyncedPowerSet synced = CLIENT_SYNCED_POWER_SETS.get(player.getUUID());
+            if (synced != null && synced.formId().equals(formId)) {
+                assigned = synced.powerIds();
+            }
+        }
+        return TrinketUtils.effectivePowerIds(player, assigned);
     }
+
+    /** Installs the server's base form-power assignment for a client player. */
+    public static boolean applySyncedPowerIds(Player player, ResourceLocation formId,
+                                              List<ResourceLocation> powerIds) {
+        if (!player.level().isClientSide || formId == null) {
+            return false;
+        }
+        SyncedPowerSet updated = new SyncedPowerSet(formId, List.copyOf(powerIds));
+        SyncedPowerSet previous = CLIENT_SYNCED_POWER_SETS.put(player.getUUID(), updated);
+        return !updated.equals(previous);
+    }
+
+    /** Discards client snapshots when its world changes. */
+    public static void clearSyncedClientPowerIds() {
+        CLIENT_SYNCED_POWER_SETS.clear();
+    }
+
+    private record SyncedPowerSet(ResourceLocation formId, List<ResourceLocation> powerIds) { }
 
     /** Power assignments for one resolved form, before player-specific accessory changes. */
     public static List<ResourceLocation> idsForForm(ResourceLocation formId) {

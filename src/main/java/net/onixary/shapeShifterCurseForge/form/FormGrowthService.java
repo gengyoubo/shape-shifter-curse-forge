@@ -50,9 +50,7 @@ public final class FormGrowthService {
                 || !TransformativeEffectService.has(player)) {
             return false;
         }
-        var before = current.id();
-        TransformativeEffectService.activate(player);
-        return !FormManager.current(player).id().equals(before);
+        return TransformativeEffectService.activate(player);
     }
 
     /**
