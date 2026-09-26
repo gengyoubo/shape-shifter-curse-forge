@@ -65,7 +65,7 @@ public final class FormGrowthService {
         }
         FormDefinition target = FormRegistry.nextInProgression(current);
         if (target != null) {
-            FormManager.setForm(player, target.id());
+            TransformManager.forceTransform(player, target.id(), false);
         }
     }
 
@@ -82,7 +82,7 @@ public final class FormGrowthService {
         if (powerful && (!current.hasFlag("can_transform_to_final_form") || !target.hasFlag("final_form"))) {
             return false;
         }
-        return FormManager.setForm(player, target.id());
+        return TransformManager.forceTransform(player, target.id(), false);
     }
 
     private static boolean regress(ServerPlayer player, FormDefinition current, boolean powerful) {
@@ -91,6 +91,8 @@ public final class FormGrowthService {
         }
         int targetStage = powerful && !current.hasFlag("inhibitor_resist") ? 0 : current.stage() - 1;
         FormDefinition target = targetStage > 0 ? FormRegistry.previousInProgression(current) : null;
-        return target == null ? FormManager.setForm(player, FormRegistry.ORIGINAL_SHIFTER) : FormManager.setForm(player, target.id());
+        return target == null
+                ? TransformManager.forceTransform(player, FormRegistry.ORIGINAL_SHIFTER, false)
+                : TransformManager.forceTransform(player, target.id(), false);
     }
 }

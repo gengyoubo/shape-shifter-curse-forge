@@ -9,6 +9,7 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormGrowthService;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.form.TransformManager;
 import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 
 /** Persisted replacement for Cardinal Components' instinct meter and timed instinct effects. */
@@ -27,6 +28,7 @@ public final class InstinctService {
         SscApi.currentForm(player).ifPresent(data -> {
             FormDefinition form = FormManager.current(player);
             if (form.hasFlag("no_instinct") || form.hasFlag("lock_instinct")) return;
+            if (TransformManager.isInstinctLocked(player)) return;
             if (isCursedMoonLock(player) && amount > 0.0F) return;
             if (immediate) {
                 data.setInstinctValue(value(player) + amount * Math.max(1, duration));
@@ -51,7 +53,7 @@ public final class InstinctService {
                 syncIfDue(player);
                 return;
             }
-            if (isCursedMoonLock(player)) {
+            if (isCursedMoonLock(player) || TransformManager.isInstinctLocked(player)) {
                 data.setInstinctRate(0.0F);
                 syncIfDue(player);
                 return;

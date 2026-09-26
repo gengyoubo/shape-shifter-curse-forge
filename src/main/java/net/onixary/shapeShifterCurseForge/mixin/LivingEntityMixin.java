@@ -100,6 +100,8 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Unique
     public int ssc$noJumpTick = 0;
     @Unique
+    public int ssc$noMoveTick = 0;
+    @Unique
     private int ssc$tripleJumpCount = 0;
     @Unique
     private int ssc$tripleTicksOnGround = 0;
@@ -192,6 +194,9 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     private void ssc$tickNoJump(CallbackInfo ci) {
         if (ssc$noJumpTick > 0) {
             ssc$noJumpTick--;
+        }
+        if (ssc$noMoveTick > 0) {
+            ssc$noMoveTick--;
         }
         LivingEntity self = (LivingEntity) (Object) this;
         if (!(self instanceof Player player)) {
@@ -544,6 +549,16 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Unique
     public int ssc$getNoJumpTick() {
         return ssc$noJumpTick;
+    }
+
+    @Unique
+    public void ssc$setNoMoveTick(int tick) {
+        ssc$noMoveTick = tick;
+    }
+
+    @Unique
+    public int ssc$getNoMoveTick() {
+        return ssc$noMoveTick;
     }
 
     @Override

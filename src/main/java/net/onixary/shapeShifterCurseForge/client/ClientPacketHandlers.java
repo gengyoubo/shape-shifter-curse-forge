@@ -62,6 +62,11 @@ public final class ClientPacketHandlers {
                 playerId, Minecraft.getInstance().level, pos, side);
     }
 
+    public static void setTransformState(int entityId, boolean transforming,
+                                         String startFormId, String endFormId) {
+        TransformClientState.apply(entityId, transforming, startFormId, endFormId);
+    }
+
     /** Plays the vanilla totem activation animation for a virtual totem stack. */
     public static void displayTotem(net.minecraft.world.item.ItemStack stack) {
         if (!stack.isEmpty()) {

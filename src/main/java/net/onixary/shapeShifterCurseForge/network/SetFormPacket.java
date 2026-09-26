@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.form.TransformManager;
 import org.slf4j.Logger;
 
 import java.util.UUID;
@@ -46,7 +47,7 @@ public record SetFormPacket(UUID targetUUID, ResourceLocation formId, boolean im
                 return;
             }
             if (sender.hasPermissions(2) || sender.getAbilities().instabuild) {
-                FormManager.setForm(target, packet.formId, !packet.immediate);
+                TransformManager.forceTransform(target, packet.formId, packet.immediate);
             } else {
                 LOGGER.warn("[SetForm] Player {} lacks permission to set forms", sender.getGameProfile().getName());
             }

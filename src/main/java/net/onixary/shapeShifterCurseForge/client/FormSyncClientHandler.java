@@ -69,7 +69,8 @@ public final class FormSyncClientHandler {
             if (packet.playTransformAnimation()) {
                 FormAnimationSystem.startTransition(player, packet.previousFormId());
                 INITIAL_SYNCED_PLAYERS.add(player.getUUID());
-            } else if (INITIAL_SYNCED_PLAYERS.add(player.getUUID())) {
+            } else if (INITIAL_SYNCED_PLAYERS.add(player.getUUID())
+                    && !FormAnimationSystem.isTransitioning(player)) {
                 FormAnimationSystem.prime(player);
             }
         }

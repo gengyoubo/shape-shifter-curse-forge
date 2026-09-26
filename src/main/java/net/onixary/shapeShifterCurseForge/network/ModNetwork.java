@@ -184,6 +184,14 @@ public final class ModNetwork {
                 BatDetachRequestPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER)
         );
+        CHANNEL.registerMessage(
+                19,
+                TransformStatePacket.class,
+                TransformStatePacket::encode,
+                TransformStatePacket::decode,
+                TransformStatePacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -213,6 +221,15 @@ public final class ModNetwork {
                                           net.minecraft.core.Direction side) {
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
                 new BatAttachStatePacket(player.getUUID(), pos, side));
+    }
+
+    public static void sendTransformState(ServerPlayer player, boolean transforming,
+                                          net.minecraft.resources.ResourceLocation startForm,
+                                          net.minecraft.resources.ResourceLocation endForm) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
+                new TransformStatePacket(player.getId(), transforming,
+                        startForm == null ? null : startForm.toString(),
+                        endForm == null ? null : endForm.toString()));
     }
 
     public static void sendPowerAnimationTo(ServerPlayer target, ServerPlayer receiver, PowerAnimationPacket packet) {

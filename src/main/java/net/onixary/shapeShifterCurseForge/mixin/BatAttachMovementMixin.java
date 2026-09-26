@@ -24,7 +24,14 @@ public abstract class BatAttachMovementMixin {
 
     @Inject(method = "getSpeed()F", at = @At("RETURN"), cancellable = true)
     private void ssc$stopAttachedSpeed(CallbackInfoReturnable<Float> cir) {
-        if (BatAttachService.isAttached((Player) (Object) this)) cir.setReturnValue(0.0F);
+        if (BatAttachService.isAttached((Player) (Object) this)) {
+            cir.setReturnValue(0.0F);
+            return;
+        }
+        if (this instanceof net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState state
+                && state.ssc$getNoMoveTick() > 0) {
+            cir.setReturnValue(0.0F);
+        }
     }
 
     @Inject(method = "jumpFromGround", at = @At("HEAD"), cancellable = true)

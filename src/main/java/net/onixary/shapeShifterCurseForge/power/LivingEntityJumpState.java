@@ -5,4 +5,10 @@ public interface LivingEntityJumpState {
     boolean ssc$wasJumpStartedOnBlock();
 
     void ssc$clearJumpStartedOnBlock();
+
+    void ssc$setNoJumpTick(int tick);
+
+    void ssc$setNoMoveTick(int tick);
+
+    int ssc$getNoMoveTick();
 }

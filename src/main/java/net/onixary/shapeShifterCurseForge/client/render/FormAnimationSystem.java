@@ -132,6 +132,11 @@ public final class FormAnimationSystem {
         TRANSITIONS.remove(player.getUUID());
     }
 
+    /** True while a transform transition clip is still playing for this player. */
+    public static boolean isTransitioning(Player player) {
+        return TRANSITIONS.containsKey(player.getUUID());
+    }
+
     /** Starts TransformingController only after a server-confirmed form change. */
     public static void startTransition(Player player, String previousFormId) {
         ResourceLocation previousId = ResourceLocation.tryParse(previousFormId);
@@ -139,6 +144,20 @@ public final class FormAnimationSystem {
         FormDefinition current = FormManager.current(player);
         TRANSITIONS.put(player.getUUID(), new TransitionSnapshot(
                 previous == null ? current.bodyType() : previous.bodyType(), current.bodyType(),
+                player.tickCount + Minecraft.getInstance().getFrameTime()));
+    }
+
+    /**
+     * Starts the transform clip from an explicit from/to pair. Used by the delayed
+     * transform lifecycle, where the player is still the old form when the clip begins.
+     */
+    public static void startTransition(Player player, String previousFormId, String targetFormId) {
+        FormDefinition previous = FormRegistry.get(ResourceLocation.tryParse(previousFormId));
+        FormDefinition target = FormRegistry.get(ResourceLocation.tryParse(targetFormId));
+        FormDefinition current = FormManager.current(player);
+        TRANSITIONS.put(player.getUUID(), new TransitionSnapshot(
+                previous == null ? current.bodyType() : previous.bodyType(),
+                target == null ? current.bodyType() : target.bodyType(),
                 player.tickCount + Minecraft.getInstance().getFrameTime()));
     }
 
