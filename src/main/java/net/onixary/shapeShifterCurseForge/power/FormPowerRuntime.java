@@ -1608,9 +1608,12 @@ public final class FormPowerRuntime {
                 if (projectileAction != null) executeProjectileAction(actor, fireball, projectileAction);
             } else if ("minecraft:snowball".equals(id)) {
                 Snowball snowball = new Snowball(actor.level(), actor);
-                snowball.shootFromRotation(actor, actor.getXRot(), actor.getYRot(), 0.0F, 1.5F,
-                        floatValue(action, "divergence", 0.0F));
+                snowball.setPos(actor.getX(), actor.getEyeY(), actor.getZ());
+                snowball.shootFromRotation(actor, actor.getXRot(), actor.getYRot(), 0.0F,
+                        floatValue(action, "speed", 1.5F), floatValue(action, "divergence", 1.0F));
                 actor.level().addFreshEntity(snowball);
+                JsonObject projectileAction = action.getAsJsonObject("projectile_action");
+                if (projectileAction != null) executeProjectileAction(actor, snowball, projectileAction);
             }
         }
     }
@@ -1625,7 +1628,10 @@ public final class FormPowerRuntime {
         }
         if (!"apoli:spawn_particles".equals(FormPowerRegistry.typeOf(action))
                 || !(projectile.level() instanceof net.minecraft.server.level.ServerLevel server)) return;
-        ResourceLocation particleId = ResourceLocation.tryParse(stringValue(action, "particle", ""));
+        JsonElement particleData = action.get("particle");
+        String particleName = particleData == null ? "" : particleData.isJsonObject()
+                ? stringValue(particleData.getAsJsonObject(), "type", "") : particleData.getAsString();
+        ResourceLocation particleId = ResourceLocation.tryParse(particleName);
         if (particleId == null) return;
         var particle = net.minecraft.core.registries.BuiltInRegistries.PARTICLE_TYPE.get(particleId);
         if (!(particle instanceof net.minecraft.core.particles.ParticleOptions options)) return;

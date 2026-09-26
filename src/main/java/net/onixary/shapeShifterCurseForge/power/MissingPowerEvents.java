@@ -62,7 +62,6 @@ public final class MissingPowerEvents {
         maintainEffects(player);
         maintainFlight(player);
         maintainArmor(player, false);
-        maintainParticles(player);
         maintainEntityGlow(player);
         ItemStoreService.tick(player);
         tickJumpClash(player);
@@ -221,27 +220,6 @@ public final class MissingPowerEvents {
 
     private static boolean inverted(JsonObject condition, boolean value) {
         return (condition.has("inverted") && condition.get("inverted").getAsBoolean()) != value;
-    }
-
-    private static void maintainParticles(Player player) {
-        if (!(player.level() instanceof ServerLevel level)) return;
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"apoli:particle".equals(FormPowerRegistry.typeOf(power))) return;
-            int frequency = Math.max(1, FormPowerRuntime.intValue(power, "frequency", 1));
-            if (player.tickCount % frequency != 0) return;
-            JsonObject action = new JsonObject();
-            action.addProperty("type", "apoli:spawn_particles");
-            action.add("particle", power.get("particle"));
-            action.addProperty("count", 1);
-            action.addProperty("speed", 0.0D);
-            JsonObject spread = new JsonObject();
-            spread.addProperty("x", 0.25D);
-            spread.addProperty("y", 0.25D);
-            spread.addProperty("z", 0.25D);
-            action.add("spread", spread);
-            action.addProperty("offset_y", FormPowerRuntime.doubleValue(power, "offset_y", 0.0D));
-            FormPowerRuntime.execute(player, player, action);
-        });
     }
 
     private static void maintainEntityGlow(Player player) {

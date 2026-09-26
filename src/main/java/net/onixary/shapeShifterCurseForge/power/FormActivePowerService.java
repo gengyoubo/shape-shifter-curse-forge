@@ -30,10 +30,7 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINT_TO_SNEAK_TRIGGERED = new HashMap<>();
-    private static final Map<UUID, Integer> JUMPS = new HashMap<>();
-    private static final Map<UUID, Integer> GROUND_TICKS = new HashMap<>();
     private static final Map<UUID, Integer> LEVITATE_TICKS = new HashMap<>();
-    private static final Map<UUID, Integer> JUMP_INPUT_GRACE = new HashMap<>();
     /** One travel tick of protection for a launch issued while still touching water. */
     private static final Map<UUID, Boolean> WATER_LAUNCH_GRACE = new HashMap<>();
     private static final ResourceLocation JUMP_OUT_WATER = ResourceLocation.fromNamespaceAndPath(
@@ -47,7 +44,6 @@ public final class FormActivePowerService {
         UUID id = player.getUUID();
         PRESSED_KEYS.remove(id);
         CHARGES.remove(id);
-        JUMP_INPUT_GRACE.remove(id);
         WATER_LAUNCH_GRACE.remove(id);
     }
 
@@ -60,8 +56,6 @@ public final class FormActivePowerService {
         TOGGLES.remove(id);
         SPRINTING.remove(id);
         SPRINT_TO_SNEAK_TRIGGERED.remove(id);
-        JUMPS.remove(id);
-        GROUND_TICKS.remove(id);
         LEVITATE_TICKS.remove(id);
     }
 
@@ -93,11 +87,7 @@ public final class FormActivePowerService {
             if ("key.jump".equals(key) && triggerActive(player, key)) {
                 return;
             }
-            if ("key.jump".equals(key) && !player.onGround()) {
-                triggerAirJump(player);
-            } else {
-                triggerActive(player, key);
-            }
+            triggerActive(player, key);
         } else if (!pressed && wasPressed) {
             releaseCharge(player, key);
         }
@@ -113,14 +103,7 @@ public final class FormActivePowerService {
             gainMana(player, 0.02F);
         }
         tickCooldowns(player.getUUID());
-        JUMP_INPUT_GRACE.computeIfPresent(player.getUUID(), (id, ticks) -> ticks <= 1 ? null : ticks - 1);
-        if (player.onGround()) {
-            GROUND_TICKS.merge(player.getUUID(), 1, Integer::sum);
-            if (GROUND_TICKS.get(player.getUUID()) >= 8) JUMPS.remove(player.getUUID());
-            LEVITATE_TICKS.remove(player.getUUID());
-        } else {
-            GROUND_TICKS.put(player.getUUID(), 0);
-        }
+        if (player.onGround()) LEVITATE_TICKS.remove(player.getUUID());
         Map<ResourceLocation, Boolean> toggles = TOGGLES.get(player.getUUID());
         if (toggles != null) {
             toggles.keySet().removeIf(toggleId -> !FormPowerRegistry.has(player, toggleId));
@@ -259,13 +242,6 @@ public final class FormActivePowerService {
             return false;
         }
         return WATER_LAUNCH_GRACE.remove(player.getUUID()) != null;
-    }
-
-    public static void registerGroundJump(Player player) {
-        if (!(player instanceof ServerPlayer serverPlayer)) return;
-        JUMPS.put(player.getUUID(), 1);
-        JUMP_INPUT_GRACE.put(player.getUUID(), 3);
-        applyTripleJump(serverPlayer, 1, true);
     }
 
     public static void consumeMana(Player player, float amount) {
@@ -523,27 +499,6 @@ public final class FormActivePowerService {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "use_action"));
                 startCooldown(player, id, FormPowerRuntime.intValue(power, prefix + "cooldown", 0));
             }
-        });
-    }
-
-    private static void triggerAirJump(ServerPlayer player) {
-        if (JUMP_INPUT_GRACE.containsKey(player.getUUID())) return;
-        int jump = JUMPS.getOrDefault(player.getUUID(), 1) + 1;
-        if (jump > 3) return;
-        JUMPS.put(player.getUUID(), jump);
-        applyTripleJump(player, jump, false);
-    }
-
-    private static void applyTripleJump(ServerPlayer player, int jump, boolean fromGround) {
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:triple_jump".equals(FormPowerRegistry.typeOf(power))) return;
-            String ordinal = jump == 1 ? "first" : jump == 2 ? "second" : "third";
-            float multiplier = FormPowerRuntime.floatValue(power, ordinal + "_jump_multiplier", 1.0F);
-            // use constant base jump, not existing delta which would amplify stacked velocity
-            double y = 0.42D * multiplier;
-            // preserve horizontal but replace vertical with calculated jump
-            player.setDeltaMovement(player.getDeltaMovement().x, y, player.getDeltaMovement().z);
-            FormPowerRuntime.execute(player, player, power.getAsJsonObject(ordinal + "_jump_action"));
         });
     }
 

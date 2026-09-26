@@ -29,7 +29,6 @@ public final class MobRelationEvents {
             String type = FormPowerRegistry.typeOf(power);
             boolean applies = ("shape-shifter-curse:witch_friendly".equals(type) && mob instanceof Witch)
                     || ("shape-shifter-curse:pillager_friendly".equals(type) && mob instanceof Raider)
-                    || ("shape-shifter-curse:fox_friendly".equals(type) && mob instanceof net.minecraft.world.entity.animal.Fox)
                     || ("shape-shifter-curse:t_wolf_friendly".equals(type) && mob instanceof Wolf);
             if ("apoli:simple".equals(type)) {
                 applies = ("scare_creepers".equals(id.getPath()) && mob instanceof Creeper)

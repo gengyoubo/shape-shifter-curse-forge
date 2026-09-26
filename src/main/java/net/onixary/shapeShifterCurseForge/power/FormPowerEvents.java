@@ -67,7 +67,12 @@ public final class FormPowerEvents {
     private static final Map<UUID, Map<UUID, ConditionedAttributeState>> CONDITIONED_ATTRIBUTE_STATES = new HashMap<>();
     /** Whether an owned modifier must preserve the player's health percentage on changes. */
     private static final Map<UUID, Map<UUID, Boolean>> UPDATE_HEALTH_MODIFIERS = new HashMap<>();
-    private static final Map<UUID, Map<UUID, Integer>> DAMAGE_OVER_TIME_STARTED_TICKS = new HashMap<>();
+    /** Apoli keeps accumulated exposure for 20 ticks after the condition stops matching. */
+    private static final Map<UUID, Map<UUID, DamageOverTimeState>> DAMAGE_OVER_TIME_STATES = new HashMap<>();
+    private static final class DamageOverTimeState {
+        int inDamageTicks;
+        int outOfDamageTicks;
+    }
     /** Apoli anchors action_over_time intervals to each power instance's first tick. */
     private static final Map<UUID, Map<ResourceLocation, Integer>> ACTION_OVER_TIME_PHASES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Boolean>> ACTION_OVER_TIME_ACTIVE = new HashMap<>();
@@ -327,7 +332,6 @@ public final class FormPowerEvents {
             if (BatAttachService.detachForJump(player)) {
                 return;
             }
-            FormActivePowerService.registerGroundJump(player);
             FormActivePowerService.triggerVanillaKey(player, "key.jump");
         }
 
@@ -558,30 +562,28 @@ public final class FormPowerEvents {
         }
         if ("apoli:damage_over_time".equals(FormPowerRegistry.typeOf(power))) {
             UUID stateId = UUID.nameUUIDFromBytes((powerId + "|" + power).getBytes(StandardCharsets.UTF_8));
-            Map<UUID, Integer> starts = DAMAGE_OVER_TIME_STARTED_TICKS.computeIfAbsent(
+            Map<UUID, DamageOverTimeState> states = DAMAGE_OVER_TIME_STATES.computeIfAbsent(
                     player.getUUID(), ignored -> new HashMap<>());
+            DamageOverTimeState state = states.computeIfAbsent(stateId, ignored -> new DamageOverTimeState());
             if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                starts.remove(stateId);
+                if (state.outOfDamageTicks >= 20) state.inDamageTicks = 0;
+                else state.outOfDamageTicks++;
                 return;
             }
-            int start = starts.computeIfAbsent(stateId, ignored -> player.tickCount);
-            int onset = Math.max(0, FormPowerRuntime.intValue(power, "onset_delay", 0));
+            state.outOfDamageTicks = 0;
             int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
-            int elapsed = player.tickCount - start;
-            if (elapsed >= onset && (elapsed - onset) % interval == 0) {
+            int onset = Math.max(0, FormPowerRuntime.intValue(power, "onset_delay", interval));
+            if (state.inDamageTicks >= onset && (state.inDamageTicks - onset) % interval == 0) {
                 String damageType = FormPowerRuntime.stringValue(power, "damage_type", "minecraft:generic");
                 var source = "minecraft:on_fire".equals(damageType) ? player.damageSources().onFire()
                         : player.damageSources().generic();
-                // Apoli uses damage_easy on EASY and deals nothing on PEACEFUL.
-                var difficulty = player.level().getDifficulty();
-                if (difficulty != net.minecraft.world.Difficulty.PEACEFUL) {
-                    float amount = difficulty == net.minecraft.world.Difficulty.EASY
-                            ? FormPowerRuntime.floatValue(power, "damage_easy",
-                                    FormPowerRuntime.floatValue(power, "damage", 0.0F))
-                            : FormPowerRuntime.floatValue(power, "damage", 0.0F);
-                    player.hurt(source, amount);
-                }
+                float amount = player.level().getDifficulty() == net.minecraft.world.Difficulty.EASY
+                        ? FormPowerRuntime.floatValue(power, "damage_easy",
+                                FormPowerRuntime.floatValue(power, "damage", 0.0F))
+                        : FormPowerRuntime.floatValue(power, "damage", 0.0F);
+                player.hurt(source, amount);
             }
+            state.inDamageTicks++;
         }
     }
 
@@ -709,7 +711,7 @@ public final class FormPowerEvents {
     public static void onFormChanged(Player player) {
         UUID stateKey = attributeStateKey(player);
         FOOD_HEAL_REMAINDERS.remove(player.getUUID());
-        DAMAGE_OVER_TIME_STARTED_TICKS.remove(player.getUUID());
+        DAMAGE_OVER_TIME_STATES.remove(player.getUUID());
         ACTION_OVER_TIME_PHASES.remove(player.getUUID());
         ACTION_OVER_TIME_ACTIVE.remove(player.getUUID());
         LAST_AXOLOTL_MOVE_DEBUG.remove(stateKey);

@@ -4,15 +4,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Snowball;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -88,23 +86,30 @@ public final class SpecialPowerEvents {
                 : new net.minecraft.world.item.ItemStack(item, FormPowerRuntime.intValue(data, "count", 1));
     }
 
-    @SubscribeEvent
-    public static void levelTick(TickEvent.LevelTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !(event.level instanceof ServerLevel level)) return;
-        for (Entity entity : level.getAllEntities()) {
-            if (!(entity instanceof Snowball snowball) || !(snowball.getOwner() instanceof Player player)
-                    || !hasSnowballTransform(player)) continue;
-            BlockPos pos = snowball.blockPosition();
-            if (level.getFluidState(pos).is(FluidTags.WATER)) {
+    /** Called at Entity.tick HEAD and at fluid-state update, as in Fabric. */
+    public static void transformSnowballFluid(Snowball snowball, boolean discardOnFluid) {
+        if (!(snowball.level() instanceof net.minecraft.server.level.ServerLevel level)
+                || !(snowball.getOwner() instanceof Player player)
+                || !hasSnowballTransform(player)) return;
+        BlockPos pos = snowball.blockPosition();
+        var fluid = level.getFluidState(pos);
+        if (fluid.isEmpty()) return;
+        if (fluid.is(FluidTags.WATER)) {
                 level.setBlockAndUpdate(pos, Blocks.ICE.defaultBlockState());
-                level.playSound(null, pos, SoundEvents.GLASS_PLACE, player.getSoundSource(), 1.0F, 1.0F);
-                snowball.discard();
-            } else if (level.getFluidState(pos).is(FluidTags.LAVA)) {
-                level.setBlockAndUpdate(pos, level.getFluidState(pos).isSource()
+                level.playSound(null, pos, SoundEvents.GLASS_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+                level.playSound(null, pos, SoundEvents.BUCKET_EMPTY_POWDER_SNOW, SoundSource.BLOCKS, 0.8F, 1.2F);
+                level.playSound(null, pos, SoundEvents.SNOW_PLACE, SoundSource.BLOCKS, 0.6F, 1.5F);
+        } else if (fluid.is(FluidTags.LAVA)) {
+                boolean source = fluid.isSource();
+                level.setBlockAndUpdate(pos, source
                         ? Blocks.OBSIDIAN.defaultBlockState() : Blocks.STONE.defaultBlockState());
-                level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, player.getSoundSource(), 1.0F, 1.0F);
-                snowball.discard();
-            }
+                level.playSound(null, pos, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS,
+                        source ? 1.0F : 0.8F, source ? 0.8F : 1.0F);
+                level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 0.6F, 1.5F);
+        }
+        if (discardOnFluid) {
+            level.broadcastEntityEvent(snowball, (byte) 3);
+            snowball.discard();
         }
     }
 

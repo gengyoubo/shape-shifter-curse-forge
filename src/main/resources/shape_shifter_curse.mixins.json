@@ -26,6 +26,8 @@
         "PlayerEntityPoseMixin",
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
+        "FoxTrustMixin",
+        "SnowballFluidTransformMixin",
         "CancelEntityStepSoundMixin",
         "ServerLevelGameEventMixin",
         "CatFleeGoalMixin",
