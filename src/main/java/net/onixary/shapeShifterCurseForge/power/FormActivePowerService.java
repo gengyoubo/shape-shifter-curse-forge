@@ -35,7 +35,6 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINT_TO_SNEAK_TRIGGERED = new HashMap<>();
-    private static final Map<UUID, Integer> LEVITATE_TICKS = new HashMap<>();
     /** One travel tick of protection for a launch issued while still touching water. */
     private static final Map<UUID, Boolean> WATER_LAUNCH_GRACE = new HashMap<>();
     private static final ResourceLocation JUMP_OUT_WATER = ResourceLocation.fromNamespaceAndPath(
@@ -61,7 +60,6 @@ public final class FormActivePowerService {
         TOGGLES.remove(id);
         SPRINTING.remove(id);
         SPRINT_TO_SNEAK_TRIGGERED.remove(id);
-        LEVITATE_TICKS.remove(id);
         // Fabric's ManaTypePower fills the active pool when the form gains it.
         if (WEB_RESOURCE.equals(manaType(player))) setMana(player, maximumMana(player));
     }
@@ -108,8 +106,9 @@ public final class FormActivePowerService {
             gainMana(player, 0.02F);
         }
         tickCooldowns(player.getUUID());
+        LevitatePowerService.tick(player, PRESSED_KEYS.getOrDefault(player.getUUID(), Map.of())
+                .getOrDefault("key.jump", false));
         tickChargeReleases(player);
-        if (player.onGround()) LEVITATE_TICKS.remove(player.getUUID());
         Map<ResourceLocation, Boolean> toggles = TOGGLES.get(player.getUUID());
         if (toggles != null) {
             toggles.keySet().removeIf(toggleId -> !FormPowerRegistry.has(player, toggleId));
@@ -149,9 +148,6 @@ public final class FormActivePowerService {
                 charge(serverPlayer, key);
             }
         });
-        if (keys.getOrDefault("key.jump", false)) {
-            tickLevitation(serverPlayer);
-        }
     }
 
     public static boolean hasMana(Player player, float amount) {
@@ -549,20 +545,6 @@ public final class FormActivePowerService {
         }
         state.tier = 0;
         state.ticks = 0;
-    }
-
-    private static void tickLevitation(ServerPlayer player) {
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:levitate".equals(FormPowerRegistry.typeOf(power)) || player.onGround()) return;
-            int ticks = LEVITATE_TICKS.merge(player.getUUID(), 1, Integer::sum);
-            if (ticks <= FormPowerRuntime.intValue(power, "max_ascend_duration", 0)) {
-                player.setDeltaMovement(player.getDeltaMovement().x,
-                        Math.max(player.getDeltaMovement().y, FormPowerRuntime.doubleValue(power, "ascent_speed", 0.3D)),
-                        player.getDeltaMovement().z);
-                player.fallDistance = 0.0F;
-            }
-        });
-        if (player.onGround()) LEVITATE_TICKS.remove(player.getUUID());
     }
 
     private static boolean usesKey(JsonObject power, String key) {

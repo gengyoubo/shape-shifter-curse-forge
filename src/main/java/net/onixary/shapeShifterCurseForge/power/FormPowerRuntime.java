@@ -432,6 +432,8 @@ public final class FormPowerRuntime {
             }
             case "apoli:actor_action" -> execute(actor, actor, action.getAsJsonObject("action"));
             case "apoli:target_action" -> execute(actor, target, action.getAsJsonObject("action"));
+            case "shape-shifter-curse:bi_summon_anubis_wolf_minion" ->
+                    AnubisMinionService.summon(actor, target, action);
             case "apoli:add_velocity" -> {
                 if ((target.level().isClientSide && !booleanValue(action, "client", true))
                         || (!target.level().isClientSide && !booleanValue(action, "server", true))) return;
@@ -887,6 +889,9 @@ public final class FormPowerRuntime {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "power", ""));
         if (id == null || !FormPowerRegistry.has(actor, id)) return false;
         FormPowerDefinition definition = FormPowerRegistry.all().get(id);
+        if (definition != null && "shape-shifter-curse:levitate".equals(FormPowerRegistry.typeOf(definition.data()))) {
+            return LevitatePowerService.isActive(actor);
+        }
         return definition == null || !"origins:toggle".equals(FormPowerRegistry.typeOf(definition.data()))
                 || FormActivePowerService.isToggleActive(actor, id);
     }

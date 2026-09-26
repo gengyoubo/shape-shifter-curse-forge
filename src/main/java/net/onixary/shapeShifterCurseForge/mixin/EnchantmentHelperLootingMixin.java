@@ -15,6 +15,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** Applies form powers to the enchantment levels used by vanilla mechanics. */
 @Mixin(EnchantmentHelper.class)
 public abstract class EnchantmentHelperLootingMixin {
+    @Inject(method = "hasSoulSpeed(Lnet/minecraft/world/entity/LivingEntity;)Z",
+            at = @At("RETURN"), cancellable = true)
+    private static void ssc$hasFormSoulSpeed(LivingEntity entity, CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValue() || !(entity instanceof Player player)) return;
+        final boolean[] hasPower = {false};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:soul_speed".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
+                hasPower[0] = true;
+            }
+        });
+        if (hasPower[0]) cir.setReturnValue(true);
+    }
+
     @Inject(method = "getEnchantmentLevel(Lnet/minecraft/world/item/enchantment/Enchantment;Lnet/minecraft/world/entity/LivingEntity;)I",
             at = @At("RETURN"), cancellable = true)
     private static void ssc$applyFormEnchantmentLevels(Enchantment enchantment, LivingEntity entity,

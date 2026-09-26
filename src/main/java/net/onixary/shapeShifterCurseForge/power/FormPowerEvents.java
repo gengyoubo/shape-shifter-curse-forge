@@ -233,6 +233,7 @@ public final class FormPowerEvents {
             FormPowerRegistry.visitActive(player, (id, power) -> {
                 String type = FormPowerRegistry.typeOf(power);
                 if ("apoli:modify_damage_dealt".equals(type)
+                        && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("bientity_condition"))
                         && FormPowerRuntime.test(player, event.getEntity(), power.getAsJsonObject("condition"))
                         && FormPowerRuntime.testDamageCondition(player, event.getEntity(), event.getSource(),
                         event.getAmount(), power.getAsJsonObject("damage_condition"))) {

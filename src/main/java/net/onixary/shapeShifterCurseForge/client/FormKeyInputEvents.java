@@ -52,9 +52,11 @@ public final class FormKeyInputEvents {
             }
         }
         KeyMapping jump = minecraft.options.keyJump;
+        net.onixary.shapeShifterCurseForge.power.LevitatePowerService.tick(minecraft.player, jump.isDown());
         boolean pressed = jump.isDown();
         boolean previous = LAST_STATE.getOrDefault(jump, false);
-        if (pressed != previous) {
+        if (pressed != previous || pressed
+                && net.onixary.shapeShifterCurseForge.power.LevitatePowerService.isAvailable(minecraft.player)) {
             ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket("key.jump", pressed));
             LAST_STATE.put(jump, pressed);
         }

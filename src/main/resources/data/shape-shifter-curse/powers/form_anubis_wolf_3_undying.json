@@ -2,7 +2,7 @@
   "type": "shape-shifter-curse:virtual_totem",
   "virtual_totem_type": "shape-shifter-curse:form_anubis_wolf_3_undying",
   "totem_stack": {
-    "item": "minecraft:totem_of_undying",
+    "item": "minecraft:air",
     "count": 1
   },
   "entity_actions": [

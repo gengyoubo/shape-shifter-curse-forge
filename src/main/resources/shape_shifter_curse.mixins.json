@@ -34,6 +34,7 @@
         "CatFleeGoalMixin",
         "OcelotFleeGoalMixin",
         "ScareCreeperMixin",
+        "ScareSkeletonMixin",
         "TransformativeStructureSpawnsMixin",
         "WitchEntityMixin",
         "accessor.OcelotTrustingAccessor",
@@ -43,6 +44,8 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "client.PowerEntityGlowMixin",
+        "client.PowerEntityGlowColorMixin",
         "client.KeepSneakingInputMixin",
         "PlayerModelAnimMixin",
         "client.ElytraLayerMixin",

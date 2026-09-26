@@ -46,7 +46,6 @@ public final class MissingPowerEvents {
         if (player.level().isClientSide) return;
         maintainEffects(player);
         maintainFlight(player);
-        maintainEntityGlow(player);
         ItemStoreService.tick(player);
         maintainArmor(player, true);
         CLASH_STATE.remove(player.getUUID());
@@ -62,7 +61,6 @@ public final class MissingPowerEvents {
         maintainEffects(player);
         maintainFlight(player);
         maintainArmor(player, false);
-        maintainEntityGlow(player);
         ItemStoreService.tick(player);
         tickJumpClash(player);
 

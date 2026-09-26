@@ -15,6 +15,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.entity.WebBulletEntity;
+import net.onixary.shapeShifterCurseForge.entity.AnubisWolfMinionEntity;
 import net.onixary.shapeShifterCurseForge.entity.TransformativeAxolotlEntity;
 import net.onixary.shapeShifterCurseForge.entity.TransformativeBatEntity;
 import net.onixary.shapeShifterCurseForge.entity.TransformativeOcelotEntity;
@@ -30,6 +31,10 @@ public final class ModEntities {
             () -> EntityType.Builder.<WebBulletEntity>of(WebBulletEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(1).build("web_bullet"));
 
+    public static final RegistryObject<EntityType<AnubisWolfMinionEntity>> ANUBIS_WOLF_MINION = ENTITIES.register(
+            "anubis_wolf_minion", () -> EntityType.Builder.of(AnubisWolfMinionEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F).build("anubis_wolf_minion"));
+
     public static final RegistryObject<EntityType<TransformativeBatEntity>> TRANSFORMATIVE_BAT = ENTITIES.register("transformative_bat",
             () -> EntityType.Builder.of(TransformativeBatEntity::new, MobCategory.AMBIENT).sized(0.5F, 0.9F).build("transformative_bat"));
     public static final RegistryObject<EntityType<TransformativeAxolotlEntity>> TRANSFORMATIVE_AXOLOTL = ENTITIES.register("transformative_axolotl",
@@ -43,6 +48,7 @@ public final class ModEntities {
 
     @SubscribeEvent
     public static void registerAttributes(EntityAttributeCreationEvent event) {
+        event.put(ANUBIS_WOLF_MINION.get(), AnubisWolfMinionEntity.createAttributes().build());
         event.put(TRANSFORMATIVE_BAT.get(), TransformativeBatEntity.createAttributes().build());
         event.put(TRANSFORMATIVE_AXOLOTL.get(), TransformativeAxolotlEntity.createAttributes().build());
         event.put(TRANSFORMATIVE_OCELOT.get(), TransformativeOcelotEntity.createAttributes().build());

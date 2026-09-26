@@ -311,22 +311,6 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         cir.setReturnValue(modified[0]);
     }
 
-    @Inject(method = "getBlockSpeedFactor", at = @At("RETURN"), cancellable = true)
-    private void ssc$modifyGroundSlipperiness(CallbackInfoReturnable<Float> cir) {
-        LivingEntity self = (LivingEntity) (Object) this;
-        if (!(self instanceof Player player)) return;
-        float factor = cir.getReturnValue();
-        final float[] modified = {factor};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            String type = FormPowerRegistry.typeOf(power);
-            if (!"apoli:modify_slipperiness".equals(type)) return;
-            if (!FormPowerRuntime.matchesBlockState(player.level(), player.blockPosition().below(),
-                    power.getAsJsonObject("block_condition"))) return;
-            modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], power.getAsJsonObject("modifier"));
-        });
-        cir.setReturnValue(modified[0]);
-    }
-
     /** Edit the block friction before vanilla derives both acceleration and damping from it. */
     @Redirect(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
             at = @At(value = "INVOKE",
@@ -342,6 +326,13 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
         final float[] modified = {friction};
         final boolean[] applied = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("apoli:modify_slipperiness".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+                    && FormPowerRuntime.matchesBlockState(player.level(), pos, power.getAsJsonObject("block_condition"))) {
+                modified[0] = (float) FormPowerRuntime.applyModifier(modified[0], power.getAsJsonObject("modifier"));
+                applied[0] = true;
+                return;
+            }
             if (!"shape-shifter-curse:conditioned_modify_slipperiness".equals(FormPowerRegistry.typeOf(power))) return;
             if (!FormPowerRuntime.matchesBlockState(player.level(), pos,
                     power.getAsJsonObject("block_condition"))) return;
