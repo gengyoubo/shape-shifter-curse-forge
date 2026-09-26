@@ -55,6 +55,7 @@ public final class FormSyncClientHandler {
             FormAnimationSystem.clearClientState();
             PowerAnimationClientHandler.clear();
             net.onixary.shapeShifterCurseForge.power.FormPowerRegistry.clearSyncedClientPowerIds();
+            net.onixary.shapeShifterCurseForge.power.MovementPowerService.clearClientForcedSneakingStates();
         }
 
         Entity entity = minecraft.level.getEntity(packet.entityId());

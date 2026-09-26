@@ -67,6 +67,7 @@ public final class FormPowerSyncGuard {
         InstinctService.applyImmediatePowers(player);
 
         ModNetwork.sendFormSync(player);
+        MovementPowerService.synchronizeForcedSneaking(player);
         FormActivePowerService.synchronizeMana(player);
         InstinctService.synchronizeHud(player);
     }

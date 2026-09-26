@@ -124,6 +124,7 @@ public final class FormPowerEvents {
 
     @SubscribeEvent
     public static void playerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        MovementPowerService.clearForcedSneakingState(event.getEntity());
         if (!event.getEntity().level().isClientSide) {
             FormActivePowerService.clearTransientInput(event.getEntity());
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
@@ -139,6 +140,9 @@ public final class FormPowerEvents {
         FormActivePowerService.postTravelTick(player);
         // Fabric updates moisture at Player.tick TAIL, after vanilla breathing.
         tickCustomWaterBreathing(player);
+        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            MovementPowerService.synchronizeForcedSneakingIfChanged(serverPlayer);
+        }
 
     }
 

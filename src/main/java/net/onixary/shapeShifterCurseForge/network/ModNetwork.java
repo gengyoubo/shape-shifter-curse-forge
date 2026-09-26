@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "7";
+    private static final String PROTOCOL_VERSION = "8";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -201,6 +201,14 @@ public final class ModNetwork {
                 MovementLockPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                21,
+                SyncForcedSneakingPacket.class,
+                SyncForcedSneakingPacket::encode,
+                SyncForcedSneakingPacket::decode,
+                SyncForcedSneakingPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -220,6 +228,16 @@ public final class ModNetwork {
                 PacketDistributor.PLAYER.with(() -> receiver),
                 packetFor(target, data, false)
         ));
+    }
+
+    public static void sendForcedSneakingSync(ServerPlayer player, boolean forced) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
+                new SyncForcedSneakingPacket(player.getId(), forced));
+    }
+
+    public static void sendForcedSneakingSyncTo(ServerPlayer target, ServerPlayer receiver, boolean forced) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> receiver),
+                new SyncForcedSneakingPacket(target.getId(), forced));
     }
 
     public static void sendPowerAnimation(ServerPlayer player, PowerAnimationPacket packet) {

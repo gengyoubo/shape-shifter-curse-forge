@@ -62,6 +62,14 @@ public final class ClientPacketHandlers {
                 playerId, Minecraft.getInstance().level, pos, side);
     }
 
+    public static void applyForcedSneaking(int entityId, boolean forced) {
+        var level = Minecraft.getInstance().level;
+        if (level == null || !(level.getEntity(entityId) instanceof net.minecraft.world.entity.player.Player player)) {
+            return;
+        }
+        net.onixary.shapeShifterCurseForge.power.MovementPowerService.applySyncedForcedSneaking(player, forced);
+    }
+
     public static void setTransformState(int entityId, boolean transforming,
                                          String startFormId, String endFormId) {
         TransformClientState.apply(entityId, transforming, startFormId, endFormId);

@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.power;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -23,6 +24,8 @@ public final class MovementPowerService {
     private static final Map<DodgeKey, Integer> DODGE_COOLDOWNS = new HashMap<>();
     private static final Map<DodgeKey, Boolean> DODGE_RIGHT = new HashMap<>();
     private static final Map<UUID, AttractState> ATTRACT_STATES = new HashMap<>();
+    private static final Map<UUID, Boolean> SERVER_FORCED_SNEAK_STATES = new HashMap<>();
+    private static final Map<UUID, Boolean> CLIENT_FORCED_SNEAK_STATES = new HashMap<>();
 
     private static final class AttractState {
         private ResourceLocation powerId;
@@ -140,15 +143,18 @@ public final class MovementPowerService {
      * Forge port of Fabric's KeepSneakingPower.shouldForceSneak: while any active
      * {@code shape-shifter-curse:keep_sneaking} power has its condition met (and the
      * player is not in water), the player is treated as holding sneak for pose and
-     * {@code apoli:sneaking} checks. Fabric's power helper returns false in water;
-     * its server sync currently sends only Power.isActive(), so the Forge input
-     * hook uses this helper to keep swimming input from being forced downward.
+     * {@code apoli:sneaking} checks. Fabric's helper returns false in water; Forge
+     * uses the server-synced result on clients so air/pose condition timing cannot diverge.
      */
     // TODO[TEST] Newly wired into pose + apoli:sneaking; verify the axolotl no-air / head-collide
     //   forced crawl behaves like Fabric.
     public static boolean shouldForceSneaking(Player player) {
         if (Boolean.TRUE.equals(FORCE_SNEAK_GUARD.get())) return false;
         if (player.isUnderWater() || player.isInWaterOrBubble()) return false;
+        if (player.level().isClientSide) {
+            Boolean synced = CLIENT_FORCED_SNEAK_STATES.get(player.getUUID());
+            if (synced != null) return synced;
+        }
         final boolean[] force = {false};
         FORCE_SNEAK_GUARD.set(true);
         try {
@@ -162,6 +168,45 @@ public final class MovementPowerService {
             FORCE_SNEAK_GUARD.set(false);
         }
         return force[0];
+    }
+
+    /** Sends authoritative forced-sneak state only when the condition changes. */
+    public static void synchronizeForcedSneakingIfChanged(ServerPlayer player) {
+        boolean forced = shouldForceSneaking(player);
+        Boolean previous = SERVER_FORCED_SNEAK_STATES.put(player.getUUID(), forced);
+        if (previous == null || previous != forced) {
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendForcedSneakingSync(player, forced);
+        }
+    }
+
+    /** Immediately refreshes forced-sneak state after a form transition or login. */
+    public static void synchronizeForcedSneaking(ServerPlayer player) {
+        boolean forced = shouldForceSneaking(player);
+        SERVER_FORCED_SNEAK_STATES.put(player.getUUID(), forced);
+        net.onixary.shapeShifterCurseForge.network.ModNetwork.sendForcedSneakingSync(player, forced);
+    }
+
+    /** Sends current state to one client that has just started tracking the player. */
+    public static void synchronizeForcedSneakingTo(ServerPlayer target, ServerPlayer receiver) {
+        boolean forced = shouldForceSneaking(target);
+        SERVER_FORCED_SNEAK_STATES.put(target.getUUID(), forced);
+        net.onixary.shapeShifterCurseForge.network.ModNetwork.sendForcedSneakingSyncTo(target, receiver, forced);
+    }
+
+    /** Applies the server's condition result on the client for pose and crawl animation decisions. */
+    public static void applySyncedForcedSneaking(Player player, boolean forced) {
+        if (player.level().isClientSide) {
+            CLIENT_FORCED_SNEAK_STATES.put(player.getUUID(), forced);
+        }
+    }
+
+    public static void clearClientForcedSneakingStates() {
+        CLIENT_FORCED_SNEAK_STATES.clear();
+    }
+
+    public static void clearForcedSneakingState(Player player) {
+        SERVER_FORCED_SNEAK_STATES.remove(player.getUUID());
+        CLIENT_FORCED_SNEAK_STATES.remove(player.getUUID());
     }
 
     /** Shift-held or keep_sneaking-forced sneak, for pose and speed decisions. */

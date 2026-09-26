@@ -15,6 +15,7 @@ import net.onixary.shapeShifterCurseForge.power.MissingPowerEvents;
 import net.onixary.shapeShifterCurseForge.power.PowerAnimationService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerSyncGuard;
+import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
 
 public final class FormManager {
     private FormManager() {
@@ -73,6 +74,7 @@ public final class FormManager {
 
         if (player instanceof ServerPlayer serverPlayer) {
             ModNetwork.sendFormSync(serverPlayer, changed && playTransformAnimation);
+            MovementPowerService.synchronizeForcedSneaking(serverPlayer);
             net.onixary.shapeShifterCurseForge.power.FormActivePowerService.synchronizeMana(serverPlayer);
             InstinctService.synchronizeHud(serverPlayer);
             if (changed) {

@@ -15,6 +15,7 @@ import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTrigge
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
 import net.onixary.shapeShifterCurseForge.power.BatAttachService;
+import net.onixary.shapeShifterCurseForge.power.MovementPowerService;
 
 @SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
@@ -58,6 +59,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
+            MovementPowerService.synchronizeForcedSneaking(player);
             ModNetwork.sendSkinSync(player);
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
@@ -71,6 +73,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             BatAttachService.clear(player);
             ModNetwork.sendFormSync(player);
+            MovementPowerService.synchronizeForcedSneaking(player);
             ModNetwork.sendSkinSync(player);
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
@@ -84,6 +87,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             BatAttachService.clear(player);
             ModNetwork.sendFormSync(player);
+            MovementPowerService.synchronizeForcedSneaking(player);
             ModNetwork.sendSkinSync(player);
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
@@ -97,6 +101,7 @@ public final class PlayerCapabilityEvents {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer tracker
                 && event.getTarget() instanceof net.minecraft.server.level.ServerPlayer target) {
             ModNetwork.sendFormSyncTo(target, tracker);
+            MovementPowerService.synchronizeForcedSneakingTo(target, tracker);
             ModNetwork.sendSkinSyncTo(target, tracker);
         }
     }
