@@ -16,6 +16,7 @@ import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.client.screen.AltarScreen;
 import net.onixary.shapeShifterCurseForge.client.render.FormAttunerBeamRenderer;
+import net.onixary.shapeShifterCurseForge.client.render.AnubisWolfMinionRenderer;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
@@ -28,17 +29,25 @@ public final class ModClient {
     public static void onClientSetup(FMLClientSetupEvent e) {
         e.enqueueWork(() -> {
             MenuScreens.register(ModMenuTypes.ALTAR.get(), AltarScreen::new);
+            ItemBlockRenderTypes.setRenderLayer(ModBlocks.TEMP_WEB_BRIDGE.get(), RenderType.cutout());
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.FORM_ATTUNER.get(), RenderType.translucent());
         });
     }
 
     @SubscribeEvent
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(ModEntities.ANUBIS_WOLF_MINION.get(), AnubisWolfMinionRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_BAT.get(), BatRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_AXOLOTL.get(), AxolotlRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_OCELOT.get(), OcelotRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_SPIDER.get(), SpiderRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_WOLF.get(), WolfRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.FORM_ATTUNER.get(), FormAttunerBeamRenderer::new);
+    }
+
+    @SubscribeEvent
+    public static void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
+        event.registerLayerDefinition(AnubisWolfMinionRenderer.LAYER,
+                AnubisWolfMinionRenderer::createBodyLayer);
     }
 }

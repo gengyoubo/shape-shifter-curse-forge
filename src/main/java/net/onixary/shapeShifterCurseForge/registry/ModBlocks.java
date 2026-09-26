@@ -21,7 +21,8 @@ public final class ModBlocks {
 
     public static final RegistryObject<Block> TEMP_WEB_BRIDGE = BLOCKS.register(
             "temp_web_bridge", () -> new TemporaryWebBlock(BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.WOOL).strength(4.0F).noLootTable().randomTicks().noCollission())
+                    .mapColor(MapColor.WOOL).strength(4.0F).noLootTable().randomTicks()
+                    .noCollission().noOcclusion())
     );
 
     // --- 1.10.0 fabric parity: blocks that existed in fabric jar but were missing in forge port ---
