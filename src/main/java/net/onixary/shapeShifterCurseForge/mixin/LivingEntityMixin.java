@@ -52,6 +52,25 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Unique private int ssc$lastClimbDebugTick = Integer.MIN_VALUE;
     @Unique private boolean ssc$lastClimbDebugResult;
 
+    /** Apoli's entity_group power changes the value used by vanilla enchantments. */
+    @Inject(method = "getMobType", at = @At("HEAD"), cancellable = true)
+    private void ssc$applyEntityGroup(CallbackInfoReturnable<net.minecraft.world.entity.MobType> cir) {
+        if (!((Object) this instanceof Player player)) return;
+        final net.minecraft.world.entity.MobType[] group = {null};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (group[0] != null || !"apoli:entity_group".equals(FormPowerRegistry.typeOf(power))
+                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
+            group[0] = switch (FormPowerRuntime.stringValue(power, "group", "")) {
+                case "undead" -> net.minecraft.world.entity.MobType.UNDEAD;
+                case "arthropod" -> net.minecraft.world.entity.MobType.ARTHROPOD;
+                case "aquatic" -> net.minecraft.world.entity.MobType.WATER;
+                case "illager" -> net.minecraft.world.entity.MobType.ILLAGER;
+                default -> null;
+            };
+        });
+        if (group[0] != null) cir.setReturnValue(group[0]);
+    }
+
     @ModifyVariable(method = "travel(Lnet/minecraft/world/phys/Vec3;)V",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/world/level/Level;getFluidState(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;"),

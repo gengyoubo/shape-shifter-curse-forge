@@ -11,15 +11,11 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 /** Accumulates web-bullet binding time and fires the full-entanglement advancement. */
 @SuppressWarnings("deprecation")
@@ -30,7 +26,6 @@ public final class WebEntanglementService {
             Registries.ENTITY_TYPE,
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE,
                     "spider_fluid_cocoon_blacklist"));
-    private static final Map<UUID, State> STATES = new HashMap<>();
 
     private WebEntanglementService() {
     }
@@ -39,57 +34,29 @@ public final class WebEntanglementService {
         if (target.level().isClientSide || duration <= 0) {
             return;
         }
-        State state = STATES.get(target.getUUID());
-        if (state != null && state.fullTicks > 0) {
-            return;
-        }
-        if (state == null || state.expiresIn <= 0) {
-            state = new State();
-        }
-        state.duration = Math.min(FULL_THRESHOLD, state.duration + duration);
-        state.expiresIn = Math.min(Integer.MAX_VALUE - duration, state.expiresIn) + duration;
-        if (state.duration == FULL_THRESHOLD) {
-            state.duration = 0;
-            state.fullTicks = target instanceof net.minecraft.world.entity.player.Player ? 20 * 5 : 20 * 15;
+        var entangled = net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED.get();
+        var full = net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED_FULL.get();
+        if (target.hasEffect(full)) return;
+        MobEffectInstance existing = target.getEffect(entangled);
+        int newDuration = existing == null ? duration : existing.getDuration() + duration;
+        int amplifier = existing == null ? duration / (20 * 5)
+                : Math.min(existing.getAmplifier() + 1, 4);
+        if (existing != null) target.removeEffect(entangled);
+        target.addEffect(new MobEffectInstance(entangled, newDuration, amplifier));
+        if (newDuration >= FULL_THRESHOLD) {
+            target.removeEffect(entangled);
+            target.addEffect(new MobEffectInstance(full,
+                    target instanceof net.minecraft.world.entity.player.Player ? 20 * 5 : 20 * 15, 0));
             if (owner instanceof ServerPlayer player) {
                 ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(target.getType());
                 SscAdvancementTriggers.ON_WEB_ENTITY.triggerEntity(player, entityId);
             }
         }
-        STATES.put(target.getUUID(), state);
-    }
-
-    @SubscribeEvent
-    public static void tick(LivingEvent.LivingTickEvent event) {
-        LivingEntity target = event.getEntity();
-        if (target.level().isClientSide) {
-            return;
-        }
-        State state = STATES.get(target.getUUID());
-        if (state == null) {
-            return;
-        }
-        state.expiresIn--;
-        if (state.fullTicks > 0) {
-            state.fullTicks--;
-            // TODO[TEST] Cocooning is applied here (entangled_full effect) but was previously never
-            //   applied at all; verify the immobilisation, the tier effect and the cocoon loot.
-            // Fully entangled ("cocooned"): immobilize by (re)applying the full effect.
-            if (state.fullTicks % 10 == 0) {
-                target.addEffect(new MobEffectInstance(
-                        net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED_FULL.get(),
-                        12, 0, false, false, false));
-            }
-        }
-        if (state.expiresIn <= 0 && state.fullTicks <= 0) {
-            STATES.remove(target.getUUID());
-        }
     }
 
     /** Whether the entity is currently fully entangled (cocooned). */
     public static boolean isFull(LivingEntity target) {
-        State state = STATES.get(target.getUUID());
-        return state != null && state.fullTicks > 0;
+        return target.hasEffect(net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED_FULL.get());
     }
 
     /**
@@ -102,7 +69,6 @@ public final class WebEntanglementService {
         if (target.level().isClientSide) {
             return;
         }
-        STATES.remove(target.getUUID());
         if (!target.hasEffect(net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED_FULL.get())) {
             return;
         }
@@ -132,14 +98,4 @@ public final class WebEntanglementService {
                 net.onixary.shapeShifterCurseForge.registry.ModItems.SPIDER_FLUID_COCOON.get(), count));
     }
 
-    private static final class State {
-        private int duration;
-        private int expiresIn;
-        private int fullTicks;
-
-        private State() {
-            this.duration = 0;
-            this.expiresIn = 0;
-        }
-    }
 }

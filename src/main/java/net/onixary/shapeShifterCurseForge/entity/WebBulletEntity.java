@@ -21,14 +21,18 @@ import net.onixary.shapeShifterCurseForge.registry.ModItems;
 public final class WebBulletEntity extends ThrowableItemProjectile {
     private int tier = 1;
     private boolean buildTop = true;
+    private boolean enableEntangledEffect = true;
+    private boolean launched;
 
     public WebBulletEntity(EntityType<? extends WebBulletEntity> type, Level level) {
         super(type, level);
     }
 
-    public WebBulletEntity(Level level, LivingEntity owner, int tier, boolean buildTop) {
+    public WebBulletEntity(Level level, LivingEntity owner, int tier,
+                           boolean enableEntangledEffect, boolean buildTop) {
         super(ModEntities.WEB_BULLET.get(), owner, level);
         this.tier = Math.max(1, Math.min(3, tier));
+        this.enableEntangledEffect = enableEntangledEffect;
         this.buildTop = buildTop;
     }
 
@@ -41,10 +45,27 @@ public final class WebBulletEntity extends ThrowableItemProjectile {
     public void tick() {
         super.tick();
         if (level() instanceof ServerLevel serverLevel) {
-            serverLevel.sendParticles(tier >= 3 ? ParticleTypes.CLOUD : ParticleTypes.ASH,
-                    getX(), getY(), getZ(), tier, 0.05D, 0.05D, 0.05D, 0.01D);
-            if (isInWaterOrBubble()) {
+            if (!launched) {
+                launched = true;
+                if (getOwner() != null) {
+                    float basePitch = switch (tier) { case 2 -> 0.9F; case 3 -> 1.2F; default -> 0.6F; };
+                    serverLevel.playSound(null, getOwner().getX(), getOwner().getY(), getOwner().getZ(),
+                            SoundEvents.ARROW_SHOOT, net.minecraft.sounds.SoundSource.NEUTRAL,
+                            1.0F, basePitch + random.nextFloat() * 0.4F);
+                }
+            }
+            serverLevel.sendParticles(switch (tier) {
+                        case 2 -> ParticleTypes.SPIT;
+                        case 3 -> ParticleTypes.CLOUD;
+                        default -> ParticleTypes.ASH;
+                    }, getX(), getY(), getZ(), tier == 2 ? 1 : tier == 3 ? 2 : 3,
+                    0.05D, 0.05D, 0.05D, 0.01D);
+            if (level().getBlockState(blockPosition()).liquid()) {
                 discard();
+            }
+            if (level().getBlockState(blockPosition()).is(
+                    net.onixary.shapeShifterCurseForge.registry.ModBlocks.TEMP_WEB_BRIDGE.get())) {
+                onHitBlock(new BlockHitResult(position(), net.minecraft.core.Direction.DOWN, blockPosition(), false));
             }
         }
     }
@@ -58,16 +79,15 @@ public final class WebBulletEntity extends ThrowableItemProjectile {
                     && isVenomSpindleEquipped(player)) {
                 applyVenomSpindleEffects(target);
             } else {
-                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, tier - 1));
-                target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, tier - 1));
-                // Visible "entangled" tier effect (its amplifier tracks remaining duration).
-                target.addEffect(new MobEffectInstance(
-                        net.onixary.shapeShifterCurseForge.registry.ModEffects.ENTANGLED.get(), duration, tier - 1));
-                WebEntanglementService.apply(getOwner(), target, switch (tier) {
-                    case 2 -> 400;
-                    case 3 -> 600;
-                    default -> 200;
-                });
+                target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, tier));
+                target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, tier));
+                if (enableEntangledEffect) {
+                    WebEntanglementService.apply(getOwner(), target, switch (tier) {
+                        case 2 -> 400;
+                        case 3 -> 600;
+                        default -> 200;
+                    });
+                }
             }
         }
         hitEffects();
@@ -115,7 +135,7 @@ public final class WebBulletEntity extends ThrowableItemProjectile {
         if (level() instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.CLOUD, getX(), getY(), getZ(), 20,
                     0.3D, 0.3D, 0.3D, 0.05D);
-            playSound(SoundEvents.WET_GRASS_BREAK, 1.0F, 0.9F + random.nextFloat() * 0.2F);
+            playSound(SoundEvents.WET_GRASS_BREAK, 1.0F, 0.8F + random.nextFloat() * 0.4F);
         }
     }
 }

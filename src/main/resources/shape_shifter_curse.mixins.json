@@ -28,6 +28,7 @@
         "SweetBerryBushBlockMixin",
         "FoxTrustMixin",
         "SnowballFluidTransformMixin",
+        "IronGolemTargetMixin",
         "CancelEntityStepSoundMixin",
         "ServerLevelGameEventMixin",
         "CatFleeGoalMixin",

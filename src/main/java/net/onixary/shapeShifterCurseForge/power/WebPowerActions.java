@@ -21,6 +21,7 @@ public final class WebPowerActions {
         }
         WebBulletEntity bullet = new WebBulletEntity(level, player,
                 FormPowerRuntime.intValue(action, "tier", 1),
+                FormPowerRuntime.booleanValue(action, "enable_entangled_effect", true),
                 !action.has("enable_top_block_build") || action.get("enable_top_block_build").getAsBoolean());
         bullet.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F,
                 FormPowerRuntime.floatValue(action, "speed", 1.5F),
@@ -40,9 +41,14 @@ public final class WebPowerActions {
         int width = Math.max(0, FormPowerRuntime.intValue(action, "web_bridge_width", 0));
         Direction direction = player.getDirection();
         Direction side = direction.getClockWise();
+        for (int dx = -width; dx <= width; dx++) {
+            for (int dz = -width; dz <= width; dz++) {
+                place(level, origin.offset(dx, 0, dz), randomFacing(level));
+            }
+        }
         for (int forward = 0; forward < length; forward++) {
             for (int sideways = -width; sideways <= width; sideways++) {
-                place(level, origin.relative(direction, forward).relative(side, sideways), direction);
+                place(level, origin.relative(direction, forward).relative(side, sideways), randomFacing(level));
             }
         }
     }
@@ -51,21 +57,34 @@ public final class WebPowerActions {
         int sideLength = switch (tier) { case 2 -> 14; case 3 -> 18; default -> 10; };
         int bottomLength = switch (tier) { case 2 -> 18; case 3 -> 24; default -> 14; };
         int topLength = buildTop ? switch (tier) { case 2 -> 12; case 3 -> 16; default -> 8; } : 0;
+        boolean larger = tier >= 2;
+        int sideWings = (int) ((tier == 3 ? 0.4F : 0.25F) * sideLength);
+        int bottomWings = (int) ((tier == 3 ? 0.4F : 0.25F) * bottomLength);
+        int topWings = (int) ((tier == 3 ? 0.4F : 0.25F) * topLength);
         if (side == Direction.UP) {
-            buildLine(level, hit.above(), Direction.UP, topLength);
+            buildLine(level, hit.above(), Direction.UP, topLength, larger ? topWings : 0);
         } else if (side == Direction.DOWN) {
-            buildLine(level, hit.below(), Direction.DOWN, bottomLength);
+            buildLine(level, hit.below(), Direction.DOWN, bottomLength, larger ? bottomWings : 0);
         } else {
-            buildLine(level, hit.relative(side), Direction.DOWN, sideLength);
+            buildLine(level, hit.relative(side), Direction.DOWN, sideLength, larger ? sideWings : 0);
         }
     }
 
-    private static void buildLine(ServerLevel level, BlockPos start, Direction direction, int length) {
+    private static void buildLine(ServerLevel level, BlockPos start, Direction direction, int length, int wings) {
         for (int index = 0; index < length; index++) {
-            if (!place(level, start.relative(direction, index), Direction.NORTH)) {
-                break;
+            BlockPos pos = start.relative(direction, index);
+            if (!place(level, pos, randomFacing(level))) break;
+            if (index < wings) {
+                for (Direction side : new Direction[]{Direction.EAST, Direction.WEST,
+                        Direction.NORTH, Direction.SOUTH}) {
+                    place(level, pos.relative(side), randomFacing(level));
+                }
             }
         }
+    }
+
+    private static Direction randomFacing(ServerLevel level) {
+        return Direction.Plane.HORIZONTAL.getRandomDirection(level.random);
     }
 
     private static boolean place(ServerLevel level, BlockPos pos, Direction facing) {

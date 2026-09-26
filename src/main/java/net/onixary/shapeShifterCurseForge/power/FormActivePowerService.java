@@ -8,7 +8,6 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
-import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
@@ -22,10 +21,16 @@ import java.util.UUID;
 public final class FormActivePowerService {
     private static final float DEFAULT_MANA = 20.0F;
     private static final String FAMILIAR_FOX_MANA = "shape-shifter-curse:familiar_fox_mana";
+    private static final String WEB_RESOURCE = "shape-shifter-curse:web_resource";
     private static final float FAMILIAR_FOX_MAX_MANA = 100.0F;
     private static final Map<UUID, Map<String, Boolean>> PRESSED_KEYS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> COOLDOWNS = new HashMap<>();
-    private static final Map<UUID, Map<ResourceLocation, Integer>> CHARGES = new HashMap<>();
+    private static final Map<UUID, Map<ResourceLocation, ChargeState>> CHARGES = new HashMap<>();
+    private static final class ChargeState {
+        int ticks;
+        int tier;
+        int lastUseTick = Integer.MIN_VALUE;
+    }
     private static final Map<UUID, Map<ResourceLocation, Double>> RESOURCES = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
@@ -57,6 +62,8 @@ public final class FormActivePowerService {
         SPRINTING.remove(id);
         SPRINT_TO_SNEAK_TRIGGERED.remove(id);
         LEVITATE_TICKS.remove(id);
+        // Fabric's ManaTypePower fills the active pool when the form gains it.
+        if (WEB_RESOURCE.equals(manaType(player))) setMana(player, maximumMana(player));
     }
 
     public static void setKeyPressed(ServerPlayer player, String key, boolean pressed) {
@@ -88,8 +95,6 @@ public final class FormActivePowerService {
                 return;
             }
             triggerActive(player, key);
-        } else if (!pressed && wasPressed) {
-            releaseCharge(player, key);
         }
     }
 
@@ -103,6 +108,7 @@ public final class FormActivePowerService {
             gainMana(player, 0.02F);
         }
         tickCooldowns(player.getUUID());
+        tickChargeReleases(player);
         if (player.onGround()) LEVITATE_TICKS.remove(player.getUUID());
         Map<ResourceLocation, Boolean> toggles = TOGGLES.get(player.getUUID());
         if (toggles != null) {
@@ -293,7 +299,8 @@ public final class FormActivePowerService {
 
     public static float mana(Player player) {
         String type = manaType(player);
-        float initial = FAMILIAR_FOX_MANA.equals(type) ? 0.0F : DEFAULT_MANA;
+        float initial = FAMILIAR_FOX_MANA.equals(type) ? 0.0F
+                : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
         return SscApi.currentForm(player).map(data -> data.getManaPools().getOrDefault(type, initial))
                 .orElse(initial);
     }
@@ -304,7 +311,9 @@ public final class FormActivePowerService {
     }
 
     private static float maximumMana(Player player) {
-        return FAMILIAR_FOX_MANA.equals(manaType(player)) ? FAMILIAR_FOX_MAX_MANA : DEFAULT_MANA;
+        String type = manaType(player);
+        return FAMILIAR_FOX_MANA.equals(type) ? FAMILIAR_FOX_MAX_MANA
+                : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
     }
 
     private static void setMana(Player player, float value) {
@@ -465,41 +474,81 @@ public final class FormActivePowerService {
                     || isOnCooldown(player, id)) {
                 return;
             }
-            int tier = jsonTier(player);
-            String prefix = "tier" + tier + "_";
-            if (!power.has(prefix + "enable") || !power.get(prefix + "enable").getAsBoolean()) {
-                return;
-            }
-            if (power.has(prefix + "can_charge_condition")
-                    && !FormPowerRuntime.test(player, player, power.getAsJsonObject(prefix + "can_charge_condition"))) {
-                return;
-            }
-
-            int charge = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
-                    .merge(id, 1, Integer::sum);
-            FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "tick_action"));
-            FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_tick_action"));
-            if (charge == Math.max(1, FormPowerRuntime.intValue(power, prefix + "charge_time", 0))) {
-                FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_complete_action"));
+            ChargeState state = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+                    .computeIfAbsent(id, ignored -> new ChargeState());
+            state.lastUseTick = player.tickCount;
+            state.ticks++;
+            for (int tier = 0; tier < 10; tier++) {
+                String prefix = "tier" + tier + "_";
+                if (!FormPowerRuntime.booleanValue(power, prefix + "enable", tier == 0)) break;
+                boolean justCompleted = false;
+                if (state.tier + 1 == tier) {
+                    JsonObject canCharge = power.getAsJsonObject(prefix + "can_charge_condition");
+                    if (canCharge != null && !FormPowerRuntime.test(player, player, canCharge)) {
+                        state.ticks--;
+                    } else {
+                        FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_tick_action"));
+                        int required = FormPowerRuntime.intValue(power, prefix + "charge_time", -1);
+                        if (state.ticks >= required) {
+                            JsonObject condition = power.getAsJsonObject(prefix + "condition");
+                            if (condition != null && !FormPowerRuntime.test(player, player, condition)) {
+                                state.ticks = required - 1;
+                            } else {
+                                FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_complete_action"));
+                                state.tier = tier;
+                                justCompleted = true;
+                            }
+                        }
+                    }
+                }
+                if (state.tier == tier) {
+                    FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "tick_action"));
+                }
+                if (state.tier >= tier) {
+                    FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_complete_tick_action"));
+                }
+                JsonObject autoFire = power.getAsJsonObject(prefix + "auto_fire_condition");
+                if (justCompleted && autoFire != null && FormPowerRuntime.test(player, player, autoFire)) {
+                    fireCharge(player, id, power, state);
+                    break;
+                }
             }
         });
     }
 
-    private static void releaseCharge(ServerPlayer player, String key) {
+    /** Fabric fires once no onUse call has arrived for more than two power ticks. */
+    private static void tickChargeReleases(Player player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) return;
+        Map<ResourceLocation, ChargeState> states = CHARGES.get(player.getUUID());
+        if (states == null || states.isEmpty()) return;
+        Map<String, Boolean> keys = PRESSED_KEYS.getOrDefault(player.getUUID(), Map.of());
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:charge_action".equals(FormPowerRegistry.typeOf(power)) || usesKey(power, key)) {
-                return;
+            if (!"shape-shifter-curse:charge_action".equals(FormPowerRegistry.typeOf(power))) return;
+            ChargeState state = states.get(id);
+            if (state == null) return;
+            String key = FormPowerRuntime.stringValue(power.getAsJsonObject("key"), "key", "");
+            if (!keys.getOrDefault(key, false) && player.tickCount - state.lastUseTick > 2) {
+                if (!isOnCooldown(player, id)) fireCharge(serverPlayer, id, power, state);
+                states.remove(id);
             }
-            int tier = jsonTier(player);
+        });
+    }
+
+    private static void fireCharge(ServerPlayer player, ResourceLocation id, JsonObject power, ChargeState state) {
+        if (state.ticks <= 0) return;
+        for (int tier = 0; tier < 10; tier++) {
             String prefix = "tier" + tier + "_";
-            Integer chargeValue = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).remove(id);
-            int charge = chargeValue == null ? 0 : chargeValue;
-            int required = Math.max(0, FormPowerRuntime.intValue(power, prefix + "charge_time", 0));
-            if (charge >= required && !isOnCooldown(player, id)) {
+            if (!FormPowerRuntime.booleanValue(power, prefix + "enable", tier == 0)) break;
+            if (state.tier == tier) {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "use_action"));
                 startCooldown(player, id, FormPowerRuntime.intValue(power, prefix + "cooldown", 0));
             }
-        });
+            if (state.tier >= tier) {
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_complete_use_action"));
+            }
+        }
+        state.tier = 0;
+        state.ticks = 0;
     }
 
     private static void tickLevitation(ServerPlayer player) {
@@ -514,20 +563,6 @@ public final class FormActivePowerService {
             }
         });
         if (player.onGround()) LEVITATE_TICKS.remove(player.getUUID());
-    }
-
-    private static int jsonTier(Player player) {
-        String path = SscApi.currentForm(player)
-                .map(PlayerFormData::getFormId).orElse("");
-        int underscore = path.lastIndexOf('_');
-        if (underscore >= 0) {
-            try {
-                return Integer.parseInt(path.substring(underscore + 1));
-            } catch (NumberFormatException ignored) {
-                // Special forms do not use tiered charge JSON.
-            }
-        }
-        return 0;
     }
 
     private static boolean usesKey(JsonObject power, String key) {
