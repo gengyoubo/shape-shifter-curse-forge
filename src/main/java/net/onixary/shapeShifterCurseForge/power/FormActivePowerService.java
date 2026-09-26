@@ -83,9 +83,6 @@ public final class FormActivePowerService {
             if (toggle(player, key)) {
                 return;
             }
-            if ("key.shape-shifter-curse.make_sound".equals(key) && triggerHiss(player)) {
-                return;
-            }
             // A surface-water active_self power (jump_out_water) must win over the
             // generic air-jump branch. Water-surface players are not onGround(), so
             // checking air jump first made the original SSC launch unreachable.
@@ -176,16 +173,6 @@ public final class FormActivePowerService {
             changed[0] = true;
         });
         return changed[0];
-    }
-
-    private static boolean triggerHiss(ServerPlayer player) {
-        final boolean[] triggered = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:hiss_phantom_power".equals(FormPowerRegistry.typeOf(power))) return;
-            FormPowerRuntime.execute(player, player, power.getAsJsonObject("on_hiss_phantom_action"));
-            triggered[0] = true;
-        });
-        return triggered[0];
     }
 
     public static void triggerVanillaKey(Player player, String key) {
