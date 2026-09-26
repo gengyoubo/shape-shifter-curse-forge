@@ -14,6 +14,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @SuppressWarnings("StatementWithEmptyBody")
 @Mixin(Entity.class)
 public abstract class CancelEntityStepSoundMixin {
+    @Inject(method = "nextStep", at = @At("RETURN"), cancellable = true)
+    private void ssc$stepDistance(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Float> cir) {
+        if (!((Object) this instanceof Player player)) return;
+        com.google.gson.JsonObject[] first = {null};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if (first[0] == null && "shape-shifter-curse:modify_footstep_sound_speed".equals(FormPowerRegistry.typeOf(power))) first[0] = power;
+        });
+        if (first[0] == null) return;
+        boolean running = FormPowerRuntime.booleanValue(first[0], "adjust_run_individually", false) && player.isSprinting();
+        float multiplier = FormPowerRuntime.floatValue(first[0], running ? "run_speed_multiplier" : "speed_multiplier", 1.0F);
+        cir.setReturnValue(player.moveDist + 1.0F / multiplier);
+    }
+
     @Inject(method = "playStepSound", at = @At("HEAD"), cancellable = true)
     private void ssc$disableStepSound(BlockPos pos, BlockState state, CallbackInfo ci) {
         if ((Object) this instanceof Player player) {

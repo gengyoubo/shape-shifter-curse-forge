@@ -27,7 +27,8 @@ public abstract class ScareCreeperMixin extends Monster {
     @Inject(method = "registerGoals", at = @At("TAIL"))
     private void ssc$scareCreepers(CallbackInfo ci) {
         this.goalSelector.addGoal(3, new AvoidEntityGoal<>(this, Player.class, 3.0F, 1.0D, 1.2D,
-                entity -> entity instanceof Player player && FormPowerRegistry.has(player, SSC_SCARE_CREEPERS)));
+                entity -> entity instanceof Player player && !player.isCreative() && !player.isSpectator()
+                        && FormPowerRegistry.has(player, SSC_SCARE_CREEPERS)));
         for (WrappedGoal wrapped : this.targetSelector.getAvailableGoals().toArray(WrappedGoal[]::new)) {
             if (wrapped.getPriority() == 1 && wrapped.getGoal() instanceof NearestAttackableTargetGoal<?>) {
                 this.targetSelector.removeGoal(wrapped.getGoal());

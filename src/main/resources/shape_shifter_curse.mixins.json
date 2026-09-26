@@ -32,6 +32,7 @@
         "CancelEntityStepSoundMixin",
         "ServerLevelGameEventMixin",
         "CatFleeGoalMixin",
+        "HissPhantomMixin",
         "OcelotFleeGoalMixin",
         "ScareCreeperMixin",
         "ScareSkeletonMixin",
@@ -44,6 +45,7 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "client.CameraBobbingMixin",
         "client.PowerEntityGlowMixin",
         "client.PowerEntityGlowColorMixin",
         "client.KeepSneakingInputMixin",

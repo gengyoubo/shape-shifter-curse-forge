@@ -139,21 +139,7 @@ public final class FormPowerEvents {
         FormActivePowerService.postTravelTick(player);
         // Fabric updates moisture at Player.tick TAIL, after vanilla breathing.
         tickCustomWaterBreathing(player);
-        final float[] multiplier = {1.0F};
-        final boolean[] modified = {false};
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"shape-shifter-curse:modify_footstep_sound_speed".equals(FormPowerRegistry.typeOf(power))
-                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
-            boolean sprintOverride = power.has("adjust_run_individually")
-                    && power.get("adjust_run_individually").getAsBoolean() && player.isSprinting();
-            float value = FormPowerRuntime.floatValue(power,
-                    sprintOverride ? "run_speed_multiplier" : "speed_multiplier", 1.0F);
-            if (value > 0.0F) {
-                multiplier[0] = value;
-                modified[0] = true;
-            }
-        });
-        if (modified[0]) player.nextStep = player.moveDist + 1.0F / multiplier[0];
+
     }
 
     @SubscribeEvent
