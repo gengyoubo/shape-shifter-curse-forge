@@ -14,6 +14,7 @@ import net.onixary.shapeShifterCurseForge.power.FormPowerEvents;
 import net.onixary.shapeShifterCurseForge.power.MissingPowerEvents;
 import net.onixary.shapeShifterCurseForge.power.PowerAnimationService;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
+import net.onixary.shapeShifterCurseForge.power.FormPowerSyncGuard;
 
 public final class FormManager {
     private FormManager() {
@@ -67,6 +68,7 @@ public final class FormManager {
             if (player instanceof ServerPlayer serverPlayer) {
                 MissingPowerEvents.onFormChanged(serverPlayer);
             }
+            FormPowerSyncGuard.markReconciled(player);
         }
 
         if (player instanceof ServerPlayer serverPlayer) {
