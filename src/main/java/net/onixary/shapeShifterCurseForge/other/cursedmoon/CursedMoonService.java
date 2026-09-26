@@ -17,6 +17,7 @@ import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.form.TransformManager;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.power.TransformativeEffectService;
@@ -126,7 +127,7 @@ public final class CursedMoonService {
                 if (next != null && !next.id().equals(current.id())) {
                     data.setBeforeCursedMoonAppliedForm(current.id().toString());
                     data.setAfterCursedMoonAppliedForm(next.id().toString());
-                    FormManager.setForm(player, next.id(), true);
+                    TransformManager.forceTransform(player, next.id(), false);
                     if (current.hasFlag("cursed_moon_final_form")) {
                         SscAdvancementTriggers.ON_TRIGGER_CURSED_MOON_FORM_2.trigger(player);
                     }
@@ -166,7 +167,7 @@ public final class CursedMoonService {
                 SscAdvancementTriggers.ON_END_CURSED_MOON.trigger(player);
                 ResourceLocation beforeId = ResourceLocation.tryParse(beforeFormId);
                 if (beforeId != null && FormRegistry.get(beforeId) != null) {
-                    FormManager.setForm(player, beforeId, true);
+                    TransformManager.forceTransform(player, beforeId, false);
                 }
             }
 

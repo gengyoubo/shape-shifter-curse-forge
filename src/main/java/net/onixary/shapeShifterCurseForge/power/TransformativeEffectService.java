@@ -15,6 +15,7 @@ import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.form.TransformManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -71,7 +72,7 @@ public final class TransformativeEffectService {
         FormDefinition current = FormManager.current(player);
         boolean applied = current.hasFlag("transform_effect_can_apply")
                 && FormRegistry.get(targetId) != null
-                && FormManager.setForm(player, targetId);
+                && TransformManager.forceTransform(player, targetId, false);
         clear(player);
         for (MobEffectInstance effect : new java.util.ArrayList<>(player.getActiveEffects())) {
             if (effect.getEffect() instanceof net.onixary.shapeShifterCurseForge.effect.TransformativeStatusEffect) {

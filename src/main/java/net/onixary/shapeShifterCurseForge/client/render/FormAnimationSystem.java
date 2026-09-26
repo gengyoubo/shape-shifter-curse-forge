@@ -185,7 +185,10 @@ public final class FormAnimationSystem {
             TRANSITIONS.remove(uuid);
             return null;
         }
-        if (now - snapshot.changedAt >= Math.max(1.0F, BedrockAnimationPlayer.animationLength(selection)) * 20.0D) {
+        // A delayed transform keeps the clip alive for the whole transforming window,
+        // mirroring Fabric's TransformingController whose isEnabled follows isTransforming.
+        if (!net.onixary.shapeShifterCurseForge.client.TransformClientState.isTransforming(player)
+                && now - snapshot.changedAt >= Math.max(1.0F, BedrockAnimationPlayer.animationLength(selection)) * 20.0D) {
             TRANSITIONS.remove(uuid);
             return null;
         }

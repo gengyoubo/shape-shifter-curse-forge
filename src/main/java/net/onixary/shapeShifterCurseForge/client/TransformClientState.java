@@ -12,9 +12,14 @@ import net.onixary.shapeShifterCurseForge.client.render.FormAnimationSystem;
 import net.onixary.shapeShifterCurseForge.form.TransformManager;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 /** Client mirror of the server transform lifecycle: animation start, overlay strengths, movement lock. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
 public final class TransformClientState {
+    private static final Set<UUID> TRANSFORMING_PLAYERS = new HashSet<>();
     private static int transformTimer = -1;
     private static boolean transforming = false;
     private static float nauseaStrength = 0.0F;
@@ -33,7 +38,10 @@ public final class TransformClientState {
             return;
         }
         if (isTransforming) {
+            TRANSFORMING_PLAYERS.add(player.getUUID());
             FormAnimationSystem.startTransition(player, startFormId, endFormId);
+        } else {
+            TRANSFORMING_PLAYERS.remove(player.getUUID());
         }
         // The overlay and movement lock only ever apply to the local player.
         if (minecraft.player != null && entityId == minecraft.player.getId()) {
@@ -83,12 +91,25 @@ public final class TransformClientState {
         return transforming;
     }
 
+    /** Per-player transforming flag, used by the animation system for observers too. */
+    public static boolean isTransforming(Player player) {
+        return TRANSFORMING_PLAYERS.contains(player.getUUID());
+    }
+
     public static float nauseaStrength() {
         return nauseaStrength;
     }
 
     public static float blackStrength() {
         return blackStrength;
+    }
+
+    public static void applyMovementLock(int noMoveTicks, int noJumpTicks) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player instanceof LivingEntityJumpState state) {
+            state.ssc$setNoMoveTick(noMoveTicks);
+            state.ssc$setNoJumpTick(noJumpTicks);
+        }
     }
 
     private static void lockMovement(Player player, int ticks) {

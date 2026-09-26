@@ -67,6 +67,10 @@ public final class ClientPacketHandlers {
         TransformClientState.apply(entityId, transforming, startFormId, endFormId);
     }
 
+    public static void applyMovementLock(int noMoveTicks, int noJumpTicks) {
+        TransformClientState.applyMovementLock(noMoveTicks, noJumpTicks);
+    }
+
     /** Plays the vanilla totem activation animation for a virtual totem stack. */
     public static void displayTotem(net.minecraft.world.item.ItemStack stack) {
         if (!stack.isEmpty()) {

@@ -63,7 +63,7 @@ public final class TransformManager {
     }
 
     public static boolean immediatelyTransform(ServerPlayer player, ResourceLocation targetId) {
-        return FormManager.setForm(player, targetId, true);
+        return FormManager.setForm(player, targetId, false);
     }
 
     /** Whether a player is currently inside the transforming window. */
@@ -79,8 +79,15 @@ public final class TransformManager {
 
     /** Cancels an in-progress transform without completing the form switch. */
     public static void cancel(ServerPlayer player) {
-        DATA.remove(player.getUUID());
+        PlayerTransformData data = DATA.remove(player.getUUID());
+        if (data == null) {
+            return;
+        }
         INSTINCT_LOCKED.remove(player.getUUID());
+        setNoMoveTicks(player, 0);
+        setNoJumpTicks(player, 0);
+        ModNetwork.sendMovementLock(player, 0, 0);
+        ModNetwork.sendTransformState(player, false, data.transformStartForm, data.transformEndForm);
     }
 
     @SubscribeEvent
@@ -146,11 +153,13 @@ public final class TransformManager {
 
     private static void applyFinaleTransformEffect(ServerPlayer player, int ticks) {
         setNoMoveTicks(player, ticks);
+        ModNetwork.sendMovementLock(player, ticks, 0);
     }
 
     private static void lockMovement(ServerPlayer player, int ticks) {
         setNoMoveTicks(player, ticks);
         setNoJumpTicks(player, ticks);
+        ModNetwork.sendMovementLock(player, ticks, ticks);
     }
 
     private static void setNoMoveTicks(ServerPlayer player, int ticks) {

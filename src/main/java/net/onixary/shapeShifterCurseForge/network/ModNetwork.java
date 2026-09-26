@@ -192,6 +192,14 @@ public final class ModNetwork {
                 TransformStatePacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                20,
+                MovementLockPacket.class,
+                MovementLockPacket::encode,
+                MovementLockPacket::decode,
+                MovementLockPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     public static void sendFormSync(ServerPlayer player) {
@@ -230,6 +238,11 @@ public final class ModNetwork {
                 new TransformStatePacket(player.getId(), transforming,
                         startForm == null ? null : startForm.toString(),
                         endForm == null ? null : endForm.toString()));
+    }
+
+    public static void sendMovementLock(ServerPlayer player, int noMoveTicks, int noJumpTicks) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new MovementLockPacket(noMoveTicks, noJumpTicks));
     }
 
     public static void sendPowerAnimationTo(ServerPlayer target, ServerPlayer receiver, PowerAnimationPacket packet) {

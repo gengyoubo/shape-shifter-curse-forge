@@ -24,6 +24,7 @@ import net.onixary.shapeShifterCurseForge.client.render.FormTextureUtils;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.form.TransformManager;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.power.FormActivePowerService;
@@ -152,7 +153,7 @@ public final class FabricFormCommand {
             context.getSource().sendFailure(Component.literal("Invalid Form Id: " + id));
             return 0;
         }
-        FormManager.setForm(player, id, animate);
+        TransformManager.forceTransform(player, id, !animate);
         context.getSource().sendSuccess(() -> Component.literal("Form set to " + id), true);
         return 1;
     }
