@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
 import java.util.Collections;
+import net.onixary.shapeShifterCurseForge.animation.AnimationTransition;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -37,8 +38,13 @@ public final class AnimationProfile {
         return clips;
     }
 
-    public record Clip(String resourceFile, String animationId, float speed, int fade) {
+    public record Clip(String resourceFile, String animationId, float speed, int fade, AnimationTransition transition) {
+        public Clip(String resourceFile, String animationId, float speed, int fade) {
+            this(resourceFile, animationId, speed, fade, AnimationTransition.DEFAULT);
+        }
+
         public Clip {
+            if (transition == null) transition = AnimationTransition.DEFAULT;
             if (resourceFile == null || resourceFile.isBlank()) {
                 throw new IllegalArgumentException("Animation resource file cannot be blank");
             }
@@ -74,10 +80,15 @@ public final class AnimationProfile {
          */
         public Builder animation(String logicalId, String resourceFile, String animationId,
                                  float speed, int fade) {
+            return animation(logicalId, resourceFile, animationId, speed, fade, AnimationTransition.DEFAULT);
+        }
+
+        public Builder animation(String logicalId, String resourceFile, String animationId,
+                                 float speed, int fade, AnimationTransition transition) {
             if (logicalId == null || logicalId.isBlank()) {
                 throw new IllegalArgumentException("Animation logical id cannot be blank");
             }
-            clips.put(logicalId, new Clip(resourceFile, animationId, speed, fade));
+            clips.put(logicalId, new Clip(resourceFile, animationId, speed, fade, transition));
             return this;
         }
 

@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
 import net.minecraft.client.Minecraft;
+import net.onixary.shapeShifterCurseForge.animation.AnimationTransition;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.Boat;
@@ -58,7 +59,16 @@ public final class FormAnimationSystem {
     }
 
     public record Selection(String id, String animationId, ResourceLocation resource,
-                            ResourceLocation fallbackResource, float speed, int fade) {
+                            ResourceLocation fallbackResource, float speed, int fade, AnimationTransition transition) {
+        public Selection {
+            if (transition == null) transition = AnimationTransition.DEFAULT;
+        }
+
+        public Selection(String id, String animationId, ResourceLocation resource,
+                         ResourceLocation fallbackResource, float speed, int fade) {
+            this(id, animationId, resource, fallbackResource, speed, fade, AnimationTransition.DEFAULT);
+        }
+
         public static Selection of(String id) {
             return of(id, defaultSpeed(id), 2);
         }
@@ -81,7 +91,7 @@ public final class FormAnimationSystem {
             ResourceLocation legacy = FormAnimationSystem.resource(ANIMATION_PATH + clip.resourceFile() + ".json");
             ResourceLocation source = FormAnimationSystem.preferredResource(clip.resourceFile(), legacy);
             return new Selection(logicalId, clip.animationId(), source,
-                    null, clip.speed(), clip.fade());
+                    null, clip.speed(), clip.fade(), clip.transition());
         }
     }
 
@@ -167,7 +177,7 @@ public final class FormAnimationSystem {
         MOTION_SNAPSHOTS.clear();
     }
 
-    private static Selection transitionAnimation(Player player) {
+    public static Selection transitionAnimation(Player player) {
         UUID uuid = player.getUUID();
         double now = player.tickCount + Minecraft.getInstance().getFrameTime();
         TransitionSnapshot snapshot = TRANSITIONS.get(uuid);

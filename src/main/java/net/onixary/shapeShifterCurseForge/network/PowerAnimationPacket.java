@@ -10,19 +10,27 @@ import net.onixary.shapeShifterCurseForge.client.PowerAnimationClientHandler;
 import java.util.function.Supplier;
 
 /** Replicates a high-priority power animation from the server to tracking clients. */
-public record PowerAnimationPacket(int entityId, String animationId, Mode mode, int durationOrCount) {
+public record PowerAnimationPacket(int entityId, String animationId, Mode mode, int durationOrCount, boolean refresh) {
     public enum Mode { TIME, COUNT, LOOP, STOP }
 
     public static PowerAnimationPacket start(ResourceLocation animationId, Mode mode, int durationOrCount) {
-        return new PowerAnimationPacket(-1, animationId.toString(), mode, durationOrCount);
+        return new PowerAnimationPacket(-1, animationId.toString(), mode, durationOrCount, false);
     }
 
     public static PowerAnimationPacket stop() {
-        return new PowerAnimationPacket(-1, "", Mode.STOP, -1);
+        return new PowerAnimationPacket(-1, "", Mode.STOP, -1, false);
+    }
+
+    public static PowerAnimationPacket stopMatching(ResourceLocation animationId) {
+        return new PowerAnimationPacket(-1, animationId.toString(), Mode.STOP, -1, false);
     }
 
     public PowerAnimationPacket forEntity(int entityId) {
-        return new PowerAnimationPacket(entityId, animationId, mode, durationOrCount);
+        return new PowerAnimationPacket(entityId, animationId, mode, durationOrCount, refresh);
+    }
+
+    public PowerAnimationPacket asRefresh() {
+        return new PowerAnimationPacket(entityId, animationId, mode, durationOrCount, true);
     }
 
     public static void encode(PowerAnimationPacket packet, FriendlyByteBuf buffer) {
@@ -30,11 +38,12 @@ public record PowerAnimationPacket(int entityId, String animationId, Mode mode, 
         buffer.writeUtf(packet.animationId, 256);
         buffer.writeEnum(packet.mode);
         buffer.writeVarInt(packet.durationOrCount);
+        buffer.writeBoolean(packet.refresh);
     }
 
     public static PowerAnimationPacket decode(FriendlyByteBuf buffer) {
         return new PowerAnimationPacket(buffer.readInt(), buffer.readUtf(256), buffer.readEnum(Mode.class),
-                buffer.readVarInt());
+                buffer.readVarInt(), buffer.readBoolean());
     }
 
     public static void handle(PowerAnimationPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {

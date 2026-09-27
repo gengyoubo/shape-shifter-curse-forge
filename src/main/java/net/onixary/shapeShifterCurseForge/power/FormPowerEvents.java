@@ -129,6 +129,7 @@ public final class FormPowerEvents {
             FormActivePowerService.clearTransientInput(event.getEntity());
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
                 BatAttachService.forget(player);
+                PowerAnimationService.forget(player);
             }
         }
     }

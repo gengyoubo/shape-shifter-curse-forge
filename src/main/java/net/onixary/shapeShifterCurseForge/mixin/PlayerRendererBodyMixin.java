@@ -12,6 +12,7 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -27,6 +28,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(net.minecraft.client.renderer.entity.player.PlayerRenderer.class)
 public abstract class PlayerRendererBodyMixin {
+    @Redirect(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/player/AbstractClientPlayer;getSwimAmount(F)F"))
+    private float ssc$matchFormSwimRotation(AbstractClientPlayer player, float partialTick) {
+        FormDefinition form = FormManager.current(player);
+        if (form.hasFlag("special_form") || form.stage() > 0) {
+            FormGeoRenderer renderer = FormClientRenderEvents.rendererFor(form);
+            if (renderer != null) {
+                FormGeoAnimatable animation = renderer.getAnimatable();
+                if (animation.hasPreparedPose(player) && !animation.hasSafeRenderState()
+                        && animation.suppressesVanillaSwimRotation()) {
+                    return 0.0F;
+                }
+            }
+        }
+        return player.getSwimAmount(partialTick);
+    }
+
     @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
             at = @At("RETURN"))
     private void ssc$applyBodyTransform(AbstractClientPlayer entity, PoseStack poseStack,
@@ -44,7 +63,7 @@ public abstract class PlayerRendererBodyMixin {
             return;
         }
         FormGeoAnimatable animatable = renderer.getAnimatable();
-        if (animatable == null || animatable.isInventoryPreview() || animatable.hasSafeRenderState()) {
+        if (animatable == null || !animatable.hasPreparedPose(entity) || animatable.hasSafeRenderState()) {
             return;
         }
         BedrockAnimationPlayer.BodyTransform transform = animatable.getBodyTransform();

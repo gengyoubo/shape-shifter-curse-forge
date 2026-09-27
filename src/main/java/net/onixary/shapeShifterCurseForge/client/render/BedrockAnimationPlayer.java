@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
 import com.google.gson.JsonElement;
+import net.onixary.shapeShifterCurseForge.animation.AnimationTransition;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.logging.LogUtils;
@@ -180,8 +181,8 @@ public final class BedrockAnimationPlayer {
     /** Raw per-bone sample: rotation in degrees, position in raw JSON units. */
     public record BoneSample(float rotX, float rotY, float rotZ, float posX, float posY, float posZ) {
         public static BoneSample lerp(BoneSample from, BoneSample to, float amount) {
-            return new BoneSample(Mth.lerp(amount, from.rotX, to.rotX), Mth.lerp(amount, from.rotY, to.rotY),
-                    Mth.lerp(amount, from.rotZ, to.rotZ), Mth.lerp(amount, from.posX, to.posX),
+            return new BoneSample(AnimationTransition.rotationDegrees(from.rotX, to.rotX, amount), AnimationTransition.rotationDegrees(from.rotY, to.rotY, amount),
+                    AnimationTransition.rotationDegrees(from.rotZ, to.rotZ, amount), Mth.lerp(amount, from.posX, to.posX),
                     Mth.lerp(amount, from.posY, to.posY), Mth.lerp(amount, from.posZ, to.posZ));
         }
     }
@@ -415,8 +416,8 @@ public final class BedrockAnimationPlayer {
 
         public static BodyTransform lerp(BodyTransform from, BodyTransform to, float amount) {
             return new BodyTransform(Mth.lerp(amount, from.x, to.x), Mth.lerp(amount, from.y, to.y),
-                    Mth.lerp(amount, from.z, to.z), Mth.lerp(amount, from.pitch, to.pitch),
-                    Mth.lerp(amount, from.yaw, to.yaw), Mth.lerp(amount, from.roll, to.roll));
+                    Mth.lerp(amount, from.z, to.z), AnimationTransition.rotation(from.pitch, to.pitch, amount),
+                    AnimationTransition.rotation(from.yaw, to.yaw, amount), AnimationTransition.rotation(from.roll, to.roll, amount));
         }
     }
 

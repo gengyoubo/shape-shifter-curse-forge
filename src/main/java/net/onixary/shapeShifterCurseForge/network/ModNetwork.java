@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "8";
+    private static final String PROTOCOL_VERSION = "9";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -209,6 +209,10 @@ public final class ModNetwork {
                 SyncForcedSneakingPacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(22, RequestPowerAnimationPacket.class,
+                RequestPowerAnimationPacket::encode, RequestPowerAnimationPacket::decode,
+                RequestPowerAnimationPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER));
     }
 
     public static void sendFormSync(ServerPlayer player) {

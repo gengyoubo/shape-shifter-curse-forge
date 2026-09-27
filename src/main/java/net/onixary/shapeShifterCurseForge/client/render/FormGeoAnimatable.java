@@ -1,6 +1,7 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
 import net.minecraft.client.Minecraft;
+import net.onixary.shapeShifterCurseForge.animation.AnimationTransition;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.resources.ResourceLocation;
@@ -16,9 +17,8 @@ import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 
-import java.util.HashMap;
+import java.util.WeakHashMap;
 import java.util.Map;
-import java.util.UUID;
 
 public final class FormGeoAnimatable implements GeoAnimatable {
     private final AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
@@ -28,15 +28,17 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private boolean inventoryPreview;
     private ResourceLocation animationResource;
     private boolean fullyCustomModel;
-    private final Map<UUID, AnimationTimeline> timelines = new HashMap<>();
+    private final Map<Player, AnimationTimeline> timelines = new WeakHashMap<>();
     private FormAnimationSystem.Selection extraPrimary;
     private float extraPrimaryTime;
     private boolean extraPrimaryForceLoop;
     private FormAnimationSystem.Selection extraSecondary;
     private float extraSecondaryTime;
+    private boolean extraSecondaryForceLoop;
     private float extraBlend = 1.0F;
     private boolean preparingVanillaPlayerPose;
     private Player preparedPlayer;
+    private PlayerModelPose preparedPose;
 
     public void setPlayer(Player player) {
         this.player = player;
@@ -64,6 +66,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     public void clearPreparedPose() {
         preparedPlayer = null;
+        preparedPose = null;
     }
 
     /**
@@ -76,6 +79,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         // from a previous render survive a missing/partial player-model render pass.
         bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
         preparedPlayer = null;
+        preparedPose = null;
         if (player == null || vanillaPlayerModel == null) {
             return;
         }
@@ -127,51 +131,28 @@ public final class FormGeoAnimatable implements GeoAnimatable {
             preparingVanillaPlayerPose = false;
         }
         bodyTransform = applySelection(player, rawModel, partialTick);
+        preparedPose = PlayerModelPose.capture(rawModel);
         preparedPlayer = player;
     }
 
     private BedrockAnimationPlayer.BodyTransform applySelection(Player player, PlayerModel<?> model,
                                                                 float partialTick) {
-        PowerAnimationClientHandler.ActiveAnimation powerAnimation =
-                inventoryPreview ? null : PowerAnimationClientHandler.active(player, partialTick);
-        FormAnimationSystem.Selection selection = powerAnimation == null
+        // SSC's pre-process (transform) wins over power, then ordinary locomotion.
+        FormAnimationSystem.Selection transition = FormAnimationSystem.transitionAnimation(player);
+        PowerAnimationClientHandler.ActiveAnimation powerAnimation = inventoryPreview || transition != null
+                ? null : PowerAnimationClientHandler.active(player, partialTick);
+        FormAnimationSystem.Selection selection = transition != null ? transition : powerAnimation == null
                 ? FormAnimationSystem.select(player) : powerAnimation.selection();
-        if (powerAnimation != null) {
-            // Server-synchronised power animations are their own high-priority layer.
-            // SSC Fabric replaces the normal layer for these, rather than fading it.
-            BedrockAnimationPlayer.BodyTransform transform = BedrockAnimationPlayer.applyToPlayerModel(model, selection,
-                    powerAnimation.timeSeconds(), powerAnimation.forceLoop());
-            stashExtraContext(selection, powerAnimation.timeSeconds(), powerAnimation.forceLoop(),
-                    null, 0.0F, 1.0F);
-            return transform;
-        }
-        return applyFormAnimation(model, selection, partialTick);
+        return applyFormAnimation(model, selection, partialTick, powerAnimation);
     }
 
-    /**
-     * Re-applies the current clip onto a vanilla model that someone else just posed
-     * (vanilla setupAnim during the real render pass, which would otherwise wipe the
-     * Pre-pass clip pose that layers like held items depend on). Shared fade and power
-     * state keeps every pass of the same frame identical. Mirrors PAL, which hooks
-     * setupAnim itself rather than replacing the renderer.
-     */
+    /** Reuse the exact Geo pre-pass pose; re-sampling on vanilla's changed baseline drifts during fades. */
     public void reapplySelection(Player player, PlayerModel<?> model, float partialTick) {
-        if (player == null || model == null || preparedPlayer != player || extraPrimary == null) {
-            return;
-        }
-        if (extraSecondary == null || extraBlend >= 1.0F) {
-            BedrockAnimationPlayer.applyToPlayerModel(model, extraPrimary,
-                    extraPrimaryTime, extraPrimaryForceLoop);
-            return;
-        }
-        PlayerModelPose baseline = PlayerModelPose.capture(model);
-        BedrockAnimationPlayer.applyToPlayerModel(model, extraSecondary, extraSecondaryTime);
-        PlayerModelPose previousPose = PlayerModelPose.capture(model);
-        baseline.apply(model);
-        BedrockAnimationPlayer.applyToPlayerModel(model, extraPrimary,
-                extraPrimaryTime, extraPrimaryForceLoop);
-        PlayerModelPose currentPose = PlayerModelPose.capture(model);
-        PlayerModelPose.lerp(previousPose, currentPose, extraBlend).apply(model);
+        if (model != null && hasPreparedPose(player)) preparedPose.apply(model);
+    }
+
+    public boolean hasPreparedPose(Player player) {
+        return player != null && preparedPlayer == player && preparedPose != null;
     }
 
     /** A malformed data animation must fall back to vanilla rendering, never hide a player. */
@@ -219,7 +200,8 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,
                                                                       FormAnimationSystem.Selection selection,
-                                                                      float partialTick) {
+                                                                      float partialTick,
+                                                                      PowerAnimationClientHandler.ActiveAnimation power) {
         if (player == null || selection == null) {
             discardTimeline();
             stashExtraContext(null, 0.0F, false, null, 0.0F, 1.0F);
@@ -233,63 +215,69 @@ public final class FormGeoAnimatable implements GeoAnimatable {
             stashExtraContext(selection, 0.0F, false, null, 0.0F, 1.0F);
             return BedrockAnimationPlayer.applyToPlayerModel(model, selection, 0.0F);
         }
-        double now = player.tickCount + partialTick;
-        AnimationTimeline timeline = timelines.computeIfAbsent(player.getUUID(), ignored -> new AnimationTimeline());
-        if (!selection.equals(timeline.animation)) {
+        double now = player.level().getGameTime() + partialTick;
+        AnimationTimeline timeline = timelines.computeIfAbsent(player, ignored -> new AnimationTimeline());
+        Object playbackKey = power == null ? null : power.clock();
+        boolean forceLoop = power != null && power.forceLoop();
+        if (!selection.equals(timeline.animation) || timeline.playbackKey != playbackKey) {
             if (timeline.animation != null) {
                 float previousTime = timeline.timeAt(now);
-                if (BedrockAnimationPlayer.isActive(timeline.animation, previousTime)) {
+                if (timeline.forceLoop || BedrockAnimationPlayer.isActive(timeline.animation, previousTime)) {
                     timeline.previousAnimation = timeline.animation;
                     timeline.previousStartedAt = timeline.startedAt;
+                    timeline.previousForceLoop = timeline.forceLoop;
                     timeline.fadeStartedAt = now;
                 } else {
                     timeline.previousAnimation = null;
                 }
             }
+            timeline.fadeStartedAt = now;
             timeline.animation = selection;
-            timeline.startedAt = now;
+            timeline.startedAt = power == null ? now : now - power.timeSeconds() * 20.0D / selection.speed();
+            timeline.forceLoop = forceLoop;
+            timeline.playbackKey = playbackKey;
         }
 
         float currentTime = timeline.timeAt(now);
         float previousTime = timeline.previousAnimation == null ? 0.0F : (float) ((now - timeline.previousStartedAt) / 20.0D
                 * timeline.previousAnimation.speed());
-        // A just-expired one-shot (dive entry, jump landing) still fades out of its
-        // frozen end pose instead of hard-cutting; only long-dead clips cut straight in.
-        float previousLength = timeline.previousAnimation == null ? 0.0F
-                : BedrockAnimationPlayer.animationLength(timeline.previousAnimation);
-        boolean previousUsable = timeline.previousAnimation != null && previousLength > 0.0F
-                && (BedrockAnimationPlayer.isActive(timeline.previousAnimation, previousTime)
-                    || previousTime - previousLength <= 20.0F);
-        if (!previousUsable || selection.fade() <= 0) {
-            stashExtraContext(selection, currentTime, false, null, 0.0F, 1.0F);
-            return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime);
+        // A missing previous clip means fade from the vanilla base pose.
+        // Completed non-looping clips stop contributing, as in the PAL modifier chain.
+        if (timeline.previousAnimation != null && !timeline.previousForceLoop
+                && !BedrockAnimationPlayer.isActive(timeline.previousAnimation, previousTime)) {
+            timeline.previousAnimation = null;
+        }
+        if (selection.fade() <= 0 || selection.transition().skipFade()) {
+            stashExtraContext(selection, currentTime, forceLoop, null, 0.0F, 1.0F);
+            return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime, forceLoop);
         }
 
-        float blend = Mth.clamp((float) ((now - timeline.fadeStartedAt) / selection.fade()), 0.0F, 1.0F);
+        float blend = selection.transition().blend(now - timeline.fadeStartedAt, selection.fade());
         if (blend >= 1.0F) {
             timeline.previousAnimation = null;
-            stashExtraContext(selection, currentTime, false, null, 0.0F, 1.0F);
-            return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime);
+            stashExtraContext(selection, currentTime, forceLoop, null, 0.0F, 1.0F);
+            return BedrockAnimationPlayer.applyToPlayerModel(model, selection, currentTime, forceLoop);
         }
-        stashExtraContext(selection, currentTime, false, timeline.previousAnimation, previousTime, blend);
+        stashExtraContext(selection, currentTime, forceLoop, timeline.previousAnimation, previousTime, blend);
+        extraSecondaryForceLoop = timeline.previousForceLoop;
 
         // PAL's AbstractFadeModifier samples both players from the same base PlayerModel
         // pose and linearly blends their results. Capture/restore lets us do that without
         // importing the full PAL layer stack.
         PlayerModelPose baseline = PlayerModelPose.capture(model);
         BedrockAnimationPlayer.BodyTransform previousBody = BedrockAnimationPlayer.applyToPlayerModel(
-                model, timeline.previousAnimation, previousTime);
+                model, timeline.previousAnimation, previousTime, timeline.previousForceLoop);
         PlayerModelPose previousPose = PlayerModelPose.capture(model);
         baseline.apply(model);
         BedrockAnimationPlayer.BodyTransform currentBody = BedrockAnimationPlayer.applyToPlayerModel(
-                model, selection, currentTime);
+                model, selection, currentTime, forceLoop);
         PlayerModelPose currentPose = PlayerModelPose.capture(model);
         PlayerModelPose.lerp(previousPose, currentPose, blend).apply(model);
         return BedrockAnimationPlayer.BodyTransform.lerp(previousBody, currentBody, blend);
     }
 
     private void discardTimeline() {
-        if (player != null) timelines.remove(player.getUUID());
+        if (player != null) timelines.remove(player);
     }
 
     private void stashExtraContext(FormAnimationSystem.Selection primary, float primaryTime, boolean forceLoop,
@@ -299,6 +287,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         extraPrimaryForceLoop = forceLoop;
         extraSecondary = secondary;
         extraSecondaryTime = secondaryTime;
+        extraSecondaryForceLoop = false;
         extraBlend = blend;
     }
 
@@ -314,22 +303,20 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         }
         BedrockAnimationPlayer.BoneSample primary =
                 sampleWithFallback(extraPrimary, animBoneName, extraPrimaryTime, extraPrimaryForceLoop);
-        if (primary == null) {
-            return null;
-        }
-        if (extraSecondary == null || extraBlend >= 1.0F) {
+        if (extraBlend >= 1.0F) {
             return primary;
         }
         BedrockAnimationPlayer.BoneSample secondary =
-                sampleWithFallback(extraSecondary, animBoneName, extraSecondaryTime, false);
-        if (secondary == null) {
-            return primary;
-        }
-        return BedrockAnimationPlayer.BoneSample.lerp(secondary, primary, extraBlend);
+                sampleWithFallback(extraSecondary, animBoneName, extraSecondaryTime, extraSecondaryForceLoop);
+        if (primary == null && secondary == null) return null;
+        BedrockAnimationPlayer.BoneSample identity = new BedrockAnimationPlayer.BoneSample(0, 0, 0, 0, 0, 0);
+        return BedrockAnimationPlayer.BoneSample.lerp(secondary == null ? identity : secondary,
+                primary == null ? identity : primary, extraBlend);
     }
 
     private static BedrockAnimationPlayer.BoneSample sampleWithFallback(FormAnimationSystem.Selection selection,
                                                                         String boneName, float time, boolean forceLoop) {
+        if (selection == null) return null;
         ResourceLocation resource = selection.resource();
         if (!BedrockAnimationPlayer.hasAnimation(resource, selection.animationId())
                 && selection.fallbackResource() != null) {
@@ -365,61 +352,15 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private static final class AnimationTimeline {
         private FormAnimationSystem.Selection animation;
         private FormAnimationSystem.Selection previousAnimation;
+        private Object playbackKey;
+        private boolean forceLoop;
+        private boolean previousForceLoop;
         private double startedAt;
         private double previousStartedAt;
         private double fadeStartedAt;
 
         private float timeAt(double now) {
             return animation == null ? 0.0F : (float) ((now - startedAt) / 20.0D * animation.speed());
-        }
-    }
-
-    /** Minimal mutable PlayerModel pose used for PAL-compatible cross-fades. */
-    private record PlayerModelPose(PartPose head, PartPose body, PartPose rightArm,
-                                   PartPose leftArm, PartPose rightLeg, PartPose leftLeg) {
-        private static PlayerModelPose capture(PlayerModel<?> model) {
-            return new PlayerModelPose(PartPose.capture(model.head), PartPose.capture(model.body),
-                    PartPose.capture(model.rightArm), PartPose.capture(model.leftArm),
-                    PartPose.capture(model.rightLeg), PartPose.capture(model.leftLeg));
-        }
-
-        private void apply(PlayerModel<?> model) {
-            head.apply(model.head);
-            body.apply(model.body);
-            rightArm.apply(model.rightArm);
-            leftArm.apply(model.leftArm);
-            rightLeg.apply(model.rightLeg);
-            leftLeg.apply(model.leftLeg);
-        }
-
-        private static PlayerModelPose lerp(PlayerModelPose from, PlayerModelPose to, float amount) {
-            return new PlayerModelPose(PartPose.lerp(from.head, to.head, amount),
-                    PartPose.lerp(from.body, to.body, amount),
-                    PartPose.lerp(from.rightArm, to.rightArm, amount),
-                    PartPose.lerp(from.leftArm, to.leftArm, amount),
-                    PartPose.lerp(from.rightLeg, to.rightLeg, amount),
-                    PartPose.lerp(from.leftLeg, to.leftLeg, amount));
-        }
-    }
-
-    private record PartPose(float x, float y, float z, float xRot, float yRot, float zRot) {
-        private static PartPose capture(net.minecraft.client.model.geom.ModelPart part) {
-            return new PartPose(part.x, part.y, part.z, part.xRot, part.yRot, part.zRot);
-        }
-
-        private void apply(net.minecraft.client.model.geom.ModelPart part) {
-            part.x = x;
-            part.y = y;
-            part.z = z;
-            part.xRot = xRot;
-            part.yRot = yRot;
-            part.zRot = zRot;
-        }
-
-        private static PartPose lerp(PartPose from, PartPose to, float amount) {
-            return new PartPose(Mth.lerp(amount, from.x, to.x), Mth.lerp(amount, from.y, to.y),
-                    Mth.lerp(amount, from.z, to.z), Mth.lerp(amount, from.xRot, to.xRot),
-                    Mth.lerp(amount, from.yRot, to.yRot), Mth.lerp(amount, from.zRot, to.zRot));
         }
     }
 

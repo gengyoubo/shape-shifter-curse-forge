@@ -53,7 +53,7 @@ public final class FormSyncClientHandler {
             syncedLevel = minecraft.level;
             INITIAL_SYNCED_PLAYERS.clear();
             FormAnimationSystem.clearClientState();
-            PowerAnimationClientHandler.clear();
+            PowerAnimationClientHandler.ensureLevel(minecraft.level);
             net.onixary.shapeShifterCurseForge.power.FormPowerRegistry.clearSyncedClientPowerIds();
             net.onixary.shapeShifterCurseForge.power.MovementPowerService.clearClientForcedSneakingStates();
         }

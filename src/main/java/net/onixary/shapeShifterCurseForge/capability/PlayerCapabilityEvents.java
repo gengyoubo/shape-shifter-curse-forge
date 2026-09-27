@@ -72,6 +72,7 @@ public final class PlayerCapabilityEvents {
     public static void playerRespawned(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
             BatAttachService.clear(player);
+            net.onixary.shapeShifterCurseForge.power.PowerAnimationService.stop(player);
             ModNetwork.sendFormSync(player);
             MovementPowerService.synchronizeForcedSneaking(player);
             ModNetwork.sendSkinSync(player);

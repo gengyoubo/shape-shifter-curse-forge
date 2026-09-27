@@ -102,6 +102,7 @@ public final class FormClientRenderEvents {
             // If data-driven animation state is ever invalid, leave the event alone so
             // the player remains visible.
             if (renderer.getAnimatable().hasSafeRenderState()) {
+                renderer.getAnimatable().clearPreparedPose();
                 setAllPartsVisible(vanillaModel);
                 logRenderOutcome(player, form, "unsafe-state");
                 reportRenderFailure(player, form, null);
@@ -135,6 +136,7 @@ public final class FormClientRenderEvents {
         } catch (RuntimeException exception) {
             // Do not strand the player invisible if a Gecko model or animation fails.
             // Restore the vanilla parts so vanilla finishes this render pass whole.
+            renderer.getAnimatable().clearPreparedPose();
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "render-failed:" + exception.getClass().getSimpleName());
             reportRenderFailure(player, form, exception);
