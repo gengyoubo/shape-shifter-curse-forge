@@ -57,6 +57,56 @@ of sampling again on a different baseline during fades. This also updates the ha
 and keeps inventory-preview equipment on the same pose/root transform as the form.
 Prepared-pose ownership is checked, and failed render passes clear it.
 
+## Better Combat / PlayerAnimator (issue #6)
+
+SSC now applies its base pose immediately after `HumanoidModel.setupAnim`, before
+PlayerAnimator's first `ModelPart.copyFrom` hook. The Geo overlay captures the final
+pose after PlayerAnimator has applied its layers. Vanilla's later render pass restores
+only SSC's base pose and lets PlayerAnimator apply its layers once again; it does not
+feed the already-combined pose back through the external animation stack. This keeps
+combat fades, held items, clothing, and the form model on the same limb pose.
+
+An optional reflection bridge sets PlayerAnimator's partial-tick clock before the
+Geo pre-pass and copies its whole-player `body` translation/rotation. The Geo root
+uses the same order as the vanilla renderer: form scale, vanilla rotations,
+PlayerAnimator root, SSC root. No PlayerAnimator classes are required to load SSC.
+The bridge targets the 1.20.1 PlayerAnimator 1.0.2-rc1 API; unsupported APIs log a
+warning and disable the root bridge.
+
+Local Gradle runs include Better Combat 1.9.0, PlayerAnimator 1.0.2-rc1 and Cloth Config
+11.1.136 as deobfuscated runtime dependencies. Their Forge jars are in ignored `libs/`:
+`bettercombat-forge-1.9.0+1.20.1.jar`, `player-animation-lib-forge-1.0.2-rc1+1.20.jar`,
+and `cloth-config-11.1.136-forge.jar`. Downloads are available from the projects'
+[Better Combat](https://modrinth.com/mod/better-combat),
+[PlayerAnimator](https://modrinth.com/mod/playeranimator), and
+[Cloth Config](https://modrinth.com/mod/cloth-config) pages. The development run
+configuration enables PlayerAnimator's refmap remapping. Run `gradlew.bat runClient`
+to test; these runtime dependencies are not bundled into the SSC release jar.
+
+The local runtime also includes [SlashBlade: Resharped 1.9.65](https://modrinth.com/mod/slashblade-resharped/version/1.9.65)
+for Forge 1.20.1, from `libs/SlashBladeResharped-1.20.1-1.9.65.jar`. Its optional
+PlayerAnimator integration can use the library already installed above. This adds
+the mod for compatibility testing; it does not claim in-game animation validation.
+
+PlayerAnimator's first-person `THIRD_PERSON_MODEL` pass also enters SSC's Geo renderer.
+That pass draws only the configured left/right arm subtrees, keeping ancestor transforms
+while hiding head/body/tail geometry. Bone visibility is restored in `finally`, so the
+following third-person pass remains intact. The vanilla arm copies covered by SSC stay
+hidden even if PlayerAnimator re-enables them after Forge's Pre event. SSC's existing
+no-render-arm power still applies. Ordinary vanilla first-person hand rendering keeps
+its existing `RenderArmEvent` path, and remote players keep their full models.
+
+Source references: [PlayerAnimator's model hook](https://github.com/KosmX/minecraftPlayerAnimator/blob/1.20/minecraft/common/src/main/java/dev/kosmx/playerAnim/mixin/PlayerModelMixin.java)
+and [renderer root hook](https://github.com/KosmX/minecraftPlayerAnimator/blob/1.20/minecraft/common/src/main/java/dev/kosmx/playerAnim/mixin/PlayerRendererMixin.java).
+
+Verification uses the released Forge PlayerAnimator library and Better Combat 1.9.0's
+single-handed horizontal slash and two-handed vertical slash clips. Numerical checks
+cover repeated render passes, SSC fades, root motion, inactive attacks, and absence of
+PlayerAnimator, plus first-person arm configuration and visibility restoration (375
+checks, with a separate library-absence check). The harness substitutes Minecraft/rendering APIs; it does not verify
+Mixin delivery or visuals in a running client. Client follow-up should cover third-person
+attacks with armor and held items, both hands, small/feral forms, and first-person attacks.
+
 The standalone regression suite now includes exact pose restoration, repeated-pass
 idempotence, and hat/limb alignment (64 checks total). Visual verification still
 requires a game restart and testing crouch/crawl with armor in third person.

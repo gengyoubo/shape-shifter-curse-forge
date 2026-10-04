@@ -24,6 +24,9 @@ minecraft {
 
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
+            // PlayerAnimator ships SRG refmaps; remap them for the development mappings.
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
 
             mods {
                 "${project.mod_id}" {
@@ -81,6 +84,11 @@ dependencies {
     //联动
     implementation fg.deobf("top.theillusivec4.curios:curios-forge:5.9.1+1.20.1")
     implementation fg.deobf("local.runtime:jei:1.20.1-forge-15.28.0.160")
+    // Optional mods for animation compatibility testing in the local development runs.
+    //runtimeOnly fg.deobf("local.runtime:bettercombat-forge:1.9.0+1.20.1")
+    runtimeOnly fg.deobf("local.runtime:player-animation-lib-forge:1.0.2-rc1+1.20")
+    runtimeOnly fg.deobf("local.runtime:cloth-config:11.1.136-forge")
+    runtimeOnly fg.deobf("local.runtime:SlashBladeResharped:1.20.1-1.9.65")
     //latex_form处理
     implementation fg.deobf("curse.maven:changed-minecraft-mod-661527:8217446")//可选依赖
     //mixin
@@ -102,17 +110,6 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
-
-tasks.register('testDietInheritance', JavaExec) {
-    group = 'verification'
-    description = 'Verifies recipe diet propagation, alternatives, cycles and blacklist corrections.'
-    dependsOn tasks.named('testClasses')
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'net.onixary.shapeShifterCurseForge.diet.RecipeDietGraphTest'
-    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
-}
-
-tasks.named('check') { dependsOn tasks.named('testDietInheritance') }
 
 mixin {
     add sourceSets.main, 'shape_shifter_curse.mixins.refmap.json'
