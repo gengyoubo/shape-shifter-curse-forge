@@ -17,6 +17,7 @@ import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTrigge
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.integration.changed.ChangedIntegration;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
@@ -36,6 +37,10 @@ public final class TransformativeEffectService {
     public static void apply(ServerPlayer player, ResourceLocation targetId, int durationTicks) {
         FormDefinition target = FormRegistry.get(targetId);
         if (target == null || durationTicks <= 0 || !canHaveEffect(player)) {
+            return;
+        }
+        if (ChangedIntegration.hasChangedVariant(player)) {
+            ChangedIntegration.notifyBlocked(player);
             return;
         }
         SscApi.currentForm(player).ifPresent(data -> {
@@ -61,6 +66,11 @@ public final class TransformativeEffectService {
     }
 
     public static boolean activate(ServerPlayer player) {
+        if (ChangedIntegration.hasChangedVariant(player)) {
+            ChangedIntegration.notifyBlocked(player);
+            clear(player);
+            return false;
+        }
         ResourceLocation targetId = SscApi.currentForm(player)
                 .map(PlayerFormData::getTransformativeEffectFormId)
                 .map(ResourceLocation::tryParse)

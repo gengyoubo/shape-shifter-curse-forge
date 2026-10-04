@@ -10,6 +10,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.integration.changed.ChangedIntegration;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 
@@ -53,6 +54,10 @@ public final class TransformManager {
     public static boolean startTransform(ServerPlayer player, ResourceLocation targetId) {
         FormDefinition target = FormRegistry.get(targetId);
         if (target == null) {
+            return false;
+        }
+        if (!ChangedIntegration.canTransformTo(player, targetId)) {
+            ChangedIntegration.notifyBlocked(player);
             return false;
         }
         PlayerTransformData data = getPlayerData(player);
@@ -102,6 +107,12 @@ public final class TransformManager {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             PlayerTransformData data = DATA.get(player.getUUID());
             if (data == null || data.transformTimer < 0) {
+                continue;
+            }
+            // Changed may have transformed the player during SSC's delayed wind-up.
+            if (!ChangedIntegration.canTransformTo(player, data.transformEndForm)) {
+                ChangedIntegration.notifyBlocked(player);
+                cancel(player);
                 continue;
             }
             int timer = data.transformTimer;

@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.api.PlayerFormData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.integration.changed.ChangedIntegration;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.power.InstinctService;
@@ -42,6 +43,10 @@ public final class FormManager {
     public static boolean setForm(Player player, ResourceLocation targetId, boolean playTransformAnimation) {
         FormDefinition target = FormRegistry.get(targetId);
         if (target == null) {
+            return false;
+        }
+        if (!ChangedIntegration.canTransformTo(player, targetId)) {
+            ChangedIntegration.notifyBlocked(player);
             return false;
         }
 

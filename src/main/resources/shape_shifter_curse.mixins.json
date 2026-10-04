@@ -40,6 +40,7 @@
         "WitchEntityMixin",
         "accessor.OcelotTrustingAccessor",
         "accessory.CurioImpl",
+        "integration.ChangedProcessTransfurMixin",
         "integration.ToughAsNailsTemperatureHelperImplMixin",
         "integration.ToughAsNailsThirstHandlerMixin",
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
