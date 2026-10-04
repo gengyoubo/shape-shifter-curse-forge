@@ -24,6 +24,7 @@
         "BlockDropMixin",
         "ServerPlayerGameModeBlockBreakMixin",
         "PlayerEntityPoseMixin",
+        "EntityPoseDimensionsMixin",
         "PowderSnowBlockMixin",
         "SweetBerryBushBlockMixin",
         "FoxTrustMixin",
