@@ -32,8 +32,7 @@
       "#c:butter", "#c:butters", "#c:cheese", "#c:cream", "#c:creams",
       "#c:yogurt", "#c:yogurts", "#c:soy_milks",
       "#c:jam", "#c:jams", "#c:syrup", "#c:syrups", "#c:molasses",
-      "#minecraft:flowers",
-      "minecraft:wheat", "minecraft:sugar", "minecraft:sugar_cane",
+      "minecraft:wheat", "minecraft:sugar",
       "minecraft:cocoa_beans", "minecraft:brown_mushroom", "minecraft:red_mushroom",
       "minecraft:kelp", "minecraft:pumpkin", "minecraft:melon",
       "minecraft:egg", "minecraft:milk_bucket", "minecraft:honeycomb"
@@ -64,11 +63,17 @@
     "meat": ["#forge:eggs", "#forge:cooked_eggs", "#c:eggs", "farmersdelight:fried_egg"],
     "fish": [], "ignore_diet": []
   },
-  "food_blacklist": [],
+  "food_blacklist": ["minecraft:paper", "#forge:dyes"],
   "neutral_ingredients": [
     "minecraft:bowl", "minecraft:glass_bottle", "minecraft:bucket", "minecraft:water_bucket",
     "#forge:tools/knives", "#farmersdelight:tools/knives", "#forge:salt", "#forge:salts",
-    "#c:salt", "#c:salts", "#c:water_buckets", "#forge:buckets/water"
+    "#c:salt", "#c:salts", "#c:water_buckets", "#forge:buckets/water",
+    "#farmersdelight:serving_containers", "#farmersdelight:knives"
   ],
-  "recipe_blacklist": []
+  "recipe_blacklist": [],
+  "recipe_type_allowlist": [
+    "minecraft:crafting", "minecraft:smelting", "minecraft:smoking", "minecraft:campfire_cooking",
+    "farmersdelight:cooking", "farmersdelight:cutting"
+  ],
+  "recipe_type_denylist": []
 }

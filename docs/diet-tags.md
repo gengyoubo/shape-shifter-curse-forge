@@ -48,8 +48,8 @@
 默认配置：`data/shape-shifter-curse/diet_inheritance/default.json`。
 
 1. 使用上述三个 SSC 标签、已有肉／鱼标签、Origins 标签和 Forge／Common 食材标签作为种子。
-2. 枚举服务器 `RecipeManager` 中能提供产物及完整原料候选的配方。
-3. 沿所有配方链传播分类，包含不可直接食用的中间原料，如小麦 → 面粉 → 面条。
+2. 枚举服务器 `RecipeManager`，仅允许类型白名单中的配方传播食材来源。
+3. 沿这些配方链传播分类，包含不可直接食用的中间原料，如小麦 → 面粉 → 面条。
 4. 开服及 `/reload` 时完整重建；登录和重载时把结果同步给客户端。
 
 SSC 自带 `diet_origins_meat`，复制 [Origins 1.20 默认肉类标签](https://github.com/apace100/origins-fabric/blob/1.20/src/main/resources/data/origins/tags/items/meat.json)
@@ -75,7 +75,7 @@ SSC 自带 `diet_origins_meat`，复制 [Origins 1.20 默认肉类标签](https:
 | 甜味中间原料 | 果酱、糖浆、糖蜜标签 |
 | 肉类别名 | `forge:raw_meat`、`c:raw_meat`，以及生／熟牛肉、猪肉、鸡肉、羊肉、培根标签 |
 | 海鲜 | `forge:seafood`、`c:seafood`、贝类／甲壳类标签，归入 FISH |
-| 中性调料／容器 | `forge:salts`、`c:salt`、`forge:buckets/water`，继续保留碗、瓶和刀具 |
+| 中性调料／容器 | `forge:salts`、`c:salt`、`forge:buckets/water`、`farmersdelight:serving_containers`、`farmersdelight:knives`，继续保留碗、瓶和刀具 |
 
 这些是可选入口：安装的模组或数据包必须实际提供对应物品标签，别名本身不会创建食材。
 现有 FISH 名单已经包含 `tide:crystal_shrimp` 及 Ocean's Delight 的鱿鱼触手，
@@ -107,17 +107,33 @@ SSC 自带 `diet_origins_meat`，复制 [Origins 1.20 默认肉类标签](https:
 
 ### 推导规则
 
-- 任一原料或候选原料有肉／鱼属性，产物继承对应属性；混合料理可以同时含肉和鱼。
-  食物自身的 `FoodProperties.isMeat` 也作为肉类种子兜底，可用分类黑名单修正。
-- 素食要求所有非中性原料、所有候选物品都可确认为素食，且至少有一个素食原料。
-  未知原料不会被默认当作素食。
+- MEAT 表示陆生肉类，FISH 表示鱼／海鲜。先推导鱼类来源，再清除其从宽泛肉食标签及
+  `FoodProperties.isMeat` 获得的 MEAT；真正含陆生肉的配方仍会继续传播 MEAT。
+  纯鳕鱼及其鱼汤只有 FISH，牛肉加鱼的料理为 MEAT | FISH。
+  无完整配方的混合料理可用 `whitelist.meat` 显式保留肉类来源。
+  肉食饮食在查询时接受 MEAT | FISH，不要求鱼本身属于 MEAT。
+- 任一参与传播的原料或候选原料有肉／鱼属性，产物继承对应属性。
+- 推导出的素食要求同一产物的所有已知配方都可确认：每条配方的所有非中性原料、
+  所有候选物品都为素食，且至少有一个素食原料。
+  一条素食配方加另一条未知配方不会认证为素食；不确定性也会清除下游的素食推导。
+  种子和白名单属于明确分类声明，可覆盖未知配方；已知肉／鱼来源仍优先于素食声明。
 - 碗、瓶、水、盐、带标签的刀具等为中性原料，不妨碍素食判定，也不会被反向配方染上饮食分类。
 - 饮食豁免只作用于指定物品，不传播给料理。金苹果做出的新食物不会自动免除限制。
-- 同一产物有多个配方时，取全部配方可能含有的肉／鱼属性。因此既能用肉也能用植物制作的同一物品，
+- 同一产物有多个参与传播的配方时，取这些配方可能含有的肉／鱼属性。因此既能用肉也能用植物制作的同一物品，
   静态缓存会按可能含肉处理；不记录这一个物品堆实际使用过的原料或 NBT。
-- 循环配方可处理；无种子的循环不会凭空生成分类。不存在固定层数限制。
-- 无固定产物、无可枚举原料或原料标签为空的配方跳过。特殊机器必须通过标准配方接口暴露这些信息；
-  不保证覆盖每个食物模组、动态配方或直接生成的无配方食物。
+- 循环配方可处理；先生成有种子支撑的素食候选，再撤销不满足全部配方的候选。
+  无种子的循环不会凭空生成分类，不存在固定层数限制。
+- 无固定产物的配方无法建立边。原料无法完整枚举、原料标签为空或类型未获准的配方，
+  若产物可读，会作为不确定来源阻止该产物的素食推导；未获准类型不传播肉／鱼来源。
+  `recipe_blacklist` 则主动排除整条配方，不保留不确定来源。
+  特殊机器必须通过标准配方接口暴露完整输入输出；仅加入类型白名单不能补齐接口未暴露的
+  流体、动态原料等信息。不保证覆盖每个食物模组、动态配方或直接生成的无配方食物。
+
+默认类型白名单为原版 `crafting`、`smelting`、`smoking`、`campfire_cooking` 和
+Farmer's Delight 的 `cooking`、`cutting`，其他机器类型需要数据包主动开启。
+这可以减少工业链污染，但原版合成／熔炼仍可能包含非料理转换，类型过滤不能保证完全隔离工业链。
+默认不再以 `minecraft:flowers` 和甘蔗物品作为直接种子，并用 `food_blacklist` 截断纸和
+`forge:dyes` 的路径。公共作物标签仍可能包含甘蔗；遇到其他转换污染应继续修正配方或中间物。
 
 **行为变化：** `diet_raw_meat`／`diet_raw_fish` 保留原有 ID，但现在是肉／鱼来源饮食入口。
 烹饪或进一步合成不会消除这些来源属性；熟肉、鱼汤等也能用于相应饮食、加成和进食本能。
@@ -146,6 +162,8 @@ SSC 自带 `diet_origins_meat`，复制 [Origins 1.20 默认肉类标签](https:
   },
   "food_blacklist": ["example:misclassified_food"],
   "recipe_blacklist": ["example:bad_recipe", "example:recycling/*"],
+  "recipe_type_allowlist": ["example:cooking_pot"],
+  "recipe_type_denylist": ["example:industrial_*"],
   "neutral_ingredients": ["example:spoon"]
 }
 ```
@@ -158,7 +176,12 @@ SSC 自带 `diet_origins_meat`，复制 [Origins 1.20 默认肉类标签](https:
 - `food_blacklist`：清除物品的全部分类，也截断从它传播的路径。此处“黑名单”不会直接禁止玩家进食；
   腐肉、流食囊等能力中显式写出的例外及 `ignore_vc_eat` 等其他豁免仍按原能力执行。
 - `recipe_blacklist`：排除整条配方，可用 `*` 匹配配方 ID；只作用于本系统，不删除游戏配方。
+- `recipe_type_allowlist`：允许传播的配方类型 ID，支持 `*`；默认配置已包含上述六种类型。
+  其他数据包会追加名单；空的合并名单不允许任何类型，`*:*` 可显式开启所有类型。
+- `recipe_type_denylist`：禁止传播的配方类型，支持 `*`，优先于类型白名单。
+  被类型策略排除的已知产物仍保留为不确定来源，阻止从另一条配方获得素食认证。
 - `neutral_ingredients`：中性原料，优先于分类；不要把肉、鱼、牛奶等真正食材列为中性。
+  杯、盘、串签等可通过各模组的明确餐具标签或物品 ID 扩展，不使用含义不明的工业板材标签。
 - 默认配置先处理，其余资源按完整 ID 排序合并；`replace: true` 会清空此前合并的继承配置。
   相同资源路径仍按数据包优先级覆盖。缺省字段等同于空列表。
 - 格式错误的文件会记录错误并跳过；没有有效分类的食物保持未分类。
@@ -171,3 +194,4 @@ SSC 自带 `diet_origins_meat`，复制 [Origins 1.20 默认肉类标签](https:
 修改配置后执行 `/reload`，缓存会完全替换，删掉旧数据留下的分类。
 
 开发回归检查：`gradlew.bat testDietInheritance --offline`。
+测试源码随仓库提交，`check` 和 `build` 会自动运行这些图算法及配置断言。

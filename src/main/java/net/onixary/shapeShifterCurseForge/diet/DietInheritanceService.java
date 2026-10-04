@@ -135,26 +135,45 @@ public final class DietInheritanceService {
             }
         }
         addSelectors(seeds, config.whitelist());
+        Set<String> explicitMeatSeeds = resolve(config.whitelist().getOrDefault(RecipeDietGraph.MEAT, List.of()));
         Map<String, Integer> denied = new HashMap<>();
         addSelectors(denied, config.blacklist());
         for (String id : resolve(config.foodBlacklist())) denied.put(id, RecipeDietGraph.ALL);
         Set<String> neutral = resolve(config.neutralIngredients());
         List<Pattern> blockedRecipes = config.recipeBlacklist().stream()
                 .map(DietInheritanceConfig::recipePattern).toList();
+        Map<ResourceLocation, Boolean> acceptedTypes = new HashMap<>();
         List<RecipeDietGraph.Rule> rules = new ArrayList<>();
         int skipped = 0;
         for (Recipe<?> recipe : server.getRecipeManager().getRecipes()) {
             String recipeId = recipe.getId().toString();
+            ResourceLocation typeId = BuiltInRegistries.RECIPE_TYPE.getKey(recipe.getType());
             if (blockedRecipes.stream().anyMatch(pattern -> pattern.matcher(recipeId).matches())) {
                 skipped++;
                 continue;
             }
+            if (typeId == null || !acceptedTypes.computeIfAbsent(typeId,
+                    id -> config.allowsRecipeType(id.toString()))) {
+                skipped++;
+                // Unsupported producers cannot certify food as vegetarian through a different
+                // crafting recipe. They contribute uncertainty, but no animal/plant origins.
+                try {
+                    ItemStack output = recipe.getResultItem(server.registryAccess());
+                    if (!output.isEmpty()) rules.add(new RecipeDietGraph.Rule(recipeId,
+                            BuiltInRegistries.ITEM.getKey(output.getItem()).toString(), List.of()));
+                } catch (RuntimeException exception) {
+                    ShapeShifterCurseForge.LOGGER.debug("Cannot read output of excluded recipe {}", recipeId, exception);
+                }
+                continue;
+            }
+            String outputId = null;
             try {
                 ItemStack output = recipe.getResultItem(server.registryAccess());
                 if (output.isEmpty()) {
                     skipped++;
                     continue;
                 }
+                outputId = BuiltInRegistries.ITEM.getKey(output.getItem()).toString();
                 List<List<String>> slots = new ArrayList<>();
                 boolean unresolved = false;
                 for (Ingredient ingredient : recipe.getIngredients()) {
@@ -168,28 +187,30 @@ public final class DietInheritanceService {
                             .distinct().toList();
                     if (alternatives.isEmpty()) {
                         unresolved = true;
-                        break;
                     }
                     slots.add(alternatives);
                 }
                 if (unresolved || slots.isEmpty()) {
                     skipped++;
+                    rules.add(new RecipeDietGraph.Rule(recipeId, outputId, slots));
                     continue;
                 }
-                rules.add(new RecipeDietGraph.Rule(recipeId,
-                        BuiltInRegistries.ITEM.getKey(output.getItem()).toString(), slots));
+                rules.add(new RecipeDietGraph.Rule(recipeId, outputId, slots));
             } catch (RuntimeException exception) {
                 skipped++;
+                if (outputId != null) rules.add(new RecipeDietGraph.Rule(recipeId, outputId, List.of()));
                 ShapeShifterCurseForge.LOGGER.debug("Cannot infer diet from recipe {}", recipeId, exception);
             }
         }
         Map<ResourceLocation, Integer> classified = new HashMap<>();
-        RecipeDietGraph.infer(seeds, rules, neutral, denied).forEach((id, flags) ->
+        RecipeDietGraph.infer(seeds, rules, neutral, denied, explicitMeatSeeds).forEach((id, flags) ->
                 classified.put(ResourceLocation.parse(id), flags));
-        serverSnapshot = new Snapshot(true, classified, rules.size(), skipped);
+        int usableRecipes = (int) rules.stream().filter(rule -> !rule.ingredients().isEmpty()
+                && rule.ingredients().stream().noneMatch(List::isEmpty)).count();
+        serverSnapshot = new Snapshot(true, classified, usableRecipes, skipped);
         owner = server;
         ShapeShifterCurseForge.LOGGER.info("SSC diet inference: {} classified items, {} recipes, {} skipped, {} ms",
-                classified.size(), rules.size(), skipped, (System.nanoTime() - start) / 1_000_000);
+                classified.size(), usableRecipes, skipped, (System.nanoTime() - start) / 1_000_000);
     }
 
     private static void addSelectors(Map<String, Integer> destination, Map<Integer, List<String>> categories) {

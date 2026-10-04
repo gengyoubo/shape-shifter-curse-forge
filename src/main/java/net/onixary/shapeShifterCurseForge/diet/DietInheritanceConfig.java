@@ -22,14 +22,16 @@ public record DietInheritanceConfig(Map<Integer, List<String>> seeds,
                                     Map<Integer, List<String>> whitelist,
                                     Map<Integer, List<String>> blacklist,
                                     List<String> foodBlacklist, List<String> neutralIngredients,
-                                    List<String> recipeBlacklist) {
+                                    List<String> recipeBlacklist, List<String> recipeTypeAllowlist,
+                                    List<String> recipeTypeDenylist) {
     static final Map<String, Integer> CATEGORIES = Map.of(
             "vegetarian", RecipeDietGraph.VEGETARIAN, "meat", RecipeDietGraph.MEAT,
             "fish", RecipeDietGraph.FISH, "ignore_diet", RecipeDietGraph.IGNORE_DIET);
     private static final Set<String> FIELDS = Set.of("replace", "seeds", "whitelist", "blacklist",
-            "food_blacklist", "neutral_ingredients", "recipe_blacklist");
+            "food_blacklist", "neutral_ingredients", "recipe_blacklist",
+            "recipe_type_allowlist", "recipe_type_denylist");
     public static final DietInheritanceConfig EMPTY = new DietInheritanceConfig(
-            Map.of(), Map.of(), Map.of(), List.of(), List.of(), List.of());
+            Map.of(), Map.of(), Map.of(), List.of(), List.of(), List.of(), List.of(), List.of());
     static volatile DietInheritanceConfig current = EMPTY;
 
     public static DietInheritanceConfig parse(JsonObject data) {
@@ -42,7 +44,8 @@ public record DietInheritanceConfig(Map<Integer, List<String>> seeds,
         }
         return new DietInheritanceConfig(categories(data, "seeds"), categories(data, "whitelist"),
                 categories(data, "blacklist"), selectors(data, "food_blacklist"),
-                selectors(data, "neutral_ingredients"), strings(data, "recipe_blacklist", true));
+                selectors(data, "neutral_ingredients"), strings(data, "recipe_blacklist", true),
+                strings(data, "recipe_type_allowlist", true), strings(data, "recipe_type_denylist", true));
     }
 
     private static Map<Integer, List<String>> categories(JsonObject data, String field) {
@@ -85,11 +88,17 @@ public record DietInheritanceConfig(Map<Integer, List<String>> seeds,
                 .map(Pattern::quote).collect(java.util.stream.Collectors.joining(".*")));
     }
 
+    public boolean allowsRecipeType(String typeId) {
+        return recipeTypeAllowlist.stream().anyMatch(glob -> recipePattern(glob).matcher(typeId).matches())
+                && recipeTypeDenylist.stream().noneMatch(glob -> recipePattern(glob).matcher(typeId).matches());
+    }
+
     private DietInheritanceConfig merge(DietInheritanceConfig other) {
         return new DietInheritanceConfig(mergeCategories(seeds, other.seeds),
                 mergeCategories(whitelist, other.whitelist), mergeCategories(blacklist, other.blacklist),
                 concat(foodBlacklist, other.foodBlacklist), concat(neutralIngredients, other.neutralIngredients),
-                concat(recipeBlacklist, other.recipeBlacklist));
+                concat(recipeBlacklist, other.recipeBlacklist), concat(recipeTypeAllowlist, other.recipeTypeAllowlist),
+                concat(recipeTypeDenylist, other.recipeTypeDenylist));
     }
 
     private static Map<Integer, List<String>> mergeCategories(Map<Integer, List<String>> first,
