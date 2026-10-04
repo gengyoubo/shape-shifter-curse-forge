@@ -12,3 +12,4 @@ libs/
 /.gradle/
 
 /other/
+/src/test/

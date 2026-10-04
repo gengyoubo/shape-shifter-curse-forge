@@ -124,9 +124,14 @@ public final class DietInheritanceService {
         // FoodProperties supplies a useful fallback for mods without meat tags.
         for (Item item : BuiltInRegistries.ITEM) {
             ItemStack stack = item.getDefaultInstance();
-            var food = stack.getFoodProperties(null);
-            if (food != null && food.isMeat()) {
-                seeds.merge(BuiltInRegistries.ITEM.getKey(item).toString(), RecipeDietGraph.MEAT, (a, b) -> a | b);
+            try {
+                var food = stack.getFoodProperties(null);
+                if (food != null && food.isMeat()) {
+                    seeds.merge(BuiltInRegistries.ITEM.getKey(item).toString(), RecipeDietGraph.MEAT, (a, b) -> a | b);
+                }
+            } catch (RuntimeException exception) {
+                ShapeShifterCurseForge.LOGGER.debug("Cannot read food properties for {}",
+                        BuiltInRegistries.ITEM.getKey(item), exception);
             }
         }
         addSelectors(seeds, config.whitelist());
@@ -155,7 +160,8 @@ public final class DietInheritanceService {
                 for (Ingredient ingredient : recipe.getIngredients()) {
                     // Empty slots of shaped recipes are not ingredients.
                     if (ingredient == Ingredient.EMPTY) continue;
-                    ingredient.getStackingIds(); // Observe Forge tag invalidation before enumerating.
+                    ingredient.checkInvalidation(); // Clear even a pre-cached item list with no stacking IDs yet.
+                    ingredient.getStackingIds();
                     List<String> alternatives = java.util.Arrays.stream(ingredient.getItems())
                             .filter(stack -> !stack.isEmpty())
                             .map(stack -> BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())

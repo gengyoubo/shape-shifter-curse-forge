@@ -70,7 +70,8 @@ public record DietInheritanceConfig(Map<Integer, List<String>> seeds,
             }
             String value = entry.getAsString();
             String id = !glob && value.startsWith("#") ? value.substring(1) : value;
-            if (ResourceLocation.tryParse(glob ? id.replace("*", "wildcard") : id) == null) {
+            ResourceLocation parsed = ResourceLocation.tryParse(glob ? id.replace("*", "wildcard") : id);
+            if (parsed == null || parsed.getPath().isEmpty()) {
                 throw new IllegalArgumentException("Invalid " + field + " selector: " + value);
             }
             result.add(value);
@@ -79,6 +80,7 @@ public record DietInheritanceConfig(Map<Integer, List<String>> seeds,
     }
 
     static Pattern recipePattern(String glob) {
+        if (!glob.contains(":")) glob = "minecraft:" + glob;
         return Pattern.compile(java.util.Arrays.stream(glob.split("\\*", -1))
                 .map(Pattern::quote).collect(java.util.stream.Collectors.joining(".*")));
     }

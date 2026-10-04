@@ -3,13 +3,35 @@
   "seeds": {
     "vegetarian": [
       "#shape-shifter-curse:diet_vegetarian",
+      "#createaddition:plant_foods",
       "#forge:fruits", "#forge:vegetables", "#forge:crops", "#forge:grain",
       "#forge:grains", "#forge:flour", "#forge:dough", "#forge:mushrooms",
       "#forge:nuts", "#forge:seeds", "#forge:eggs", "#forge:milk",
       "#forge:cheese", "#forge:chocolate", "#forge:sugar", "#forge:honey",
+      "#forge:berries", "#forge:herbs", "#forge:spices",
+      "#forge:tea_leaves", "#forge:coffee_beans", "#forge:cocoa_beans",
+      "#forge:basil", "#forge:gingers", "#forge:mustard", "#forge:nutmegs",
+      "#forge:vanilla", "#forge:pepper",
+      "#forge:rice", "#forge:corn", "#forge:beans", "#forge:legumes",
+      "#forge:soybeans", "#forge:blackbeans", "#forge:greenbeans",
+      "#forge:bread", "#forge:breads", "#forge:pasta", "#forge:noodles",
+      "#forge:vegetable_oil", "#forge:vegetable_oils", "#forge:olive_oil", "#forge:olive_oils",
+      "#forge:vinegar", "#forge:vinegars", "#forge:soy_sauce", "#forge:soy_sauces",
+      "#forge:butter", "#forge:butters", "#forge:cheeses", "#forge:cream", "#forge:creams",
+      "#forge:yogurt", "#forge:yogurts", "#forge:soy_milks", "#forge:cooked_eggs",
+      "#forge:jam", "#forge:jams", "#forge:syrup", "#forge:syrups", "#forge:molasses",
       "#c:fruits", "#c:vegetables", "#c:grains", "#c:flours", "#c:doughs",
       "#c:mushrooms", "#c:nuts", "#c:seeds", "#c:eggs", "#c:milks",
       "#c:cheeses", "#c:chocolates", "#c:sugars", "#c:honey_bottles",
+      "#c:crops", "#c:grain", "#c:flour", "#c:dough", "#c:milk",
+      "#c:berries", "#c:herbs", "#c:spices", "#c:tea_leaves", "#c:coffee_beans",
+      "#c:cocoa_beans", "#c:cacao_butter", "#c:rice", "#c:corn", "#c:beans",
+      "#c:legumes", "#c:soybeans", "#c:bread", "#c:breads", "#c:pasta", "#c:noodles",
+      "#c:vegetable_oil", "#c:vegetable_oils", "#c:olive_oil", "#c:olive_oils",
+      "#c:vinegar", "#c:vinegars", "#c:soy_sauce", "#c:soy_sauces",
+      "#c:butter", "#c:butters", "#c:cheese", "#c:cream", "#c:creams",
+      "#c:yogurt", "#c:yogurts", "#c:soy_milks",
+      "#c:jam", "#c:jams", "#c:syrup", "#c:syrups", "#c:molasses",
       "#minecraft:flowers",
       "minecraft:wheat", "minecraft:sugar", "minecraft:sugar_cane",
       "minecraft:cocoa_beans", "minecraft:brown_mushroom", "minecraft:red_mushroom",
@@ -19,12 +41,18 @@
     "meat": [
       "#shape-shifter-curse:diet_origins_meat", "#shape-shifter-curse:meat",
       "#shape-shifter-curse:diet_raw_meat", "#forge:meat", "#forge:raw_meats",
-      "#forge:cooked_meats", "#c:meat", "#c:raw_meats", "#c:cooked_meats"
+      "#forge:cooked_meats", "#c:meat", "#c:raw_meats", "#c:cooked_meats",
+      "#forge:raw_meat", "#forge:cooked_meat", "#c:raw_meat", "#c:cooked_meat",
+      "#forge:raw_beef", "#forge:raw_pork", "#forge:raw_chicken", "#forge:raw_mutton", "#forge:raw_bacon",
+      "#forge:cooked_beef", "#forge:cooked_pork", "#forge:cooked_chicken", "#forge:cooked_mutton", "#forge:cooked_bacon"
     ],
     "fish": [
       "#shape-shifter-curse:fish", "#shape-shifter-curse:diet_raw_fish",
       "#minecraft:fishes", "#forge:fish", "#forge:raw_fishes", "#forge:cooked_fishes",
-      "#c:fish", "#c:raw_fishes", "#c:cooked_fishes"
+      "#c:fish", "#c:raw_fishes", "#c:cooked_fishes",
+      "#forge:raw_fish", "#forge:cooked_fish", "#c:raw_fish", "#c:cooked_fish",
+      "#forge:seafood", "#forge:shellfish", "#forge:crustaceans",
+      "#c:seafood", "#c:shellfish", "#c:crustaceans"
     ],
     "ignore_diet": ["#shape-shifter-curse:ignore_diet", "#origins:ignore_diet"]
   },
@@ -32,13 +60,15 @@
     "vegetarian": [], "meat": [], "fish": [], "ignore_diet": []
   },
   "blacklist": {
-    "vegetarian": [], "meat": [], "fish": [], "ignore_diet": []
+    "vegetarian": [],
+    "meat": ["#forge:eggs", "#forge:cooked_eggs", "#c:eggs", "farmersdelight:fried_egg"],
+    "fish": [], "ignore_diet": []
   },
   "food_blacklist": [],
   "neutral_ingredients": [
     "minecraft:bowl", "minecraft:glass_bottle", "minecraft:bucket", "minecraft:water_bucket",
-    "#forge:tools/knives", "#farmersdelight:tools/knives", "#forge:salt", "#c:salts",
-    "#c:water_buckets"
+    "#forge:tools/knives", "#farmersdelight:tools/knives", "#forge:salt", "#forge:salts",
+    "#c:salt", "#c:salts", "#c:water_buckets", "#forge:buckets/water"
   ],
   "recipe_blacklist": []
 }
