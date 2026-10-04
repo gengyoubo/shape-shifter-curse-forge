@@ -68,10 +68,12 @@ public final class FormClientRenderEvents {
         // is stable across the two screen classes, unlike instanceof InventoryScreen.
         boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
                 && event.getPackedLight() == LightTexture.FULL_BRIGHT;
+        PlayerAnimatorCompat.ArmVisibility animatedArms = inventoryPreview ? null
+                : PlayerAnimatorCompat.firstPersonArms(player);
         // Vanilla never renders the camera entity's body in first person; the form's
         // first-person arms are handled separately by FormFirstPersonArmEvents.
         if (!inventoryPreview && player == minecraft.player
-                && minecraft.options.getCameraType().isFirstPerson()) {
+                && minecraft.options.getCameraType().isFirstPerson() && animatedArms == null) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:first-person-self");
             return;
@@ -93,6 +95,7 @@ public final class FormClientRenderEvents {
         // Any runtime failure while selecting or sampling clips used to abort the event
         // before vanilla ran, stranding the player invisible with no recovery signal.
         PoseStack poseStack = event.getPoseStack();
+        FirstPersonGeoVisibility armVisibility = null;
         poseStack.pushPose();
         try {
             renderer.setPlayer(player);
@@ -113,6 +116,16 @@ public final class FormClientRenderEvents {
             // (rM_PartA parity) while the remaining layers, including held items, keep
             // running. The Geo form model is overlaid on top of that.
             setCoveredPartsHidden(vanillaModel, renderer);
+            if (animatedArms != null) {
+                FormGeoModel geoModel = (FormGeoModel) renderer.getGeoModel();
+                Set<String> visibleArms = new HashSet<>();
+                boolean hideArms = player instanceof AbstractClientPlayer clientPlayer
+                        && FormFirstPersonArmEvents.shouldHideArms(clientPlayer);
+                if (!hideArms && animatedArms.left()) visibleArms.add(geoModel.firstPersonArmBone(false));
+                if (!hideArms && animatedArms.right()) visibleArms.add(geoModel.firstPersonArmBone(true));
+                armVisibility = new FirstPersonGeoVisibility(
+                        geoModel.getBakedModel(geoModel.modelResource()).topLevelBones(), visibleArms);
+            }
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
             // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
             // PlayerRenderer path before applying its own Geo coordinate conversion.
@@ -122,6 +135,7 @@ public final class FormClientRenderEvents {
             poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
             applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick(),
                     renderer.getAnimatable().suppressesVanillaSwimRotation());
+            applyPlayerAnimationBodyTransform(renderer.getAnimatable().getExternalBodyTransform(), poseStack);
             applyPlayerAnimationBodyTransform(renderer.getAnimatable().getBodyTransform(), poseStack);
             applyVanillaPlayerScale(poseStack);
             poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
@@ -141,6 +155,7 @@ public final class FormClientRenderEvents {
             logRenderOutcome(player, form, "render-failed:" + exception.getClass().getSimpleName());
             reportRenderFailure(player, form, exception);
         } finally {
+            if (armVisibility != null) armVisibility.close();
             poseStack.popPose();
         }
     }
@@ -195,6 +210,23 @@ public final class FormClientRenderEvents {
             if (part != null) {
                 part.visible = !geoModel.isVanillaPartHidden(name);
             }
+        }
+    }
+
+    /** PlayerAnimator enables vanilla arms after Pre; keep covered SSC arms hidden in that pass. */
+    public static void hideCoveredAnimatedArms(Player player, PlayerModel<?> model, FormGeoRenderer renderer) {
+        PlayerAnimatorCompat.ArmVisibility arms = PlayerAnimatorCompat.firstPersonArms(player);
+        if (arms == null) return;
+        FormGeoModel geoModel = (FormGeoModel) renderer.getGeoModel();
+        for (String name : VANILLA_PART_NAMES) {
+            var part = partByName(model, name);
+            if (part == null) continue;
+            boolean left = "leftArm".equals(name) || "leftSleeve".equals(name);
+            boolean right = "rightArm".equals(name) || "rightSleeve".equals(name);
+            part.visible = (left && arms.left() || right && arms.right()) && !geoModel.isVanillaPartHidden(name);
+        }
+        if (player instanceof AbstractClientPlayer clientPlayer && FormFirstPersonArmEvents.shouldHideArms(clientPlayer)) {
+            model.leftArm.visible = model.leftSleeve.visible = model.rightArm.visible = model.rightSleeve.visible = false;
         }
     }
 

@@ -193,5 +193,5 @@ Farmer's Delight 的 `cooking`、`cutting`，其他机器类型需要数据包�
 统计包含中间原料，不等于可食用食物数。
 修改配置后执行 `/reload`，缓存会完全替换，删掉旧数据留下的分类。
 
-开发回归检查：`gradlew.bat testDietInheritance --offline`。
-测试源码随仓库提交，`check` 和 `build` 会自动运行这些图算法及配置断言。
+构建检查：`gradlew.bat build --offline`（需要已有依赖缓存）。
+仓库不包含被忽略的本地测试类，构建任务不会尝试启动该类。

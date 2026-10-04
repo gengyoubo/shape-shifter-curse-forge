@@ -39,6 +39,9 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     private boolean preparingVanillaPlayerPose;
     private Player preparedPlayer;
     private PlayerModelPose preparedPose;
+    private PlayerModelPose preparedBasePose;
+    private float preparingPartialTick;
+    private BedrockAnimationPlayer.BodyTransform externalBodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
 
     public void setPlayer(Player player) {
         this.player = player;
@@ -60,6 +63,10 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         return bodyTransform;
     }
 
+    public BedrockAnimationPlayer.BodyTransform getExternalBodyTransform() {
+        return externalBodyTransform;
+    }
+
     public boolean isPreparingVanillaPlayerPose() {
         return preparingVanillaPlayerPose;
     }
@@ -67,6 +74,8 @@ public final class FormGeoAnimatable implements GeoAnimatable {
     public void clearPreparedPose() {
         preparedPlayer = null;
         preparedPose = null;
+        preparedBasePose = null;
+        externalBodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
     }
 
     /**
@@ -78,8 +87,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         // A renderer instance is reused for the same form. Never let a body transform
         // from a previous render survive a missing/partial player-model render pass.
         bodyTransform = BedrockAnimationPlayer.BodyTransform.IDENTITY;
-        preparedPlayer = null;
-        preparedPose = null;
+        clearPreparedPose();
         if (player == null || vanillaPlayerModel == null) {
             return;
         }
@@ -123,6 +131,8 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         rawModel.young = player.isBaby();
         rawModel.prepareMobModel(player,
                 limbSwing, limbSwingAmount, partialTick);
+        externalBodyTransform = PlayerAnimatorCompat.prepare(player, partialTick);
+        preparingPartialTick = partialTick;
         preparingVanillaPlayerPose = true;
         try {
             rawModel.setupAnim(player,
@@ -130,9 +140,16 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         } finally {
             preparingVanillaPlayerPose = false;
         }
-        bodyTransform = applySelection(player, rawModel, partialTick);
+        // The setupAnim hook applied SSC before PlayerAnimator. Capture only after
+        // setupAnim returns, so the Geo overlay sees the external layers as well.
         preparedPose = PlayerModelPose.capture(rawModel);
         preparedPlayer = player;
+    }
+
+    public void prepareSelection(Player player, PlayerModel<?> model) {
+        if (!preparingVanillaPlayerPose || player != this.player) return;
+        bodyTransform = applySelection(player, model, preparingPartialTick);
+        preparedBasePose = PlayerModelPose.capture(model);
     }
 
     private BedrockAnimationPlayer.BodyTransform applySelection(Player player, PlayerModel<?> model,
@@ -146,9 +163,9 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         return applyFormAnimation(model, selection, partialTick, powerAnimation);
     }
 
-    /** Reuse the exact Geo pre-pass pose; re-sampling on vanilla's changed baseline drifts during fades. */
+    /** Restore SSC's base once; PlayerAnimator applies its layers afterwards, once per pass. */
     public void reapplySelection(Player player, PlayerModel<?> model, float partialTick) {
-        if (model != null && hasPreparedPose(player)) preparedPose.apply(model);
+        if (model != null && hasPreparedPose(player) && preparedBasePose != null) preparedBasePose.apply(model);
     }
 
     public boolean hasPreparedPose(Player player) {
@@ -157,7 +174,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
 
     /** A malformed data animation must fall back to vanilla rendering, never hide a player. */
     public boolean hasSafeRenderState() {
-        return !bodyTransform.isFinite();
+        return !bodyTransform.isFinite() || !externalBodyTransform.isFinite();
     }
 
     public void setInventoryPreview(boolean inventoryPreview) {

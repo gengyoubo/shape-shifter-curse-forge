@@ -26,8 +26,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <p>Player renderers only exist on the client, so this mixin never activates on a
  * dedicated server.</p>
  */
-@Mixin(net.minecraft.client.renderer.entity.player.PlayerRenderer.class)
+// Run the SSC root after PlayerAnimator's priority-1000 root injection.
+@Mixin(value = net.minecraft.client.renderer.entity.player.PlayerRenderer.class, priority = 1100)
 public abstract class PlayerRendererBodyMixin {
+    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+            at = @At("HEAD"))
+    private void ssc$scaleForm(AbstractClientPlayer player, PoseStack poseStack,
+                                float age, float bodyYaw, float partialTick, CallbackInfo ci) {
+        FormDefinition form = FormManager.current(player);
+        if (form.hasFlag("special_form") || form.stage() > 0) {
+            poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
+        }
+    }
     @Redirect(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/player/AbstractClientPlayer;getSwimAmount(F)F"))
@@ -55,9 +65,6 @@ public abstract class PlayerRendererBodyMixin {
         if (!form.hasFlag("special_form") && form.stage() <= 0) {
             return;
         }
-        // Pehkui wraps the whole Fabric player renderer in the form's WIDTH/
-        // HEIGHT scale. Apply it before the body clip so its offset is scaled too.
-        poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
         FormGeoRenderer renderer = FormClientRenderEvents.rendererFor(form);
         if (renderer == null) {
             return;
