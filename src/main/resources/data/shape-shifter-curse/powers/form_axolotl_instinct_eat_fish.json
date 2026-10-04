@@ -9,7 +9,7 @@
     "item_condition": {
         "type": "apoli:ingredient",
         "ingredient": {
-            "tag": "shape-shifter-curse:fish"
+            "tag": "shape-shifter-curse:diet_raw_fish"
         }
     }
 }

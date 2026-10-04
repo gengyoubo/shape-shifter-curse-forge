@@ -969,7 +969,7 @@ public final class FormPowerRuntime {
                 ResourceLocation tagId = ingredient == null ? null
                         : ResourceLocation.tryParse(stringValue(ingredient, "tag", ""));
                 boolean matches = itemId != null && BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(itemId);
-                matches |= tagId != null && stack.is(TagKey.create(Registries.ITEM, tagId));
+                matches |= tagId != null && net.onixary.shapeShifterCurseForge.diet.DietInheritanceService.matchesTag(stack, tagId);
                 yield matches;
             }
             case "apoli:enchantment" -> matchesEnchantment(stack, condition);

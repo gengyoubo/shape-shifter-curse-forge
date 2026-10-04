@@ -21,7 +21,7 @@
           {
             "type": "apoli:ingredient",
             "ingredient": {
-              "tag": "shape-shifter-curse:raw_meat"
+              "tag": "shape-shifter-curse:diet_raw_meat"
             }
           },
           {

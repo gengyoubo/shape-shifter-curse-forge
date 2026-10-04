@@ -1,0 +1,50 @@
+{
+  "replace": false,
+  "values": [
+    "#shape-shifter-curse:fruit",
+    "minecraft:mushroom_stew",
+    "minecraft:bread",
+    "minecraft:golden_apple",
+    "minecraft:enchanted_golden_apple",
+    "minecraft:cookie",
+    "minecraft:dried_kelp",
+    "minecraft:carrot",
+    "minecraft:potato",
+    "minecraft:baked_potato",
+    "minecraft:poisonous_potato",
+    "minecraft:golden_carrot",
+    "minecraft:pumpkin_pie",
+    "minecraft:beetroot",
+    "minecraft:beetroot_soup",
+    "minecraft:suspicious_stew",
+    "minecraft:honey_bottle",
+    {
+      "id": "farmersdelight:cabbage",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:onion",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:mixed_salad",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:fried_egg",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:egg_sandwich",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:hot_cocoa",
+      "required": false
+    },
+    {
+      "id": "farmersdelight:milk_bottle",
+      "required": false
+    }
+  ]
+}

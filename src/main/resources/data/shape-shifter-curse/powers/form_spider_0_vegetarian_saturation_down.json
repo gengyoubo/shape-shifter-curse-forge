@@ -9,14 +9,21 @@
         "type": "apoli:and",
         "conditions": [
             {
-                "type": "apoli:ingredient",
-                "ingredient": {
-                    "tag": "shape-shifter-curse:meat"
-                },
-                "inverted": true
-            },
-            {
-                "type": "apoli:meat",
+                "type": "apoli:or",
+                "conditions": [
+                    {
+                        "type": "apoli:ingredient",
+                        "ingredient": {
+                            "tag": "shape-shifter-curse:diet_raw_meat"
+                        }
+                    },
+                    {
+                        "type": "apoli:ingredient",
+                        "ingredient": {
+                            "item": "minecraft:rotten_flesh"
+                        }
+                    }
+                ],
                 "inverted": true
             },
             {

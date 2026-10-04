@@ -1,0 +1,44 @@
+{
+  "replace": false,
+  "seeds": {
+    "vegetarian": [
+      "#shape-shifter-curse:diet_vegetarian",
+      "#forge:fruits", "#forge:vegetables", "#forge:crops", "#forge:grain",
+      "#forge:grains", "#forge:flour", "#forge:dough", "#forge:mushrooms",
+      "#forge:nuts", "#forge:seeds", "#forge:eggs", "#forge:milk",
+      "#forge:cheese", "#forge:chocolate", "#forge:sugar", "#forge:honey",
+      "#c:fruits", "#c:vegetables", "#c:grains", "#c:flours", "#c:doughs",
+      "#c:mushrooms", "#c:nuts", "#c:seeds", "#c:eggs", "#c:milks",
+      "#c:cheeses", "#c:chocolates", "#c:sugars", "#c:honey_bottles",
+      "#minecraft:flowers",
+      "minecraft:wheat", "minecraft:sugar", "minecraft:sugar_cane",
+      "minecraft:cocoa_beans", "minecraft:brown_mushroom", "minecraft:red_mushroom",
+      "minecraft:kelp", "minecraft:pumpkin", "minecraft:melon",
+      "minecraft:egg", "minecraft:milk_bucket", "minecraft:honeycomb"
+    ],
+    "meat": [
+      "#shape-shifter-curse:diet_origins_meat", "#shape-shifter-curse:meat",
+      "#shape-shifter-curse:diet_raw_meat", "#forge:meat", "#forge:raw_meats",
+      "#forge:cooked_meats", "#c:meat", "#c:raw_meats", "#c:cooked_meats"
+    ],
+    "fish": [
+      "#shape-shifter-curse:fish", "#shape-shifter-curse:diet_raw_fish",
+      "#minecraft:fishes", "#forge:fish", "#forge:raw_fishes", "#forge:cooked_fishes",
+      "#c:fish", "#c:raw_fishes", "#c:cooked_fishes"
+    ],
+    "ignore_diet": ["#shape-shifter-curse:ignore_diet", "#origins:ignore_diet"]
+  },
+  "whitelist": {
+    "vegetarian": [], "meat": [], "fish": [], "ignore_diet": []
+  },
+  "blacklist": {
+    "vegetarian": [], "meat": [], "fish": [], "ignore_diet": []
+  },
+  "food_blacklist": [],
+  "neutral_ingredients": [
+    "minecraft:bowl", "minecraft:glass_bottle", "minecraft:bucket", "minecraft:water_bucket",
+    "#forge:tools/knives", "#farmersdelight:tools/knives", "#forge:salt", "#c:salts",
+    "#c:water_buckets"
+  ],
+  "recipe_blacklist": []
+}

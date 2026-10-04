@@ -1,4 +1,6 @@
 {
+    "command.ssc.diet.stats": "饮食推导：%s 个物品，%s 条有效配方，%s 条跳过配方",
+    "command.ssc.diet.inspect": "%s：素食=%s，肉类=%s，鱼类=%s，饮食豁免=%s",
     "info.shape-shifter-curse.transform_blocked": "有一股力量在阻止你这么做",
     "advancements.shape-shifter-curse.on_enable_mod.title": "未知的篇章",
     "advancements.shape-shifter-curse.on_enable_mod.description": "发生了什么？",

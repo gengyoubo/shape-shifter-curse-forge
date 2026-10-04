@@ -14,18 +14,14 @@
         "type": "apoli:and",
         "conditions": [
             {
-                "type": "apoli:or",
-                "conditions": [
-                    {
-                        "type": "apoli:ingredient",
-                        "ingredient": {
-                            "tag": "shape-shifter-curse:meat"
-                        }
-                    },
-                    {
-                        "type": "apoli:meat"
-                    }
-                ]
+                "type": "apoli:ingredient",
+                "ingredient": {
+                    "tag": "shape-shifter-curse:diet_vegetarian"
+                },
+                "inverted": true
+            },
+            {
+                "type": "apoli:food"
             },
             {
                 "type": "apoli:ingredient",

@@ -23,7 +23,7 @@
             {
               "type": "apoli:ingredient",
               "ingredient": {
-                "tag": "shape-shifter-curse:meat"
+                "tag": "shape-shifter-curse:diet_raw_meat"
               }
             },
             {
@@ -65,7 +65,6 @@
       ]
     }
   },
-
   "meat_down": {
     "type": "apoli:modify_food",
     "food_modifiers": [
@@ -84,10 +83,21 @@
       "type": "apoli:and",
       "conditions": [
         {
-          "type": "apoli:ingredient",
-          "ingredient": {
-            "tag": "shape-shifter-curse:meat"
-          }
+          "type": "apoli:or",
+          "conditions": [
+            {
+              "type": "apoli:ingredient",
+              "ingredient": {
+                "tag": "shape-shifter-curse:diet_raw_meat"
+              }
+            },
+            {
+              "type": "apoli:ingredient",
+              "ingredient": {
+                "item": "minecraft:rotten_flesh"
+              }
+            }
+          ]
         }
       ]
     }

@@ -1,4 +1,6 @@
 {
+    "command.ssc.diet.stats": "Diet inference: %s items, %s usable recipes, %s skipped recipes",
+    "command.ssc.diet.inspect": "%s: vegetarian=%s, meat=%s, fish=%s, diet exemption=%s",
     "info.shape-shifter-curse.transform_blocked": "A force is preventing you from doing this",
     "advancements.shape-shifter-curse.on_enable_mod.title": "Unknown Chapter",
     "advancements.shape-shifter-curse.on_enable_mod.description": "What happened?",

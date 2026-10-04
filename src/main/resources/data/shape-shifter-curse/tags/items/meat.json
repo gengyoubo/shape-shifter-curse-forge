@@ -558,18 +558,15 @@
     {
       "id": "farm_and_charm:bacon_with_eggs",
       "required": false
-    }
-  ,
+    },
     {
       "id": "meadow:cooked_buffalo_meat",
       "required": false
-    }
-  ,
+    },
     {
       "id": "meadow:raw_buffalo_meat",
       "required": false
-    }
-  ,
+    },
     {
       "id": "wildernature:bison_meat",
       "required": false

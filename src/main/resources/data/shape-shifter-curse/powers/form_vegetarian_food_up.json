@@ -28,29 +28,13 @@
         "type": "apoli:and",
         "conditions": [
             {
-                "type": "apoli:or",
-                "conditions": [
-                    {
-                        "type": "apoli:and",
-                        "conditions": [
-                            {
-                                "type": "apoli:ingredient",
-                                "ingredient": {
-                                    "tag": "shape-shifter-curse:meat"
-                                },
-                                "inverted": true
-                            },
-                            {
-                                "type": "apoli:meat",
-                                "inverted": true
-                            }
-                        ]
-                    },
-                    {
-                        "type": "shape-shifter-curse:is_vegan_ex",
-                        "default": false
-                    }
-                ]
+                "type": "apoli:ingredient",
+                "ingredient": {
+                    "tag": "shape-shifter-curse:diet_vegetarian"
+                }
+            },
+            {
+                "type": "apoli:food"
             },
             {
                 "type": "apoli:ingredient",

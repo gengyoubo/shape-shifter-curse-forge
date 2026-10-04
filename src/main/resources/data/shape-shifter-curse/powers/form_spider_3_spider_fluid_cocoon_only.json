@@ -33,10 +33,27 @@
         "inverted": true
       },
       {
-        "type": "apoli:ingredient",
-        "ingredient": {
-          "item": "shape-shifter-curse:spider_fluid_cocoon"
-        },
+        "type": "apoli:or",
+        "conditions": [
+          {
+            "type": "apoli:ingredient",
+            "ingredient": {
+              "tag": "shape-shifter-curse:diet_raw_meat"
+            }
+          },
+          {
+            "type": "apoli:ingredient",
+            "ingredient": {
+              "item": "minecraft:rotten_flesh"
+            }
+          },
+          {
+            "type": "apoli:ingredient",
+            "ingredient": {
+              "item": "shape-shifter-curse:spider_fluid_cocoon"
+            }
+          }
+        ],
         "inverted": true
       },
       {

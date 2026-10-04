@@ -103,6 +103,17 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+tasks.register('testDietInheritance', JavaExec) {
+    group = 'verification'
+    description = 'Verifies recipe diet propagation, alternatives, cycles and blacklist corrections.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.onixary.shapeShifterCurseForge.diet.RecipeDietGraphTest'
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+}
+
+tasks.named('check') { dependsOn tasks.named('testDietInheritance') }
+
 mixin {
     add sourceSets.main, 'shape_shifter_curse.mixins.refmap.json'
     config "shape_shifter_curse.mixins.json"
