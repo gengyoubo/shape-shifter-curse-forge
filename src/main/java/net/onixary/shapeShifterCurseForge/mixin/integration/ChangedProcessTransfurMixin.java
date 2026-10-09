@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Block both assimilation and direct assignments before Changed starts their side effects. */
@@ -27,7 +28,7 @@ public abstract class ChangedProcessTransfurMixin {
     private static void ssc$blockLatexAssimilation(LivingEntity entity, LatexAssimilationDecision<?> decision,
                                                   CallbackInfoReturnable<AssimilationBehavior> cir) {
         if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
-            ChangedIntegration.notifyBlocked(player);
+            // Changed also queries this while selecting targets, without an actual attempt.
             cir.setReturnValue(null);
         }
     }
@@ -37,7 +38,6 @@ public abstract class ChangedProcessTransfurMixin {
     private static void ssc$blockNonLatexAssimilation(LivingEntity entity, NonLatexAssimilationDecision<?> decision,
                                                      CallbackInfoReturnable<AssimilationBehavior> cir) {
         if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
-            ChangedIntegration.notifyBlocked(player);
             cir.setReturnValue(null);
         }
     }
@@ -47,8 +47,43 @@ public abstract class ChangedProcessTransfurMixin {
     private static void ssc$blockImmediateTransfur(LivingEntity entity, ImmediateTransfurDecision<?> decision,
                                                   CallbackInfoReturnable<AssimilationBehavior> cir) {
         if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
-            ChangedIntegration.notifyBlocked(player);
             cir.setReturnValue(null);
+        }
+    }
+
+    @Inject(method = "progressTransfur(Lnet/minecraft/world/entity/LivingEntity;Lnet/ltxprogrammer/changed/entity/ai/LatexAssimilationDecision;)Z",
+            at = @At("HEAD"), cancellable = true)
+    private static void ssc$blockLatexProgress(LivingEntity entity, LatexAssimilationDecision<?> decision,
+                                               CallbackInfoReturnable<Boolean> cir) {
+        if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
+            if (decision != null && decision.transfurProgress() > 0.0F) {
+                ChangedIntegration.notifyBlocked(player);
+            }
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "progressTransfur(Lnet/minecraft/world/entity/LivingEntity;Lnet/ltxprogrammer/changed/entity/ai/NonLatexAssimilationDecision;)Z",
+            at = @At("HEAD"), cancellable = true)
+    private static void ssc$blockNonLatexProgress(LivingEntity entity, NonLatexAssimilationDecision<?> decision,
+                                                  CallbackInfoReturnable<Boolean> cir) {
+        if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
+            if (decision != null && decision.transfurProgress() > 0.0F) {
+                ChangedIntegration.notifyBlocked(player);
+            }
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "transfur(Lnet/minecraft/world/entity/LivingEntity;Lnet/ltxprogrammer/changed/entity/ai/ImmediateTransfurDecision;)V",
+            at = @At("HEAD"), cancellable = true)
+    private static void ssc$blockImmediateAttempt(LivingEntity entity, ImmediateTransfurDecision<?> decision,
+                                                  CallbackInfo ci) {
+        if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
+            if (decision != null) {
+                ChangedIntegration.notifyBlocked(player);
+            }
+            ci.cancel();
         }
     }
 
