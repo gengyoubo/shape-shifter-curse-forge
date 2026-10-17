@@ -39,6 +39,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
+import net.onixary.shapeShifterCurseForge.items.MorphScaleItems;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
 import java.util.HashMap;
@@ -979,7 +980,7 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:is_vegan_ex" -> isVegan(stack, condition);
             case "shape-shifter-curse:is_weapon" -> isWeapon(stack);
             case "shape-shifter-curse:is_morph_scale_item", "shape-shifter-curse:is_morph_scale_food"
-                    -> isMorphScaleItem(stack);
+                    -> MorphScaleItems.isMorphScaleItem(stack);
             case "apoli:armor_value" -> stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor
                     && compare(armor.getDefense(), condition);
             case "apoli:harvest_level" -> {
@@ -1004,19 +1005,6 @@ public final class FormPowerRuntime {
             if (all != matches) return !all;
         }
         return all;
-    }
-
-    private static boolean isMorphScaleItem(ItemStack stack) {
-        // Fabric marks morphscale items with the shape-shifter-curse:morph_scale_item tag.
-        if (stack.is(TagKey.create(Registries.ITEM,
-                ResourceLocation.fromNamespaceAndPath("shape-shifter-curse", "morph_scale_item")))) {
-            return true;
-        }
-        // Custom items may still opt in through NBT.
-        if (!stack.hasTag()) return false;
-        var tag = stack.getTag();
-        return Objects.requireNonNull(tag).getBoolean("MorphScale") || tag.getBoolean("morphscale")
-                || tag.getBoolean("shape_shifter_curse_morphscale");
     }
 
     /** Fabric's is_weapon checks for an attack-damage modifier rather than a specific item class. */

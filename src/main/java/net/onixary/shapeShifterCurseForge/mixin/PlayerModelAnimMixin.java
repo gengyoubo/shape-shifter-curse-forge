@@ -7,9 +7,11 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.client.render.FormClientRenderEvents;
 import net.onixary.shapeShifterCurseForge.client.render.FormGeoAnimatable;
 import net.onixary.shapeShifterCurseForge.client.render.FormGeoRenderer;
+import net.onixary.shapeShifterCurseForge.client.render.PlayerModelPose;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -25,6 +27,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(PlayerModel.class)
 public abstract class PlayerModelAnimMixin {
+    @Unique
+    private PlayerModelPose ssc$poseBeforeForm;
+
+    @Inject(method = "setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V", at = @At("HEAD"))
+    private void ssc$restorePoseBeforeSetup(LivingEntity entity, float limbSwing, float limbSwingAmount,
+                                           float ageInTicks, float netHeadYaw, float headPitch,
+                                           CallbackInfo ci) {
+        // PlayerRenderer reuses this model for humans and other players too. Vanilla
+        // does not overwrite every pivot/rotation that a four-legged clip can change.
+        if (ssc$poseBeforeForm != null) {
+            ssc$poseBeforeForm.apply((PlayerModel<?>)(Object) this);
+            ssc$poseBeforeForm = null;
+        }
+    }
+
     @Inject(method = "setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/model/HumanoidModel;setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V",
@@ -50,6 +67,12 @@ public abstract class PlayerModelAnimMixin {
             return;
         }
         PlayerModel<?> model = (PlayerModel<?>)(Object) this;
+        if (!animatable.isPreparingVanillaPlayerPose() && !animatable.hasPreparedPose(player)) {
+            return;
+        }
+        // Save before applying SSC, including a partially failing animation, so the
+        // next setup starts from the unanimated pose even after a form change.
+        ssc$poseBeforeForm = PlayerModelPose.capture(model);
         float partialTick = Minecraft.getInstance().getFrameTime();
         if (animatable.isPreparingVanillaPlayerPose()) {
             animatable.prepareSelection(player, model);

@@ -13,9 +13,8 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.level.Level;
+import net.onixary.shapeShifterCurseForge.items.MorphScaleItems;
 import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
-
-import java.util.Objects;
 
 /**
  * Forge equivalent of Fabric's MorphScaleUpgradeRecipe.  The template and
@@ -24,8 +23,6 @@ import java.util.Objects;
  * this exact marker when checking morph-scale equipment.
  */
 public final class MorphScaleUpgradeRecipe implements SmithingRecipe {
-    private static final String MORPH_SCALE_ITEM = "MorphScaleItem";
-
     private final ResourceLocation id;
     private final Ingredient template;
     private final Ingredient addition;
@@ -43,7 +40,7 @@ public final class MorphScaleUpgradeRecipe implements SmithingRecipe {
 
     @Override
     public boolean isBaseIngredient(ItemStack stack) {
-        return !stack.isEmpty() && (!stack.hasTag() || !Objects.requireNonNull(stack.getTag()).getBoolean(MORPH_SCALE_ITEM));
+        return !stack.isEmpty() && !MorphScaleItems.hasUpgradeMarker(stack);
     }
 
     @Override
@@ -62,14 +59,14 @@ public final class MorphScaleUpgradeRecipe implements SmithingRecipe {
     public ItemStack assemble(Container container, RegistryAccess access) {
         ItemStack result = container.getItem(1).copy();
         result.setCount(1);
-        result.getOrCreateTag().putBoolean(MORPH_SCALE_ITEM, true);
+        result.getOrCreateTag().putBoolean(MorphScaleItems.MARKER_KEY, true);
         return result;
     }
 
     @Override
     public ItemStack getResultItem(RegistryAccess access) {
         ItemStack preview = new ItemStack(Items.STONE);
-        preview.getOrCreateTag().putBoolean(MORPH_SCALE_ITEM, true);
+        preview.getOrCreateTag().putBoolean(MorphScaleItems.MARKER_KEY, true);
         return preview;
     }
 
