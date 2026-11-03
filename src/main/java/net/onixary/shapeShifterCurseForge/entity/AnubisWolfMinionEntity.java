@@ -166,7 +166,10 @@ public final class AnubisWolfMinionEntity extends Wolf {
 
     @Override
     public void die(DamageSource source) {
-        if (getOwner() instanceof Player owner) AnubisMinionService.unregister(owner, getUUID());
+        if (!level().isClientSide && getOwner() instanceof Player owner) {
+            AnubisMinionService.unregister(owner, getUUID());
+            AnubisMinionService.onMinionDeath(owner);
+        }
         setOwnerUUID(null);
         super.die(source);
     }

@@ -148,6 +148,11 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:has_mana" -> FormActivePowerService.hasMana(actor,
                     floatValue(condition, "mana", 0.0F));
             case "shape-shifter-curse:mana_compare" -> compare(FormActivePowerService.mana(actor), condition);
+            case "shape-shifter-curse:enemy" -> target instanceof LivingEntity living && living.isAlive()
+                    && actor != target && !actor.isAlliedTo(target)
+                    && !(target instanceof net.minecraft.world.entity.TamableAnimal pet && actor.getUUID().equals(pet.getOwnerUUID()))
+                    && (target instanceof net.minecraft.world.entity.monster.Monster
+                    || target instanceof net.minecraft.world.entity.Mob mob && mob.getTarget() == actor);
             case "shape-shifter-curse:has_mana_percent" -> FormActivePowerService.manaPercent(actor)
                     >= doubleValue(condition, "mana_percent", 0.0D);
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);
@@ -346,8 +351,15 @@ public final class FormPowerRuntime {
             }
             return;
         }
-
         LivingEntity recipient = target == null ? actor : target;
+        if ("apoli:if_else".equals(type)) {
+            boolean passes = recipient instanceof Player targetPlayer
+                    ? test(targetPlayer, targetPlayer, action.getAsJsonObject("condition"))
+                    : testEntity(actor, recipient, action.getAsJsonObject("condition"));
+            execute(actor, recipient, action.getAsJsonObject(passes ? "if_action" : "else_action"));
+            return;
+        }
+
         ResourceLocation typeId = ResourceLocation.tryParse(type);
         if (typeId != null && SscJavaRegistries.executeAction(typeId, actor, recipient, action)) {
             return;
@@ -361,6 +373,13 @@ public final class FormPowerRuntime {
             case "apoli:play_sound" -> playSound(recipient, action);
             case "apoli:feed" -> feed(actor, action);
             case "apoli:gain_air" -> recipient.setAirSupply(recipient.getAirSupply() + intValue(action, "value", 0));
+            case "shape-shifter-curse:change_food" -> {
+                if (!recipient.level().isClientSide && recipient instanceof Player targetPlayer) {
+                    var food = targetPlayer.getFoodData();
+                    food.setFoodLevel(net.minecraft.util.Mth.clamp(food.getFoodLevel() + intValue(action, "amount", 0), 0, 20));
+                    food.setSaturation(Math.min(food.getSaturationLevel(), food.getFoodLevel()));
+                }
+            }
             case "apoli:exhaust" -> actor.causeFoodExhaustion(floatValue(action, "amount", 0.0F));
             case "apoli:consume" -> consumeHeldItem(actor, intValue(action, "amount", 1));
             case "apoli:drop_inventory" -> dropInventory(actor, action);
@@ -436,6 +455,15 @@ public final class FormPowerRuntime {
             case "apoli:target_action" -> execute(actor, target, action.getAsJsonObject("action"));
             case "shape-shifter-curse:bi_summon_anubis_wolf_minion" ->
                     AnubisMinionService.summon(actor, target, action);
+            case "shape-shifter-curse:fireball_at_target" -> {
+                if (!actor.level().isClientSide && target != null) {
+                    Vec3 direction = target.getBoundingBox().getCenter().subtract(actor.getEyePosition()).normalize();
+                    var fireball = new net.minecraft.world.entity.projectile.SmallFireball(actor.level(), actor,
+                            direction.x, direction.y, direction.z);
+                    fireball.setPos(actor.getEyePosition().add(direction.scale(0.6)));
+                    actor.level().addFreshEntity(fireball);
+                }
+            }
             case "apoli:add_velocity" -> {
                 if ((target.level().isClientSide && !booleanValue(action, "client", true))
                         || (!target.level().isClientSide && !booleanValue(action, "server", true))) return;

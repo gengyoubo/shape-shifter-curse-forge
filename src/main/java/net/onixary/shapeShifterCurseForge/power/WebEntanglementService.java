@@ -87,7 +87,7 @@ public final class WebEntanglementService {
                 ShapeShifterCurseForge.RESOURCE_NAMESPACE, "can_loot_spider_fluid_cocoon"))) {
             return;
         }
-        if (player.getRandom().nextInt(100) >= 40) {
+        if (player.getRandom().nextInt(100) >= PerkPowerService.cocoonLootChance(player)) {
             return;
         }
         int maxCount = net.minecraft.util.Mth.ceil(mob.getMaxHealth() / 4.0F);

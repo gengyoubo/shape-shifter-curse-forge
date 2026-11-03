@@ -49,6 +49,7 @@ public final class FormActivePowerService {
         PRESSED_KEYS.remove(id);
         CHARGES.remove(id);
         WATER_LAUNCH_GRACE.remove(id);
+        AirJumpService.clearTransient(player);
     }
 
     /** An Origin replacement removes its power instances; discard the matching runtime state. */
@@ -89,6 +90,7 @@ public final class FormActivePowerService {
             if ("key.jump".equals(key) && triggerActive(player, key)) {
                 return;
             }
+            if ("key.jump".equals(key) && AirJumpService.tryJump(player)) return;
             triggerActive(player, key);
         }
     }
@@ -97,6 +99,7 @@ public final class FormActivePowerService {
         if (player.level().isClientSide) {
             return;
         }
+        AirJumpService.tick(player);
         if (FAMILIAR_FOX_MANA.equals(manaType(player))
                 && net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService
                 .isInCursedMoon(player.level()) && mana(player) < maximumMana(player)) {

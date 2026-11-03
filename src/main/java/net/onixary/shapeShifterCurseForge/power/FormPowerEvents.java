@@ -24,6 +24,7 @@ import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.MobEffectEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.ShieldBlockEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -50,6 +51,18 @@ import java.util.*;
 @SuppressWarnings("deprecation")
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class FormPowerEvents {
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    public static void onShieldBlock(ShieldBlockEvent event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
+                || !event.getDamageSource().is(DamageTypeTags.IS_PROJECTILE)
+                || !(event.getDamageSource().getEntity() instanceof LivingEntity attacker) || attacker == player) return;
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:action_on_shield_block".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(player, attacker, power.getAsJsonObject("condition"))) {
+                FormPowerRuntime.executeBiEntity(player, attacker, power.getAsJsonObject("bientity_action"));
+            }
+        });
+    }
     private FormPowerEvents() {
     }
 
@@ -206,8 +219,18 @@ public final class FormPowerEvents {
                 }
                 if ("apoli:action_when_hit".equals(type)
                         && attacker != null && FormPowerRuntime.testDamageCondition(defender, attacker, event.getSource(),
-                        event.getAmount(), power.getAsJsonObject("damage_condition"))) {
+                        event.getAmount(), power.getAsJsonObject("damage_condition"))
+                        && FormPowerRuntime.test(defender, attacker, power.getAsJsonObject("condition"))) {
                     FormPowerRuntime.execute(defender, attacker, power.getAsJsonObject("entity_action"));
+                    JsonObject biAction = power.getAsJsonObject("bientity_action");
+                    if (biAction != null && "shape-shifter-curse:bi_summon_anubis_wolf_minion".equals(FormPowerRegistry.typeOf(biAction))
+                            && FormPowerRuntime.booleanValue(biAction, "reverse", false)) {
+                        JsonObject ownerAction = biAction.deepCopy();
+                        ownerAction.addProperty("reverse", false);
+                        AnubisMinionService.summon(defender, attacker, ownerAction);
+                    } else if (biAction != null) {
+                        FormPowerRuntime.executeBiEntity(defender, attacker, biAction);
+                    }
                 }
                 if ("shape-shifter-curse:burn_damage_modifier".equals(type)
                         && event.getSource().is(DamageTypeTags.IS_FIRE)

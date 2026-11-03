@@ -79,8 +79,10 @@ public final class AnubisMinionService {
             wolf.setMinionLevel(FormPowerRuntime.intValue(action, "minion_level", 1));
             registered.add(StringTag.valueOf(wolf.getUUID().toString()));
             data.put(MINIONS_KEY, registered);
-            if (level.addFreshEntity(wolf)) spawned = true;
-            else registered.remove(StringTag.valueOf(wolf.getUUID().toString()));
+            if (level.addFreshEntity(wolf)) {
+                spawned = true;
+                applySpawnBonuses(player, wolf);
+            } else registered.remove(StringTag.valueOf(wolf.getUUID().toString()));
         }
         if (!spawned) return;
         data.putLong(COOLDOWN_KEY, player.tickCount);
@@ -89,6 +91,25 @@ public final class AnubisMinionService {
         level.playSound(null, player.blockPosition(), SoundEvents.WOLF_GROWL, SoundSource.PLAYERS, 1.0F, 1.5F);
         level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, player.getX() + 0.5D,
                 player.getY() + 0.5D, player.getZ() + 0.5D, 8, 0.0D, 0.0D, 0.0D, 0.0D);
+    }
+
+    public static void applySpawnBonuses(Player owner, LivingEntity minion) {
+        FormPowerRegistry.visitActive(owner, (id, power) -> {
+            if ("shape-shifter-curse:wolf_minion_bonus".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(owner, owner, power.getAsJsonObject("condition"))) {
+                FormPowerRuntime.execute(owner, minion, power.getAsJsonObject("minion_action"));
+            }
+        });
+    }
+
+    public static void onMinionDeath(Player owner) {
+        if (owner.level().isClientSide || !owner.isAlive()) return;
+        FormPowerRegistry.visitActive(owner, (id, power) -> {
+            if ("shape-shifter-curse:wolf_minion_bonus".equals(FormPowerRegistry.typeOf(power))
+                    && FormPowerRuntime.test(owner, owner, power.getAsJsonObject("condition"))) {
+                owner.heal(FormPowerRuntime.floatValue(power, "death_heal", 0));
+            }
+        });
     }
 
     private static BlockPos nearbyEmptySpace(ServerLevel level, BlockPos target, Player player) {
