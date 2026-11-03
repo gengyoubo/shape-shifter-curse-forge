@@ -391,6 +391,18 @@ public final class FormPowerRuntime {
             case "apoli:modify_resource" -> modifyResource(actor, action);
             case "apoli:execute_command" -> executeCommand(actor, recipient, action);
             case "apoli:spawn_particles" -> spawnParticles(actor, recipient, action);
+            case "apoli:area_of_effect" -> {
+                if (!recipient.level().isClientSide) {
+                    double radius = Math.max(0, doubleValue(action, "radius", 0));
+                    for (LivingEntity nearby : recipient.level().getEntitiesOfClass(LivingEntity.class,
+                            recipient.getBoundingBox().inflate(radius), entity -> entity != actor && entity.isAlive()
+                                    && entity.distanceToSqr(recipient) <= radius * radius)) {
+                        if (test(actor, nearby, action.getAsJsonObject("bientity_condition"))) {
+                            executeBiEntity(actor, nearby, action.getAsJsonObject("bientity_action"));
+                        }
+                    }
+                }
+            }
             case "apoli:spawn_effect_cloud" -> spawnEffectCloud(actor, recipient, action);
             case "apoli:fire_projectile" -> fireProjectile(actor, action);
             case "shape-shifter-curse:invoke_accessory" -> invokeAccessory(actor, action);
@@ -462,6 +474,12 @@ public final class FormPowerRuntime {
                             direction.x, direction.y, direction.z);
                     fireball.setPos(actor.getEyePosition().add(direction.scale(0.6)));
                     actor.level().addFreshEntity(fireball);
+                }
+            }
+            case "shape-shifter-curse:damage_on_success" -> {
+                if (!actor.level().isClientSide && target != null
+                        && target.hurt(actor.damageSources().playerAttack(actor), floatValue(action, "amount", 0))) {
+                    executeBiEntity(actor, target, action.getAsJsonObject("bientity_action"));
                 }
             }
             case "apoli:add_velocity" -> {

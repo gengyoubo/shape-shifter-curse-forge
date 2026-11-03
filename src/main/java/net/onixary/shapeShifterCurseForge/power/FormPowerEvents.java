@@ -53,7 +53,7 @@ import java.util.*;
 public final class FormPowerEvents {
     @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
     public static void onShieldBlock(ShieldBlockEvent event) {
-        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide || !player.isBlocking()
                 || !event.getDamageSource().is(DamageTypeTags.IS_PROJECTILE)
                 || !(event.getDamageSource().getEntity() instanceof LivingEntity attacker) || attacker == player) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {
@@ -888,9 +888,23 @@ public final class FormPowerEvents {
 
     private static boolean matchesProjectile(Projectile projectile, JsonObject condition) {
         if (condition == null) return true;
-        if (!"apoli:projectile".equals(FormPowerRegistry.typeOf(condition))) return true;
-        ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
-        return id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
+        String type = FormPowerRegistry.typeOf(condition);
+        boolean result;
+        if ("apoli:projectile".equals(type)) {
+            ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
+            result = id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
+        } else if (("apoli:or".equals(type) || "apoli:and".equals(type)) && condition.has("conditions")) {
+            boolean all = "apoli:and".equals(type);
+            result = all;
+            for (var entry : condition.getAsJsonArray("conditions")) {
+                boolean match = entry.isJsonObject() && matchesProjectile(projectile, entry.getAsJsonObject());
+                if (all && !match) { result = false; break; }
+                if (!all && match) { result = true; break; }
+            }
+        } else {
+            result = false;
+        }
+        return FormPowerRuntime.booleanValue(condition, "inverted", false) != result;
     }
 
     /** Called at LivingEntity.isDamageSourceBlocked, before vanilla shield processing. */

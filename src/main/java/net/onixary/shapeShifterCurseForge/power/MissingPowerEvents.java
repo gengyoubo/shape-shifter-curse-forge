@@ -316,8 +316,11 @@ public final class MissingPowerEvents {
             net.minecraft.world.phys.BlockHitResult hit = player.level().clip(context);
             if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) continue;
             FormPowerRuntime.execute(player, target, power.getAsJsonObject("bientity_action"));
-            target.hurt(player.damageSources().playerAttack(player),
-                    FormPowerRuntime.floatValue(power, "damage", 0.0F));
+            float before = CombatPerkService.health(target);
+            if (target.hurt(player.damageSources().playerAttack(player),
+                    FormPowerRuntime.floatValue(power, "damage", 0.0F))) {
+                CombatPerkService.fire(player, target, "pounce", before - CombatPerkService.health(target));
+            }
             return true;
         }
         return false;

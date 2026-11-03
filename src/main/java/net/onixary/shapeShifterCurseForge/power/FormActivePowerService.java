@@ -50,6 +50,7 @@ public final class FormActivePowerService {
         CHARGES.remove(id);
         WATER_LAUNCH_GRACE.remove(id);
         AirJumpService.clearTransient(player);
+        FrostDiveService.clear(player);
     }
 
     /** An Origin replacement removes its power instances; discard the matching runtime state. */
@@ -84,6 +85,7 @@ public final class FormActivePowerService {
             if (toggle(player, key)) {
                 return;
             }
+            FrostDiveService.tryStart(player, key);
             // A surface-water active_self power (jump_out_water) must win over the
             // generic air-jump branch. Water-surface players are not onGround(), so
             // checking air jump first made the original SSC launch unreachable.
@@ -100,6 +102,7 @@ public final class FormActivePowerService {
             return;
         }
         AirJumpService.tick(player);
+        if (player instanceof ServerPlayer serverPlayer) FrostDiveService.tick(serverPlayer);
         if (FAMILIAR_FOX_MANA.equals(manaType(player))
                 && net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService
                 .isInCursedMoon(player.level()) && mana(player) < maximumMana(player)) {

@@ -32,7 +32,7 @@ public final class AirJumpService {
     }
 
     public static boolean tryJump(ServerPlayer player) {
-        if (AIR_TICKS.getOrDefault(player.getUUID(), 0) < 2 || player.onGround()
+        if (FrostDiveService.isDiving(player) || AIR_TICKS.getOrDefault(player.getUUID(), 0) < 2 || player.onGround()
                 || player.isInWater() || player.isInLava() || player.isPassenger()
                 || player.isFallFlying() || player.onClimbable() || player.getAbilities().flying) return false;
 

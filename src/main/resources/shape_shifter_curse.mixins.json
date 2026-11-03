@@ -23,6 +23,7 @@
         "EntityLandingEffectMixin",
         "PlayerSweepingMixin",
         "PlayerCombatPerkMixin",
+        "FrostMovementMixin",
         "BlockDropMixin",
         "ServerPlayerGameModeBlockBreakMixin",
         "PlayerEntityPoseMixin",

@@ -18,6 +18,7 @@ public final class ModEffects {
     public static final DeferredRegister<MobEffect> EFFECTS = DeferredRegister.create(ForgeRegistries.MOB_EFFECTS, ShapeShifterCurseForge.RESOURCE_NAMESPACE);
     public static final RegistryObject<MobEffect> IMMOBILITY = EFFECTS.register("immobility_effect", ImmobilityEffect::new);
     public static final RegistryObject<MobEffect> FEED = EFFECTS.register("feed_effect", FeedEffect::new);
+    public static final RegistryObject<MobEffect> FROST_CLAW = EFFECTS.register("frost_claw", net.onixary.shapeShifterCurseForge.effect.FrostClawEffect::new);
     public static final RegistryObject<MobEffect> ENTANGLED = EFFECTS.register("entangled_effect", EntangledEffect::new);
     private static final java.util.UUID MOD_SPEED_UUID = java.util.UUID.nameUUIDFromBytes(
             "ssc.entangled_full_speed".getBytes(java.nio.charset.StandardCharsets.UTF_8));

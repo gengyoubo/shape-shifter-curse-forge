@@ -25,6 +25,10 @@ import java.util.UUID;
 // TODO[C-S] Any new server->client packet must route its client-only work through this helper
 //   (never reference Minecraft/Screen subclasses directly), or the dedicated server crashes on load.
 public final class ClientPacketHandlers {
+    public static void applyFrostDive(boolean diving) {
+        var player = Minecraft.getInstance().player;
+        if (player != null) net.onixary.shapeShifterCurseForge.power.FrostDiveService.setClientDiving(player, diving);
+    }
     private ClientPacketHandlers() {
     }
 
