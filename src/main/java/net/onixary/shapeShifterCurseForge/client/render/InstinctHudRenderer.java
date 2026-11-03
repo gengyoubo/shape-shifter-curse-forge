@@ -8,6 +8,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.client.InstinctClientState;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 
 /** Renders the instinct meter just to the right of the hotbar. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
@@ -24,8 +25,8 @@ public final class InstinctHudRenderer {
         if (minecraft.player == null || minecraft.options.hideGui || !InstinctClientState.visible()) return;
 
         GuiGraphics graphics = event.getGuiGraphics();
-        int x = (graphics.guiWidth() + 182) / 2 + 5;
-        int y = graphics.guiHeight() - 15;
+        int x = HudPosition.x(graphics.guiWidth(), SscClientConfig.INSTINCT_POSITION.get(), SscClientConfig.INSTINCT_OFFSET_X.get());
+        int y = HudPosition.y(graphics.guiHeight(), SscClientConfig.INSTINCT_POSITION.get(), SscClientConfig.INSTINCT_OFFSET_Y.get());
         int border = InstinctClientState.locked() ? 0xFFE95C9D : 0xFFD9A2C1;
         int fill = InstinctClientState.locked() ? 0xFF74304F : 0xFFE83D9A;
         float valueRatio = Math.max(0.0F, Math.min(1.0F, InstinctClientState.value() / 100.0F));

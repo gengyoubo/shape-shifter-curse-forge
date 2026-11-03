@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,10 +30,11 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
 
     @Override
     protected void init() {
-        float scale = 0.5F;
-        int bookScale = 1;
+        float scale = 0.5F * (SscClientConfig.BIG_CODEX.get() ? 2 : 1);
+        int bookScale = SscClientConfig.BIG_CODEX.get() ? 2 : 1;
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
         int bookPosY = this.height / 2 - (BOOK_SIZE_Y * bookScale) / 2;
+        this.widgetList.clear();
         int defaultTextColor = 0x222222;
         int headerTextColor = 0xDDDDDD;
         // Pros
@@ -99,12 +101,14 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
     }
 
     private void renderBook(GuiGraphics graphics) {
-        int finalBookSizeX = BOOK_SIZE_X;
-        int finalBookSizeY = BOOK_SIZE_Y;
-        int bookPosX = this.width / 2 - finalBookSizeX / 2;
-        int bookPosY = this.height / 2 - finalBookSizeY / 2;
-        graphics.blit(PAGE_TEXTURE, bookPosX, bookPosY, 0, 0,
-                finalBookSizeX, finalBookSizeY, finalBookSizeX, finalBookSizeY);
+        int bookScale = SscClientConfig.BIG_CODEX.get() ? 2 : 1;
+        int x = this.width / 2 - BOOK_SIZE_X * bookScale / 2;
+        int y = this.height / 2 - BOOK_SIZE_Y * bookScale / 2;
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(bookScale, bookScale, 1);
+        graphics.blit(PAGE_TEXTURE, 0, 0, 0, 0, BOOK_SIZE_X, BOOK_SIZE_Y, BOOK_SIZE_X, BOOK_SIZE_Y);
+        graphics.pose().popPose();
     }
 
     private void nextPage() {
@@ -113,7 +117,7 @@ public class BookOfShapeShifterScreenV2_P2 extends Screen implements WidgetEXUti
 
     private Button buildDetailScreenButton(int inBookPosX, int inBookPosY,
                                            Component detailText) {
-        int bookScale = 1;
+        int bookScale = SscClientConfig.BIG_CODEX.get() ? 2 : 1;
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
         int bookPosY = this.height / 2 - (BOOK_SIZE_Y * bookScale) / 2;
         int fixedPosX = bookPosX + inBookPosX * bookScale;

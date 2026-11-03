@@ -18,6 +18,7 @@ import net.minecraftforge.client.event.RenderArmEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
@@ -57,6 +58,8 @@ public final class FormFirstPersonArmEvents {
             event.setCanceled(true);
             return;
         }
+
+        if (!SscClientConfig.FIRST_PERSON_FORM_ARMS.get()) return;
 
         FormDefinition form = FormManager.current(player);
         if (!form.hasFlag("special_form") && form.stage() <= 0) {
@@ -141,6 +144,7 @@ public final class FormFirstPersonArmEvents {
     }
 
     public static boolean shouldHideArms(AbstractClientPlayer player) {
+        if (SscClientConfig.IGNORE_HIDE_ARMS.get()) return false;
         final boolean[] hide = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!hide[0] && "shape-shifter-curse:no_render_arm".equals(FormPowerRegistry.typeOf(power))

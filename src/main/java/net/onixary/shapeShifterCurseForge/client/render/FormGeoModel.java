@@ -10,6 +10,7 @@ import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -679,14 +680,14 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             if (!blinking) {
                 return openScale;
             }
-            float progress = Mth.clamp((blinkTicks + partialTick) / 4.0F, 0.0F, 1.0F);
+            float progress = Mth.clamp((blinkTicks + partialTick) / SscClientConfig.BLINK_DURATION.get().floatValue(), 0.0F, 1.0F);
             float closeAmount = progress <= 0.5F ? progress * 2.0F : (1.0F - progress) * 2.0F;
             return Mth.lerp(closeAmount, openScale, closedScale);
         }
 
         private void advance() {
             if (blinking) {
-                if (++blinkTicks >= 4) {
+                if (++blinkTicks >= SscClientConfig.BLINK_DURATION.get()) {
                     schedule();
                 }
                 return;
@@ -698,7 +699,9 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         }
 
         private void schedule() {
-            waitTicks = 60 + random.nextInt(81);
+            int minimum = SscClientConfig.BLINK_MIN_INTERVAL.get();
+            int maximum = Math.max(minimum, SscClientConfig.BLINK_MAX_INTERVAL.get());
+            waitTicks = minimum + random.nextInt(maximum - minimum + 1);
             blinking = false;
             blinkTicks = 0;
         }

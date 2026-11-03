@@ -50,6 +50,33 @@ public final class SscClientConfig {
     public static final ForgeConfigSpec.IntValue ITEM_STORE_OFFSET_Y = BUILDER
             .defineInRange("hud.item_store_offset_y", 1, -10000, 10000);
 
+    public static final ForgeConfigSpec.BooleanValue BIG_CODEX = BUILDER
+            .comment("Use the larger Fabric codex layout; requires a GUI at least 700 by 440 pixels.")
+            .define("codex.big_screen", false);
+
+    public static final ForgeConfigSpec.BooleanValue FIRST_PERSON_FORM_ARMS = BUILDER
+            .define("render.first_person_form_arms", true);
+    public static final ForgeConfigSpec.BooleanValue IGNORE_HIDE_ARMS = BUILDER
+            .define("render.ignore_no_render_arm_power", false);
+    public static final ForgeConfigSpec.IntValue BLINK_MIN_INTERVAL = BUILDER
+            .defineInRange("render.blink_min_interval", 60, 1, 12000);
+    public static final ForgeConfigSpec.IntValue BLINK_MAX_INTERVAL = BUILDER
+            .defineInRange("render.blink_max_interval", 140, 1, 12000);
+    public static final ForgeConfigSpec.IntValue BLINK_DURATION = BUILDER
+            .defineInRange("render.blink_duration", 4, 1, 1200);
+    public static final ForgeConfigSpec.IntValue INSTINCT_POSITION = BUILDER
+            .defineInRange("hud.instinct_position", 8, 1, 9);
+    public static final ForgeConfigSpec.IntValue INSTINCT_OFFSET_X = BUILDER
+            .defineInRange("hud.instinct_offset_x", 100, -10000, 10000);
+    public static final ForgeConfigSpec.IntValue INSTINCT_OFFSET_Y = BUILDER
+            .defineInRange("hud.instinct_offset_y", -9, -10000, 10000);
+    public static final ForgeConfigSpec.IntValue MANA_POSITION = BUILDER
+            .defineInRange("hud.mana_position", 8, 1, 9);
+    public static final ForgeConfigSpec.IntValue MANA_OFFSET_X = BUILDER
+            .defineInRange("hud.mana_offset_x", 100, -10000, 10000);
+    public static final ForgeConfigSpec.IntValue MANA_OFFSET_Y = BUILDER
+            .defineInRange("hud.mana_offset_y", -17, -10000, 10000);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private SscClientConfig() {

@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.network.ValidateStartBookPacket;
 
 import java.util.ArrayList;
@@ -35,9 +36,10 @@ public class StartBookScreenV2 extends Screen implements WidgetEXUtils.IWidgetEX
 
     @Override
     protected void init() {
-        // TODO: big-screen config (Fabric newStartBookForBiggerScreen); fixed offsets for now.
-        int textPosYFix = 75;
-        int buttonPosYFix = -100;
+        boolean big = SscClientConfig.BIG_CODEX.get();
+        int textPosYFix = big ? 0 : 75;
+        int buttonPosYFix = big ? -50 : -100;
+        this.widgetList.clear();
         int textPosX = this.width / 2 - TEXT_SIZE_X / 2;
         int textPosY = this.height / 2 - TEXT_SIZE_Y / 2 + textPosYFix;
         ScaleScrollTextWidget startBookLabel = new ScaleScrollTextWidget(textPosX, textPosY,

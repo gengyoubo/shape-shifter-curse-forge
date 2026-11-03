@@ -39,6 +39,10 @@ public final class SscCommonConfig {
     public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_WOLF_SPAWN_CHANCE = spawnChance("transformative_wolf_spawn_chance");
     public static final ForgeConfigSpec.DoubleValue TRANSFORMATIVE_SPIDER_SPAWN_CHANCE = spawnChance("transformative_spider_spawn_chance");
 
+    public static final ForgeConfigSpec.BooleanValue IMMEDIATE_TRANSFORM = BUILDER
+            .comment("Skip transformation animation and apply form changes immediately.")
+            .define("transform.immediately", false);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private SscCommonConfig() {

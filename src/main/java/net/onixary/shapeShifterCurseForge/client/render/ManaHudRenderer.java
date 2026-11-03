@@ -8,6 +8,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.client.ManaClientState;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 
 /** Small server-synchronised mana bar above the hotbar. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID, value = Dist.CLIENT)
@@ -21,8 +22,8 @@ public final class ManaHudRenderer {
         GuiGraphics graphics = event.getGuiGraphics();
         int width = 80;
         int height = 6;
-        int x = (graphics.guiWidth() - width) / 2;
-        int y = graphics.guiHeight() - 47;
+        int x = HudPosition.x(graphics.guiWidth(), SscClientConfig.MANA_POSITION.get(), SscClientConfig.MANA_OFFSET_X.get());
+        int y = HudPosition.y(graphics.guiHeight(), SscClientConfig.MANA_POSITION.get(), SscClientConfig.MANA_OFFSET_Y.get());
         float ratio = Math.min(1.0F, ManaClientState.amount() / ManaClientState.maximum());
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, 0xCC12121A);
         graphics.fill(x, y, x + width, y + height, 0xFF312244);

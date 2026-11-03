@@ -12,6 +12,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.integration.changed.ChangedIntegration;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
+import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.power.LivingEntityJumpState;
 
 import java.util.HashMap;
@@ -59,6 +60,10 @@ public final class TransformManager {
         if (!ChangedIntegration.canTransformTo(player, targetId)) {
             ChangedIntegration.notifyBlocked(player);
             return false;
+        }
+        if (SscCommonConfig.IMMEDIATE_TRANSFORM.get()) {
+            cancel(player);
+            return immediatelyTransform(player, targetId);
         }
         PlayerTransformData data = getPlayerData(player);
         data.transformTimer = 0;

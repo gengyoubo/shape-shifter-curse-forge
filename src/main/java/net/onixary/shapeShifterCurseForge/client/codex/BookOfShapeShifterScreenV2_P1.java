@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,11 +37,11 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
 
     @Override
     protected void init() {
-        // TODO: big-screen config (Fabric newStartBookForBiggerScreen); fixed scale for now.
-        int bookScale = 1;
-        float scale = 0.5F;
+        int bookScale = SscClientConfig.BIG_CODEX.get() ? 2 : 1;
+        float scale = 0.5F * (SscClientConfig.BIG_CODEX.get() ? 2 : 1);
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
         int bookPosY = this.height / 2 - (BOOK_SIZE_Y * bookScale) / 2;
+        this.widgetList.clear();
         int defaultTextColor = 0x222222;
         int headerTextColor = 0xDDDDDD;
         // Title
@@ -104,12 +105,14 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
     }
 
     private void renderBook(GuiGraphics graphics) {
-        int finalBookSizeX = BOOK_SIZE_X;
-        int finalBookSizeY = BOOK_SIZE_Y;
-        int bookPosX = this.width / 2 - finalBookSizeX / 2;
-        int bookPosY = this.height / 2 - finalBookSizeY / 2;
-        graphics.blit(PAGE_TEXTURE, bookPosX, bookPosY, 0, 0,
-                finalBookSizeX, finalBookSizeY, finalBookSizeX, finalBookSizeY);
+        int bookScale = SscClientConfig.BIG_CODEX.get() ? 2 : 1;
+        int x = this.width / 2 - BOOK_SIZE_X * bookScale / 2;
+        int y = this.height / 2 - BOOK_SIZE_Y * bookScale / 2;
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(bookScale, bookScale, 1);
+        graphics.blit(PAGE_TEXTURE, 0, 0, 0, 0, BOOK_SIZE_X, BOOK_SIZE_Y, BOOK_SIZE_X, BOOK_SIZE_Y);
+        graphics.pose().popPose();
     }
 
     private void nextPage() {
@@ -118,7 +121,7 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
 
     private Button buildDetailScreenButton(int inBookPosX, int inBookPosY,
                                            Component detailText) {
-        int bookScale = 1;
+        int bookScale = SscClientConfig.BIG_CODEX.get() ? 2 : 1;
         int bookPosX = this.width / 2 - (BOOK_SIZE_X * bookScale) / 2;
         int bookPosY = this.height / 2 - (BOOK_SIZE_Y * bookScale) / 2;
         int fixedPosX = bookPosX + inBookPosX * bookScale;
@@ -130,9 +133,9 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int bookScale = 1;
-        int bookPosX = this.width / 2 - BOOK_SIZE_X / 2;
-        int bookPosY = this.height / 2 - BOOK_SIZE_Y / 2;
+        int bookScale = SscClientConfig.BIG_CODEX.get() ? 2 : 1;
+        int bookPosX = this.width / 2 - BOOK_SIZE_X * bookScale / 2;
+        int bookPosY = this.height / 2 - BOOK_SIZE_Y * bookScale / 2;
         this.renderBook(graphics);
         // Entity preview, origin at the entity's feet center.
         // Size -> (70, 66) Pos -> (35, 15)
@@ -142,8 +145,11 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
                 (float) (playerX - mouseX), (float) (playerY - 37 * bookScale - mouseY), this.currentPlayer);
         // Cursed moon icon, Size -> (8, 8), Pos -> (115, 92).
         boolean isCursedMoon = CursedMoonData.isCursedMoonDay(Minecraft.getInstance().level);
-        graphics.blit(CURSED_MOON_ICON_TEXTURE, bookPosX + 115 * bookScale, bookPosY + 92 * bookScale,
-                isCursedMoon ? 8 : 0, 0, 8 * bookScale, 8 * bookScale, 16, 8);
+        graphics.pose().pushPose();
+        graphics.pose().translate(bookPosX + 115 * bookScale, bookPosY + 92 * bookScale, 0);
+        graphics.pose().scale(bookScale, bookScale, 1);
+        graphics.blit(CURSED_MOON_ICON_TEXTURE, 0, 0, isCursedMoon ? 8 : 0, 0, 8, 8, 16, 8);
+        graphics.pose().popPose();
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 

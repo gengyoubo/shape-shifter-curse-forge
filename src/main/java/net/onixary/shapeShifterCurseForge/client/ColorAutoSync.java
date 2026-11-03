@@ -45,7 +45,13 @@ public final class ColorAutoSync {
         if (++ticksInLevel != 20) {
             return;
         }
-        if (!SscClientConfig.CUSTOM_AUTO_SYNC_CONFIG.get()) {
+        syncNow();
+    }
+
+    /** Apply changed local preferences when the Forge configuration menu closes. */
+    public static void syncNow() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null || minecraft.getConnection() == null || !SscClientConfig.CUSTOM_AUTO_SYNC_CONFIG.get()) {
             return;
         }
         boolean keep = SscClientConfig.CUSTOM_KEEP_ORIGINAL_SKIN.get();

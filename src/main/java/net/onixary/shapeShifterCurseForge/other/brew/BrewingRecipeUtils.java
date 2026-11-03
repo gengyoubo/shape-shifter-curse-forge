@@ -34,25 +34,47 @@ public final class BrewingRecipeUtils {
     /** NBT key used by Fabric's {@code CTPUtils}; kept identical for datapack/NBT parity. */
     public static final String TARGET_FORM_KEY = "targetForm";
 
-    /**
-     * Forge's {@link BrewingRecipeRegistry#getRecipes()} is unmodifiable, so dynamic
-     * recipes cannot be removed on reload. We instead remember every recipe signature
-     * ever registered this JVM session and only add a recipe the first time it is seen.
-     */
-    // TODO[FORGE] A changed/removed datapack recipe cannot be un-registered; only additions take
-    //   effect after the first load. TODO[TEST] Verify /reload behaviour with dynamic_brewing_recipes.
-    private static final java.util.Set<String> REGISTERED_SIGNATURES = new java.util.HashSet<>();
+    // One permanent Forge entry delegates to an immutable snapshot replaced on each reload.
+    private static final ReloadableBrewingRecipe DELEGATE = new ReloadableBrewingRecipe();
+    private static java.util.List<net.minecraftforge.common.brewing.IBrewingRecipe> pending = new java.util.ArrayList<>();
+    private static boolean registered;
 
     private BrewingRecipeUtils() {
     }
 
-    /** Called before a datapack reload. Recipes are registered eagerly, so nothing is reset. */
     public static void onLoadDynamicBrewingRecipesStart() {
-        // no-op: Forge cannot un-register brewing recipes (see REGISTERED_SIGNATURES).
+        pending = new java.util.ArrayList<>();
     }
 
     public static void onLoadDynamicBrewingRecipesEnd() {
-        // no-op: recipes were registered eagerly in registerPotionRecipe.
+        DELEGATE.recipes = java.util.List.copyOf(pending);
+        if (!registered) {
+            BrewingRecipeRegistry.addRecipe(DELEGATE);
+            registered = true;
+        }
+    }
+
+    private static final class ReloadableBrewingRecipe implements net.minecraftforge.common.brewing.IBrewingRecipe {
+        private volatile java.util.List<net.minecraftforge.common.brewing.IBrewingRecipe> recipes = java.util.List.of();
+
+        @Override
+        public boolean isInput(ItemStack input) {
+            return recipes.stream().anyMatch(recipe -> recipe.isInput(input));
+        }
+
+        @Override
+        public boolean isIngredient(ItemStack ingredient) {
+            return recipes.stream().anyMatch(recipe -> recipe.isIngredient(ingredient));
+        }
+
+        @Override
+        public ItemStack getOutput(ItemStack input, ItemStack ingredient) {
+            for (var recipe : recipes) {
+                ItemStack result = recipe.getOutput(input, ingredient);
+                if (!result.isEmpty()) return result;
+            }
+            return ItemStack.EMPTY;
+        }
     }
 
     /**
@@ -79,35 +101,41 @@ public final class BrewingRecipeUtils {
         ResourceLocation targetForm = recipeJson.has("target_form")
                 ? ResourceLocation.tryParse(recipeJson.get("target_form").getAsString()) : null;
         String type = recipeJson.get("type").getAsString();
-        String signature = type + "|" + input + "|" + ingredient + "|" + output;
-        if (!REGISTERED_SIGNATURES.add(signature)) {
-            return;
-        }
         net.minecraft.world.item.Item ingredientItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(ingredient);
-        if (ingredientItem == Items.AIR) {
+        if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(ingredient) || ingredientItem == Items.AIR) {
             ShapeShifterCurseForge.LOGGER.error("[ssc-brew] unknown ingredient item '{}'", ingredient);
             return;
         }
         Ingredient ingredientObject = Ingredient.of(ingredientItem);
         switch (type) {
             case "potion" -> {
+                if (!net.minecraft.core.registries.BuiltInRegistries.POTION.containsKey(input)
+                        || !net.minecraft.core.registries.BuiltInRegistries.POTION.containsKey(output)) {
+                    ShapeShifterCurseForge.LOGGER.error("[ssc-brew] unknown potion in {} -> {}", input, output);
+                    return;
+                }
                 Potion inputPotion = net.minecraft.core.registries.BuiltInRegistries.POTION.get(input);
                 Potion outputPotion = net.minecraft.core.registries.BuiltInRegistries.POTION.get(output);
                 ItemStack inputStack = PotionUtils.setPotion(new ItemStack(Items.POTION), inputPotion);
                 ItemStack outputStack = PotionUtils.setPotion(new ItemStack(Items.POTION), outputPotion);
-                add(new DynamicBrewingRecipe(inputStack, ingredientObject, outputStack, targetForm));
+                add(new DynamicBrewingRecipe(inputStack, ingredientObject, outputStack, targetForm, true));
             }
             case "item" -> {
+                if (!net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(input)
+                        || !net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(output)) {
+                    ShapeShifterCurseForge.LOGGER.error("[ssc-brew] unknown item in {} -> {}", input, output);
+                    return;
+                }
                 net.minecraft.world.item.Item inputItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(input);
                 net.minecraft.world.item.Item outputItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(output);
-                add(new DynamicBrewingRecipe(new ItemStack(inputItem), ingredientObject, new ItemStack(outputItem), targetForm));
+                add(new DynamicBrewingRecipe(new ItemStack(inputItem), ingredientObject, new ItemStack(outputItem), targetForm, false));
             }
             default -> ShapeShifterCurseForge.LOGGER.error("[ssc-brew] unknown recipe type '{}'", type);
         }
     }
 
     private static void add(net.minecraftforge.common.brewing.IBrewingRecipe recipe) {
-        BrewingRecipeRegistry.addRecipe(recipe);
+        pending.add(recipe);
     }
 
     /**
@@ -116,11 +144,18 @@ public final class BrewingRecipeUtils {
      */
     private static final class DynamicBrewingRecipe extends BrewingRecipe {
         private final @Nullable ResourceLocation targetForm;
+        private final @Nullable Potion inputPotion;
 
         private DynamicBrewingRecipe(ItemStack input, Ingredient ingredient, ItemStack output,
-                                     @Nullable ResourceLocation targetForm) {
+                                     @Nullable ResourceLocation targetForm, boolean matchPotion) {
             super(Ingredient.of(input), ingredient, output);
             this.targetForm = targetForm;
+            this.inputPotion = matchPotion ? PotionUtils.getPotion(input) : null;
+        }
+
+        @Override
+        public boolean isInput(ItemStack input) {
+            return super.isInput(input) && (inputPotion == null || PotionUtils.getPotion(input) == inputPotion);
         }
 
         @Override

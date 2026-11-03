@@ -27,7 +27,8 @@ public final class BrewingRecipeReloadListener extends SimpleJsonResourceReloadL
     protected void apply(Map<ResourceLocation, JsonElement> json, ResourceManager manager, ProfilerFiller profiler) {
         BrewingRecipeUtils.onLoadDynamicBrewingRecipesStart();
         int count = 0;
-        for (Map.Entry<ResourceLocation, JsonElement> entry : json.entrySet()) {
+        for (Map.Entry<ResourceLocation, JsonElement> entry : json.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).toList()) {
             if (!entry.getValue().isJsonObject()) {
                 continue;
             }
