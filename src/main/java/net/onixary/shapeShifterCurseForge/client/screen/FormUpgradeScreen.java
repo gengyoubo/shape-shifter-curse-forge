@@ -80,6 +80,10 @@ public final class FormUpgradeScreen extends Screen {
 
     @Override
     protected void init() {
+        baseX = width / 2 - PANEL_WIDTH / 2;
+        baseY = height / 2 - PANEL_HEIGHT / 2;
+        nodeWindowX = baseX + PERK_UI_X;
+        nodeWindowY = baseY + PERK_UI_Y;
         this.tree = firstTree();
         this.nodes.clear();
         layoutNodes();
@@ -92,7 +96,9 @@ public final class FormUpgradeScreen extends Screen {
     }
 
     private PerkTree firstTree() {
-        Map<ResourceLocation, PerkTree> trees = SscJavaRegistries.perkTreesForGroup(formGroupId);
+        var player = Minecraft.getInstance().player;
+        var form = player == null ? null : net.onixary.shapeShifterCurseForge.form.FormManager.current(player).id();
+        Map<ResourceLocation, PerkTree> trees = SscJavaRegistries.perkTreesForForm(formGroupId, form);
         if (trees.isEmpty()) {
             return null;
         }
@@ -200,7 +206,12 @@ public final class FormUpgradeScreen extends Screen {
         } else if (hovered) {
             graphics.blit(systemIcon("select"), posX - 9, posY - 9, 0, 0, 20, 20, 20, 20);
         }
-        graphics.blit(icon, posX - 8, posY - 8, 0, 0, NODE_ICON, NODE_ICON, NODE_ICON, NODE_ICON);
+        Perk perk = SscJavaRegistries.perk(node.perkId()).orElse(null);
+        if (perk != null && perk.iconX() >= 0) {
+            graphics.blit(ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE,
+                    "textures/perk/textures.png"), posX - 8, posY - 8,
+                    perk.iconX() * 16, perk.iconY() * 16, 16, 16, 512, 512);
+        } else graphics.blit(icon, posX - 8, posY - 8, 0, 0, NODE_ICON, NODE_ICON, NODE_ICON, NODE_ICON);
     }
 
     private void drawInfo(GuiGraphics graphics, ResourceLocation perkId) {
@@ -214,13 +225,16 @@ public final class FormUpgradeScreen extends Screen {
             graphics.drawString(font, lines.get(i), ix, ly, 0xFFF3E9FF, false);
             ly += 10;
         }
-        int cost = perk == null ? 0 : perk.experienceLevels();
-        graphics.drawString(font, Component.translatable(KEY + "perk_xp", cost), ix, baseY + 148, 0xFF9FEFFF);
+        if (perk != null) graphics.drawString(font, !perk.implemented()
+                ? Component.translatable(KEY + "purchase.not_implemented")
+                : perk.itemCost() > 0 ? Component.translatable(KEY + "perk_item_cost", perk.itemCost())
+                : Component.translatable(KEY + "perk_xp", perk.experiencePoints() > 0 ? perk.experiencePoints() : perk.experienceLevels()),
+                ix, baseY + 148, 0xFF9FEFFF);
     }
 
     private boolean isSelectable(ResourceLocation perkId) {
         Perk perk = SscJavaRegistries.perk(perkId).orElse(null);
-        if (perk == null || unlockedPerks.contains(perkId)) {
+        if (perk == null || !perk.implemented() || unlockedPerks.contains(perkId)) {
             return false;
         }
         if (perk.requiredAttunerLevel() > tier) {
@@ -348,6 +362,9 @@ public final class FormUpgradeScreen extends Screen {
     }
 
     private static String perkKey(ResourceLocation perkId, String suffix) {
+        if (perkId.getNamespace().equals(ShapeShifterCurseForge.RESOURCE_NAMESPACE)) {
+            return "ssc_perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + (suffix.equals("description") ? "desc" : suffix);
+        }
         return "perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + suffix;
     }
 

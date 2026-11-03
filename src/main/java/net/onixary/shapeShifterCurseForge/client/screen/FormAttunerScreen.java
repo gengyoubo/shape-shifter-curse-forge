@@ -76,7 +76,9 @@ public final class FormAttunerScreen extends Screen {
                     success ? 0xFFB7FF93 : 0xFFFFB5A7);
         }
 
-        Map<ResourceLocation, PerkTree> trees = SscJavaRegistries.perkTreesForGroup(formGroupId);
+        var player = net.minecraft.client.Minecraft.getInstance().player;
+        var form = player == null ? null : net.onixary.shapeShifterCurseForge.form.FormManager.current(player).id();
+        Map<ResourceLocation, PerkTree> trees = SscJavaRegistries.perkTreesForForm(formGroupId, form);
         renderedNodes.clear();
         if (trees.isEmpty()) {
             graphics.drawCenteredString(font, Component.translatable(KEY + "no_skills"), width / 2, top + 104, 0xFFD2C2E8);
@@ -128,7 +130,7 @@ public final class FormAttunerScreen extends Screen {
         Perk perk = SscJavaRegistries.perk(node.perkId).orElse(null);
         boolean unlocked = unlockedPerks.contains(node.perkId);
         boolean prerequisitesMet = unlockedPerks.containsAll(tree.previous(node.perkId));
-        boolean available = perk != null && prerequisitesMet && attunementLevel >= perk.requiredAttunerLevel();
+        boolean available = perk != null && perk.implemented() && prerequisitesMet && attunementLevel >= perk.requiredAttunerLevel();
         int accent = unlocked ? 0xFF88E871 : available ? 0xFF81E9FF : 0xFF896A9F;
         graphics.fill(node.x, node.y, node.x + NODE_WIDTH, node.y + NODE_HEIGHT, 0xFF150D24);
         graphics.fill(node.x, node.y, node.x + NODE_WIDTH, node.y + 2, accent);
@@ -157,8 +159,10 @@ public final class FormAttunerScreen extends Screen {
             List<Component> tooltip = new ArrayList<>();
             tooltip.add(Component.translatable(perkKey(node.perkId, "name")));
             tooltip.add(Component.translatable(perkKey(node.perkId, "description")));
+            if (!perk.implemented()) tooltip.add(Component.translatable(KEY + "purchase.not_implemented"));
             tooltip.add(Component.translatable(KEY + "perk_kind." + perk.kind().name().toLowerCase(java.util.Locale.ROOT)));
-            tooltip.add(Component.translatable(KEY + "perk_cost", perk.requiredAttunerLevel(), perk.experienceLevels()));
+            tooltip.add(perk.itemCost() > 0 ? Component.translatable(KEY + "perk_item_cost", perk.itemCost())
+                    : Component.translatable(KEY + "perk_xp", perk.experiencePoints() > 0 ? perk.experiencePoints() : perk.experienceLevels()));
             if (unlockedPerks.contains(node.perkId)) tooltip.add(Component.translatable(KEY + "perk_unlocked"));
             graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
             return;
@@ -177,6 +181,9 @@ public final class FormAttunerScreen extends Screen {
     }
 
     private static String perkKey(ResourceLocation perkId, String suffix) {
+        if (perkId.getNamespace().equals(ShapeShifterCurseForge.RESOURCE_NAMESPACE)) {
+            return "ssc_perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + (suffix.equals("description") ? "desc" : suffix);
+        }
         return "perk." + perkId.getNamespace() + "." + perkId.getPath() + "." + suffix;
     }
 

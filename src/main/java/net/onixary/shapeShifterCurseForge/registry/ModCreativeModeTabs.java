@@ -23,6 +23,9 @@ public final class ModCreativeModeTabs {
                         output.accept(ModItems.BOOK_OF_SHAPE_SHIFTER.get());
                         output.accept(ModItems.GRAPHENE_BLADE.get());
                         output.accept(ModItems.COMPOUND_KINETIC_BOW.get());
+                        output.accept(ModItems.HEALING_CHARM.get());
+                        output.accept(ModItems.HARMING_CHARM.get());
+                        output.accept(ModItems.POISON_CHARM.get());
                         ModItems.BETA_ITEMS.forEach(item -> output.accept(item.get()));
                         output.accept(ModItems.SELECT_FORM_ITEM.get());
                         output.accept(ModItems.AMULET_BRACELET.get());

@@ -147,6 +147,7 @@ public final class FormPowerRuntime {
             case "shape-shifter-curse:has_accessory" -> hasAccessory(actor, condition);
             case "shape-shifter-curse:has_mana" -> FormActivePowerService.hasMana(actor,
                     floatValue(condition, "mana", 0.0F));
+            case "shape-shifter-curse:mana_compare" -> compare(FormActivePowerService.mana(actor), condition);
             case "shape-shifter-curse:has_mana_percent" -> FormActivePowerService.manaPercent(actor)
                     >= doubleValue(condition, "mana_percent", 0.0D);
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);

@@ -191,6 +191,14 @@ public final class SscJavaRegistries {
         return Map.copyOf(result);
     }
 
+    public static Map<ResourceLocation, PerkTree> perkTreesForForm(ResourceLocation formGroupId, ResourceLocation formId) {
+        Map<ResourceLocation, PerkTree> result = new LinkedHashMap<>();
+        perkTreesForGroup(formGroupId).forEach((id, tree) -> {
+            if (tree.matchesForm(formId)) result.put(id, tree);
+        });
+        return result;
+    }
+
     /** Direct prerequisite ids for a perk, derived exclusively from its tree edges. */
     public static Set<ResourceLocation> requiredPerks(ResourceLocation perkId) {
         return perkTreeFor(perkId).map(tree -> tree.previous(perkId)).orElseGet(Set::of);

@@ -350,7 +350,7 @@ public final class ModNetwork {
                                             boolean playTransformAnimation) {
         ResourceLocation formId = ResourceLocation.tryParse(data.getFormId());
         var assignedPowerIds = formId == null ? java.util.List.<ResourceLocation>of()
-                : FormPowerRegistry.idsForForm(formId);
+                : FormPowerRegistry.idsForPlayerBase(player);
         return new SyncFormPacket(player.getId(), data.getFormId(), data.getPreviousFormId(), data.getFormGroupId(),
                 data.getFormTier(), data.isContentEnabled(), assignedPowerIds, playTransformAnimation);
     }

@@ -295,8 +295,16 @@ public final class FormActivePowerService {
 
     private static float maximumMana(Player player) {
         String type = manaType(player);
-        return FAMILIAR_FOX_MANA.equals(type) ? FAMILIAR_FOX_MAX_MANA
+        float base = FAMILIAR_FOX_MANA.equals(type) ? FAMILIAR_FOX_MAX_MANA
                 : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
+        final float[] bonus = {0};
+        FormPowerRegistry.visitActive(player, (id, power) -> {
+            if ("shape-shifter-curse:mana_attribute".equals(FormPowerRegistry.typeOf(power))
+                    && power.has("max_mana_modifier") && power.get("max_mana_modifier").isJsonObject()) {
+                bonus[0] += FormPowerRuntime.floatValue(power.getAsJsonObject("max_mana_modifier"), "add", 0);
+            }
+        });
+        return Math.max(1.0F, base + bonus[0]);
     }
 
     private static void setMana(Player player, float value) {

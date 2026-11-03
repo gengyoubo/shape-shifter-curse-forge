@@ -1,4 +1,8 @@
 {
+    "screen.shape-shifter-curse.form_attuner.purchase.not_implemented": "This perk is not available yet.",
+    "screen.shape-shifter-curse.form_attuner.perk_item_cost": "Glint Prism ×%s",
+    "screen.shape-shifter-curse.form_attuner.purchase.insufficient_items": "Not enough Glint Prisms.",
+
     "item.shape-shifter-curse.amulet_bracelet_plus.tooltip": "[Форма лисицы-фамильяра] Ведьмы и заклинатели больше не могут принудительно влиять на вас, а поглощение маны у враждебных существ больше не вызывает побочных эффектов. +Количество маны, поглощаемой у враждебных существ, значительно увеличивается+",
     "item.shape-shifter-curse.attach_hook_plus.tooltip": "[Форма летучей мыши] Оружие и инструменты больше не выпадают у вас из рук, однако их прочность расходуется быстрее. +После добычи блоков вы получаете эффект спешки+",
     "item.shape-shifter-curse.bottled_snowfall_plus.tooltip": "[Инструмент полярной лисицы] Создаёт и выпускает снежки. +Больше не расходует сытость+",

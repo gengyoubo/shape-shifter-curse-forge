@@ -31,11 +31,13 @@ public final class PerkTree {
     private final ResourceLocation formGroupId;
     private final Set<ResourceLocation> perks;
     private final Set<Edge> edges;
+    private final ResourceLocation requiredForm;
 
     private PerkTree(Builder builder) {
         formGroupId = builder.formGroupId;
         perks = Collections.unmodifiableSet(new LinkedHashSet<>(builder.perks));
         edges = Collections.unmodifiableSet(new LinkedHashSet<>(builder.edges));
+        requiredForm = builder.requiredForm;
     }
 
     public static Builder builder(ResourceLocation formGroupId) {
@@ -46,6 +48,7 @@ public final class PerkTree {
     public ResourceLocation formGroupId() {
         return formGroupId;
     }
+    public boolean matchesForm(ResourceLocation formId) { return requiredForm == null || requiredForm.equals(formId); }
 
     /** All perk ids in stable registration order, including roots and disconnected display nodes. */
     public Set<ResourceLocation> perks() {
@@ -82,9 +85,14 @@ public final class PerkTree {
         private final ResourceLocation formGroupId;
         private final Set<ResourceLocation> perks = new LinkedHashSet<>();
         private final Set<Edge> edges = new LinkedHashSet<>();
+        private ResourceLocation requiredForm;
 
         private Builder(ResourceLocation formGroupId) {
             this.formGroupId = Objects.requireNonNull(formGroupId, "formGroupId");
+        }
+        public Builder requiredForm(ResourceLocation formId) {
+            requiredForm = Objects.requireNonNull(formId, "formId");
+            return this;
         }
 
         /** Adds one or more root or disconnected display nodes. */

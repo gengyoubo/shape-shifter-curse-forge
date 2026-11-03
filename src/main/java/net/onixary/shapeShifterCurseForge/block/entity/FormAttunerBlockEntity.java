@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class FormAttunerBlockEntity extends BlockEntity {
     /** Fabric defaults this to four and lets the Perk registry raise it. */
     private static int maxLevel = 4;
-    private static final Map<UUID, BlockPos> LAST_USED_POSITIONS = new ConcurrentHashMap<>();
+    private static final Map<UUID, net.minecraft.core.GlobalPos> LAST_USED_POSITIONS = new ConcurrentHashMap<>();
 
     private int level;
     private List<BeamSegment> beamSegments = List.of();
@@ -49,13 +49,15 @@ public final class FormAttunerBlockEntity extends BlockEntity {
     }
 
     public static void rememberUser(ServerPlayer player, BlockPos pos) {
-        LAST_USED_POSITIONS.put(player.getUUID(), pos.immutable());
+        LAST_USED_POSITIONS.put(player.getUUID(), net.minecraft.core.GlobalPos.of(player.level().dimension(), pos.immutable()));
     }
 
     @Nullable
     public static FormAttunerBlockEntity getLastUsed(ServerPlayer player) {
-        BlockPos pos = LAST_USED_POSITIONS.get(player.getUUID());
-        if (pos == null || !player.level().hasChunkAt(pos)) {
+        var last = LAST_USED_POSITIONS.get(player.getUUID());
+        if (last == null || !last.dimension().equals(player.level().dimension())) return null;
+        BlockPos pos = last.pos();
+        if (!player.level().hasChunkAt(pos)) {
             return null;
         }
         return player.level().getBlockEntity(pos) instanceof FormAttunerBlockEntity attuner ? attuner : null;

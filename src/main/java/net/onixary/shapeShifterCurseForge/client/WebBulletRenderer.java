@@ -18,6 +18,8 @@ public final class WebBulletRenderer {
     @SubscribeEvent
     public static void register(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.WEB_BULLET.get(), WebBulletRenderer::create);
+        event.registerEntityRenderer(ModEntities.POTION_CHARM_ARROW.get(),
+                context -> new ThrownItemRenderer<>(context, 0.75F, true));
     }
 
     private static ThrownItemRenderer<WebBulletEntity> create(EntityRendererProvider.Context context) {

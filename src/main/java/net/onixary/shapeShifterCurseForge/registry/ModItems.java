@@ -33,6 +33,12 @@ public final class ModItems {
                     4, -2.4F, new Item.Properties().durability(128)));
     public static final RegistryObject<Item> COMPOUND_KINETIC_BOW = ITEMS.register("compound_kinetic_bow",
             () -> new net.minecraft.world.item.BowItem(new Item.Properties().durability(768)));
+    public static final RegistryObject<Item> HEALING_CHARM = ITEMS.register("healing_charm_paper",
+            () -> new net.onixary.shapeShifterCurseForge.items.PotionCharmItem(net.minecraft.world.item.alchemy.Potions.STRONG_HEALING));
+    public static final RegistryObject<Item> HARMING_CHARM = ITEMS.register("harming_charm_paper",
+            () -> new net.onixary.shapeShifterCurseForge.items.PotionCharmItem(net.minecraft.world.item.alchemy.Potions.STRONG_HARMING));
+    public static final RegistryObject<Item> POISON_CHARM = ITEMS.register("poison_charm_paper",
+            () -> new net.onixary.shapeShifterCurseForge.items.PotionCharmItem(net.minecraft.world.item.alchemy.Potions.STRONG_POISON));
 
     /** Items introduced by the Fabric beta; power implementations are tracked separately. */
     public static final java.util.List<RegistryObject<Item>> BETA_ITEMS = registerBetaItems();
@@ -52,8 +58,7 @@ public final class ModItems {
         items.add(ITEMS.register("bottled_snowfall_plus", () -> new BottledSnowfall(
                 net.onixary.shapeShifterCurseForge.items.tools.BottledSnowfallToolMaterial.INSTANCE,
                 1, 1.0F, new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.RARE))));
-        for (String name : new String[]{"glint_prism", "explosive_charm_paper", "healing_charm_paper",
-                "harming_charm_paper", "poison_charm_paper"}) {
+        for (String name : new String[]{"glint_prism", "explosive_charm_paper"}) {
             items.add(ITEMS.register(name, () -> new Item(new Item.Properties())));
         }
         return java.util.List.copyOf(items);

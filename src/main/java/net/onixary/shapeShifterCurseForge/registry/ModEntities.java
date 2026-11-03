@@ -31,6 +31,12 @@ public final class ModEntities {
             () -> EntityType.Builder.<WebBulletEntity>of(WebBulletEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(1).build("web_bullet"));
 
+    public static final RegistryObject<EntityType<net.onixary.shapeShifterCurseForge.entity.PotionCharmArrowEntity>> POTION_CHARM_ARROW =
+            ENTITIES.register("potion_charm_arrow", () -> EntityType.Builder
+                    .<net.onixary.shapeShifterCurseForge.entity.PotionCharmArrowEntity>of(
+                            net.onixary.shapeShifterCurseForge.entity.PotionCharmArrowEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(1).build("potion_charm_arrow"));
+
     public static final RegistryObject<EntityType<AnubisWolfMinionEntity>> ANUBIS_WOLF_MINION = ENTITIES.register(
             "anubis_wolf_minion", () -> EntityType.Builder.of(AnubisWolfMinionEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F).build("anubis_wolf_minion"));

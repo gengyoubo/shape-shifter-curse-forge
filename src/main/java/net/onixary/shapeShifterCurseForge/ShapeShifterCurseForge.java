@@ -49,6 +49,7 @@ public final class ShapeShifterCurseForge {
         modBus.addListener(this::commonSetup);
         SscAdvancementTriggers.initialize();
         FormManager.initialize();
+        net.onixary.shapeShifterCurseForge.other.perk.BuiltinPerks.initialize();
         ModNetwork.initialize();
     }
 
