@@ -35,11 +35,18 @@ public class AltarShapedRecipe implements AltarRecipe {
     private final Ingredient catalyst;
     private final int recipeTime;
     private final int fuelCost;
+    private final int totalFuelCost;
     private final ResourceLocation requireAdvancement;
 
     public AltarShapedRecipe(ResourceLocation id, int width, int height, NonNullList<Ingredient> ingredients,
                              ItemStack result, Ingredient catalyst, int recipeTime, int fuelCost,
                              ResourceLocation requireAdvancement) {
+        this(id, width, height, ingredients, result, catalyst, recipeTime, fuelCost, requireAdvancement, -1);
+    }
+
+    public AltarShapedRecipe(ResourceLocation id, int width, int height, NonNullList<Ingredient> ingredients,
+                             ItemStack result, Ingredient catalyst, int recipeTime, int fuelCost,
+                             ResourceLocation requireAdvancement, int totalFuelCost) {
         this.id = id;
         this.width = width;
         this.height = height;
@@ -48,11 +55,13 @@ public class AltarShapedRecipe implements AltarRecipe {
         this.catalyst = catalyst;
         this.recipeTime = recipeTime;
         this.fuelCost = fuelCost;
+        this.totalFuelCost = totalFuelCost;
         this.requireAdvancement = requireAdvancement;
     }
 
     @Override public int getRecipeTime() { return recipeTime; }
     @Override public int getFuelCost() { return fuelCost; }
+    @Override public int getTotalFuelCost() { return totalFuelCost; }
     @Override public Ingredient getCatalyst() { return catalyst; }
 
     @Override
@@ -132,8 +141,9 @@ public class AltarShapedRecipe implements AltarRecipe {
             }
             int time = GsonHelper.getAsInt(json, "time", 200);
             int fuel = GsonHelper.getAsInt(json, "fuel_cost", 1);
+            int totalFuel = AltarRecipe.totalFuelCost(json, time, fuel);
             ItemStack out = ShapedRecipe.itemStackFromJson(GsonHelper.getAsJsonObject(json, "result"));
-            return new AltarShapedRecipe(id, width, height, ings, out, catalyst, time, fuel, adv);
+            return new AltarShapedRecipe(id, width, height, ings, out, catalyst, time, fuel, adv, totalFuel);
         }
 
         @Override
@@ -149,7 +159,8 @@ public class AltarShapedRecipe implements AltarRecipe {
             ItemStack out = buf.readItem();
             int time = buf.readVarInt();
             int fuel = buf.readVarInt();
-            return new AltarShapedRecipe(id, width, height, ings, out, cat, time, fuel, adv);
+            int totalFuel = buf.readInt();
+            return new AltarShapedRecipe(id, width, height, ings, out, cat, time, fuel, adv, totalFuel);
         }
 
         @Override
@@ -172,6 +183,7 @@ public class AltarShapedRecipe implements AltarRecipe {
             buf.writeItem(recipe.result);
             buf.writeVarInt(recipe.recipeTime);
             buf.writeVarInt(recipe.fuelCost);
+            buf.writeInt(recipe.totalFuelCost);
         }
 
         private static String[] readPattern(com.google.gson.JsonArray array) {

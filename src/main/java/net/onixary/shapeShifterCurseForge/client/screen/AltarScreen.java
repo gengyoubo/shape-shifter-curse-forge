@@ -22,6 +22,9 @@ public class AltarScreen extends AbstractContainerScreen<AltarMenu> {
     @Override protected void renderBg(GuiGraphics g, float pt, int mx, int my) {
         ResourceLocation background = BG;
         g.blit(background, leftPos, topPos, 0, 0, WINDOW_WIDTH, imageHeight, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+        // The older Forge background has no separate catalyst slot.
+        g.fill(leftPos + 7, topPos + 56, leftPos + 25, topPos + 74, 0xff373737);
+        g.fill(leftPos + 8, topPos + 57, leftPos + 24, topPos + 73, 0xff8b8b8b);
         int prog = menu.getProgress();
         int total = menu.getTotal();
         if (total > 0 && prog > 0) {
@@ -30,10 +33,19 @@ public class AltarScreen extends AbstractContainerScreen<AltarMenu> {
         }
         int fuel = menu.getFuel();
         if (fuel > 0) {
-            int h = (int)(14 * Math.min(1f, fuel / 8000f));
+            int h = (int)(14 * Math.min(1f, fuel / 102400f));
             g.blit(background, leftPos + 152, topPos + 57 - h, 176, 14 + (14 - h), 14, h,
                     TEXTURE_WIDTH, TEXTURE_HEIGHT);
         }
     }
-    @Override public void render(GuiGraphics g, int mx, int my, float pt) { renderBackground(g); super.render(g, mx, my, pt); renderTooltip(g, mx, my); }
+    @Override public void render(GuiGraphics g, int mx, int my, float pt) {
+        renderBackground(g);
+        super.render(g, mx, my, pt);
+        renderTooltip(g, mx, my);
+        if (menu.getSlot(9).getItem().isEmpty() && isHovering(8, 57, 16, 16, mx, my)) {
+            g.renderTooltip(font, Component.translatable("gui.shape_shifter_curse.altar.catalyst"), mx, my);
+        } else if (menu.getSlot(10).getItem().isEmpty() && isHovering(152, 57, 16, 16, mx, my)) {
+            g.renderTooltip(font, Component.translatable("gui.shape_shifter_curse.altar.fuel"), mx, my);
+        }
+    }
 }

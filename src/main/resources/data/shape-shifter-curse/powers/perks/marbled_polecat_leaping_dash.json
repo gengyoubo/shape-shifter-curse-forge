@@ -1,0 +1,44 @@
+{
+  "type": "apoli:active_self",
+  "cooldown": 100,
+  "key": {
+    "key": "key.shape-shifter-curse.active_skill_1",
+    "continuous": false
+  },
+  "hud_render": {
+    "should_render": false
+  },
+  "condition": {
+    "type": "apoli:and",
+    "conditions": [
+      {
+        "type": "apoli:on_block"
+      },
+      {
+        "type": "apoli:food_level",
+        "comparison": ">",
+        "compare_to": 6
+      }
+    ]
+  },
+  "entity_action": {
+    "type": "apoli:and",
+    "actions": [
+      {
+        "type": "apoli:add_velocity",
+        "z": 0.6,
+        "y": 0.3,
+        "space": "local_horizontal_normalized",
+        "set": true
+      },
+      {
+        "type": "apoli:play_sound",
+        "sound": "minecraft:entity.phantom.flap"
+      },
+      {
+        "type": "apoli:execute_command",
+        "command": "particle minecraft:crit ~ ~0.5 ~ 0.2 0.2 0.2 0 5"
+      }
+    ]
+  }
+}

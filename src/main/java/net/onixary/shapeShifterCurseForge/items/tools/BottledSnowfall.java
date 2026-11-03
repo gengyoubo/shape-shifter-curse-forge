@@ -21,7 +21,7 @@ public class BottledSnowfall extends SwordItem {
 
     @Override
     public void appendHoverText(ItemStack stack, Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("item.shape-shifter-curse.bottled_snowfall.tooltip")
+        tooltip.add(Component.translatable(getDescriptionId() + ".tooltip")
                 .withStyle(ChatFormatting.YELLOW));
     }
 }

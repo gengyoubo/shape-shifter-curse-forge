@@ -28,6 +28,37 @@ public final class ModItems {
             ShapeShifterCurseForge.RESOURCE_NAMESPACE
     );
 
+    public static final RegistryObject<Item> GRAPHENE_BLADE = ITEMS.register("graphene_blade",
+            () -> new net.minecraft.world.item.SwordItem(net.minecraft.world.item.Tiers.DIAMOND,
+                    4, -2.4F, new Item.Properties().durability(128)));
+    public static final RegistryObject<Item> COMPOUND_KINETIC_BOW = ITEMS.register("compound_kinetic_bow",
+            () -> new net.minecraft.world.item.BowItem(new Item.Properties().durability(768)));
+
+    /** Items introduced by the Fabric beta; power implementations are tracked separately. */
+    public static final java.util.List<RegistryObject<Item>> BETA_ITEMS = registerBetaItems();
+    private static java.util.List<RegistryObject<Item>> registerBetaItems() {
+        var items = new java.util.ArrayList<RegistryObject<Item>>();
+        for (String name : new String[]{"amulet_bracelet_plus", "attach_hook_plus", "charm_of_hollow_fang_plus",
+                "charm_of_night_crystal_plus", "charm_of_reverse_thermometer_plus", "collar_of_whiskers_plus",
+                "digestion_fiber_ball_plus", "fountain_belt_plus", "frost_pawglove_plus", "venom_spindle_plus",
+                "withered_bandage_plus"}) {
+            items.add(ITEMS.register(name, () -> new FormTrinket(new Item.Properties().rarity(net.minecraft.world.item.Rarity.RARE))));
+        }
+        for (String name : new String[]{"dune_catalyst_core", "foxfire_catalyst_core", "frost_catalyst_core",
+                "jungle_catalyst_core", "night_catalyst_core", "surge_catalyst_core", "web_catalyst_core"}) {
+            items.add(ITEMS.register(name, () -> new TooltipItem(new Item.Properties(),
+                    "item.shape-shifter-curse." + name + ".tooltip", ChatFormatting.YELLOW)));
+        }
+        items.add(ITEMS.register("bottled_snowfall_plus", () -> new BottledSnowfall(
+                net.onixary.shapeShifterCurseForge.items.tools.BottledSnowfallToolMaterial.INSTANCE,
+                1, 1.0F, new Item.Properties().stacksTo(1).rarity(net.minecraft.world.item.Rarity.RARE))));
+        for (String name : new String[]{"glint_prism", "explosive_charm_paper", "healing_charm_paper",
+                "harming_charm_paper", "poison_charm_paper"}) {
+            items.add(ITEMS.register(name, () -> new Item(new Item.Properties())));
+        }
+        return java.util.List.copyOf(items);
+    }
+
     public static final RegistryObject<Item> BOOK_OF_SHAPE_SHIFTER = ITEMS.register(
             "book_of_shape_shifter",
             () -> new BookOfShapeShifterItem(new Item.Properties())

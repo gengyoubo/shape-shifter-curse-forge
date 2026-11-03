@@ -24,20 +24,27 @@ public class AltarShapelessRecipe implements AltarRecipe {
     private final Ingredient catalyst;
     private final int recipeTime;
     private final int fuelCost;
+    private final int totalFuelCost;
     private final ResourceLocation requireAdvancement;
 
     public AltarShapelessRecipe(ResourceLocation id, ItemStack result, NonNullList<Ingredient> ingredients, Ingredient catalyst, int recipeTime, int fuelCost, ResourceLocation requireAdvancement) {
+        this(id, result, ingredients, catalyst, recipeTime, fuelCost, requireAdvancement, -1);
+    }
+
+    public AltarShapelessRecipe(ResourceLocation id, ItemStack result, NonNullList<Ingredient> ingredients, Ingredient catalyst, int recipeTime, int fuelCost, ResourceLocation requireAdvancement, int totalFuelCost) {
         this.id = id;
         this.result = result;
         this.ingredients = ingredients;
         this.catalyst = catalyst;
         this.recipeTime = recipeTime;
         this.fuelCost = fuelCost;
+        this.totalFuelCost = totalFuelCost;
         this.requireAdvancement = requireAdvancement;
     }
 
     @Override public int getRecipeTime() { return recipeTime; }
     @Override public int getFuelCost() { return fuelCost; }
+    @Override public int getTotalFuelCost() { return totalFuelCost; }
     @Override public Ingredient getCatalyst() { return catalyst; }
 
     @Override
@@ -64,20 +71,28 @@ public class AltarShapelessRecipe implements AltarRecipe {
             if (!s.isEmpty()) inputs.add(s);
         }
         if (inputs.size() != ingredients.size()) return false;
-        java.util.List<Ingredient> remaining = new java.util.ArrayList<>(ingredients);
-        for (ItemStack stack : inputs) {
-            boolean matched = false;
-            var it = remaining.iterator();
-            while (it.hasNext()) {
-                Ingredient ing = it.next();
-                if (ing.test(stack)) { it.remove(); matched = true; break; }
-            }
-            if (!matched) return false;
+        int[] ingredientInput = new int[ingredients.size()];
+        java.util.Arrays.fill(ingredientInput, -1);
+        for (int i = 0; i < inputs.size(); i++) {
+            if (!matchInput(inputs, i, ingredientInput, new boolean[ingredients.size()])) return false;
         }
-        return remaining.isEmpty();
+        return true;
     }
 
-    // Fabric uses StackedContents helper via RecipeMatcher, we simplify by using shapeless check
+    // A broad tag can overlap a more specific ingredient, so a greedy match is insufficient.
+    private boolean matchInput(java.util.List<ItemStack> inputs, int index, int[] ingredientInput, boolean[] visited) {
+        for (int i = 0; i < ingredients.size(); i++) {
+            if (!visited[i] && ingredients.get(i).test(inputs.get(index))) {
+                visited[i] = true;
+                if (ingredientInput[i] == -1 || matchInput(inputs, ingredientInput[i], ingredientInput, visited)) {
+                    ingredientInput[i] = index;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     @Override public boolean canCraftInDimensions(int w, int h) { return w * h >= ingredients.size(); }
 
     @Override public ItemStack assemble(Container inv, RegistryAccess access) { return result.copy(); }
@@ -103,11 +118,12 @@ public class AltarShapelessRecipe implements AltarRecipe {
             ResourceLocation adv = null;
             if (json.has("require_advancement")) adv = ResourceLocation.parse(GsonHelper.getAsString(json, "require_advancement"));
             int fuel = GsonHelper.getAsInt(json, "fuel_cost", 1);
+            int totalFuel = AltarRecipe.totalFuelCost(json, time, fuel);
             if (ings.isEmpty()) throw new JsonParseException("No ingredients for altar shapeless recipe");
             if (ings.size() > 9) throw new JsonParseException("Too many ingredients");
             JsonObject res = GsonHelper.getAsJsonObject(json, "result");
             ItemStack out = net.minecraft.world.item.crafting.ShapedRecipe.itemStackFromJson(res);
-            return new AltarShapelessRecipe(id, out, ings, catalyst, time, fuel, adv);
+            return new AltarShapelessRecipe(id, out, ings, catalyst, time, fuel, adv, totalFuel);
         }
 
         @Override
@@ -123,7 +139,8 @@ public class AltarShapelessRecipe implements AltarRecipe {
             ItemStack out = buf.readItem();
             int time = buf.readVarInt();
             int fuel = buf.readVarInt();
-            return new AltarShapelessRecipe(id, out, ings, cat, time, fuel, adv);
+            int totalFuel = buf.readInt();
+            return new AltarShapelessRecipe(id, out, ings, cat, time, fuel, adv, totalFuel);
         }
 
         @Override
@@ -135,6 +152,7 @@ public class AltarShapelessRecipe implements AltarRecipe {
             buf.writeItem(r.result);
             buf.writeVarInt(r.recipeTime);
             buf.writeVarInt(r.fuelCost);
+            buf.writeInt(r.totalFuelCost);
         }
     }
 }

@@ -66,6 +66,7 @@ public record MachineJeiRecipe(ResourceLocation id, List<Ingredient> grid, Ingre
             for (int i = 0; i < shapeless.getIngredients().size(); i++) grid.set(i, shapeless.getIngredients().get(i));
         }
         return new MachineJeiRecipe(recipe.getId(), List.copyOf(grid), recipe.getCatalyst(),
-                recipe.getResultItem(RegistryAccess.EMPTY), recipe.getRecipeTime(), recipe.getFuelCost());
+                recipe.getResultItem(RegistryAccess.EMPTY), recipe.getRecipeTime(),
+                recipe.getTotalFuelCost() >= 0 ? recipe.getTotalFuelCost() : recipe.getFuelCost() * recipe.getRecipeTime());
     }
 }

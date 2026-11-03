@@ -29,6 +29,12 @@ public final class ModClient {
     public static void onClientSetup(FMLClientSetupEvent e) {
         e.enqueueWork(() -> {
             MenuScreens.register(ModMenuTypes.ALTAR.get(), AltarScreen::new);
+            var bow = net.onixary.shapeShifterCurseForge.registry.ModItems.COMPOUND_KINETIC_BOW.get();
+            net.minecraft.client.renderer.item.ItemProperties.register(bow, new net.minecraft.resources.ResourceLocation("pull"),
+                    (stack, level, entity, seed) -> entity == null || entity.getUseItem() != stack ? 0.0F
+                            : (stack.getUseDuration() - entity.getUseItemRemainingTicks()) / 20.0F);
+            net.minecraft.client.renderer.item.ItemProperties.register(bow, new net.minecraft.resources.ResourceLocation("pulling"),
+                    (stack, level, entity, seed) -> entity != null && entity.isUsingItem() && entity.getUseItem() == stack ? 1.0F : 0.0F);
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.TEMP_WEB_BRIDGE.get(), RenderType.cutout());
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.FORM_ATTUNER.get(), RenderType.translucent());
         });

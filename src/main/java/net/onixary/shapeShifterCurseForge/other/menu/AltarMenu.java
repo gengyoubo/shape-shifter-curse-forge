@@ -15,10 +15,12 @@ public class AltarMenu extends AbstractContainerMenu {
         this.container = container; this.data = data;
         // 3x3 input 0-8
         for (int y=0;y<3;y++) for(int x=0;x<3;x++) addSlot(new Slot(container, x+y*3, 30 + x*18, 17 + y*18));
-        // catalyst/fuel 9
-        addSlot(new Slot(container, 9, 152, 57));
-        // output 10
-        addSlot(new Slot(container, 10, 124, 35) { @Override public boolean mayPlace(ItemStack s){ return false; }
+        // Catalyst and fuel have separate slots.
+        addSlot(new Slot(container, 9, 8, 57));
+        addSlot(new Slot(container, 10, 152, 57) {
+            @Override public boolean mayPlace(ItemStack s) { return net.onixary.shapeShifterCurseForge.block.entity.AltarBlockEntity.canFuel(s); }
+        });
+        addSlot(new Slot(container, 11, 124, 35) { @Override public boolean mayPlace(ItemStack s){ return false; }
         });
         // player
         for(int y=0;y<3;y++) for(int x=0;x<9;x++) addSlot(new Slot(inv, x+y*9+9, 8+x*18, 84+y*18));
@@ -31,11 +33,12 @@ public class AltarMenu extends AbstractContainerMenu {
         Slot slot = slots.get(index);
         if (slot.hasItem()) {
             ItemStack stack = slot.getItem(); copy = stack.copy();
-            if (index < 11) {
-                if (!moveItemStackTo(stack, 11, 47, true)) return ItemStack.EMPTY;
+            if (index < 12) {
+                if (!moveItemStackTo(stack, 12, 48, true)) return ItemStack.EMPTY;
             } else {
-                // try fuel/catalyst slot 9 or inputs 0-8
-                if (!moveItemStackTo(stack, 0, 9, false) && !moveItemStackTo(stack, 9, 10, false)) return ItemStack.EMPTY;
+                if (!(net.onixary.shapeShifterCurseForge.block.entity.AltarBlockEntity.canFuel(stack)
+                        && moveItemStackTo(stack, 10, 11, false))
+                        && !moveItemStackTo(stack, 0, 9, false)) return ItemStack.EMPTY;
             }
             if (stack.isEmpty()) slot.set(ItemStack.EMPTY); else slot.setChanged();
         }
@@ -44,5 +47,5 @@ public class AltarMenu extends AbstractContainerMenu {
     @Override public boolean stillValid(Player p) { return container.stillValid(p); }
     public int getProgress(){ return data.get(0); }
     public int getTotal(){ return data.get(1); }
-    public int getFuel(){ return data.get(2); }
+    public int getFuel(){ return (data.get(2) & 0xffff) | ((data.get(3) & 0xffff) << 16); }
 }

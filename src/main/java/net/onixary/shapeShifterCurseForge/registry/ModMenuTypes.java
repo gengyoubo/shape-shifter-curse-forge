@@ -19,7 +19,7 @@ public final class ModMenuTypes {
             return new AltarMenu(id, inv, altar, altar.dataAccess);
         }
         // fallback dummy
-        return new AltarMenu(id, inv, new net.minecraft.world.SimpleContainer(11), new net.minecraft.world.inventory.SimpleContainerData(3));
+        return new AltarMenu(id, inv, new net.minecraft.world.SimpleContainer(12), new net.minecraft.world.inventory.SimpleContainerData(4));
     }));
     private ModMenuTypes(){}
 }

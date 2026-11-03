@@ -43,7 +43,7 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
     public static boolean canFuel(ItemStack s) { return getFuelMap().containsKey(s.getItem()); }
     public static int getFuelTime(ItemStack s) { return getFuelMap().getOrDefault(s.getItem(), 0); }
 
-    private NonNullList<ItemStack> items = NonNullList.withSize(11, ItemStack.EMPTY);
+    private NonNullList<ItemStack> items = NonNullList.withSize(12, ItemStack.EMPTY);
     public UUID lastUser;
     private AltarRecipe currentRecipe;
     public int progress;
@@ -56,7 +56,8 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
             return switch (i) {
                 case 0 -> progress;
                 case 1 -> totalProgress;
-                case 2 -> fuelTime;
+                case 2 -> fuelTime & 0xffff;
+                case 3 -> fuelTime >>> 16;
                 default -> 0;
             };
         }
@@ -64,10 +65,11 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
             switch (i) {
                 case 0 -> progress = v;
                 case 1 -> totalProgress = v;
-                case 2 -> fuelTime = v;
+                case 2 -> fuelTime = (fuelTime & 0xffff0000) | (v & 0xffff);
+                case 3 -> fuelTime = (fuelTime & 0xffff) | ((v & 0xffff) << 16);
             }
         }
-        @Override public int getCount() { return 3; }
+        @Override public int getCount() { return 4; }
     };
 
     public AltarBlockEntity(BlockPos pos, BlockState state) {
@@ -91,21 +93,26 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
     }
     @Override public boolean canPlaceItem(int slot, ItemStack stack) {
         if (slot < 9) return true;
-        if (slot == 9) return canFuel(stack) || (currentRecipe != null && currentRecipe.getCatalyst() != null && currentRecipe.getCatalyst().test(stack));
+        if (slot == 9) return true;
+        if (slot == 10) return canFuel(stack);
         return false;
     }
     @Override public int[] getSlotsForFace(net.minecraft.core.Direction dir) {
         if (dir == net.minecraft.core.Direction.UP) return new int[]{0,1,2,3,4,5,6,7,8};
-        if (dir == net.minecraft.core.Direction.DOWN) return new int[]{10};
-        return new int[]{9};
+        if (dir == net.minecraft.core.Direction.DOWN) return new int[]{11};
+        return new int[]{10,9};
     }
     @Override public boolean canPlaceItemThroughFace(int slot, ItemStack stack, net.minecraft.core.Direction dir) { return canPlaceItem(slot, stack); }
-    @Override public boolean canTakeItemThroughFace(int slot, ItemStack stack, net.minecraft.core.Direction dir) { return slot == 10; }
+    @Override public boolean canTakeItemThroughFace(int slot, ItemStack stack, net.minecraft.core.Direction dir) { return slot == 11; }
 
     @Override public void load(CompoundTag tag) {
         super.load(tag);
         items = NonNullList.withSize(getContainerSize(), ItemStack.EMPTY);
         ContainerHelper.loadAllItems(tag, items);
+        if (tag.getInt("InventoryVersion") < 2) {
+            items.set(11, items.get(10));
+            items.set(10, ItemStack.EMPTY);
+        }
         if (tag.hasUUID("LastUser")) lastUser = tag.getUUID("LastUser");
         fuelTime = tag.getInt("FuelTime");
         progress = tag.getInt("Progress");
@@ -114,6 +121,7 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
     @Override protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         ContainerHelper.saveAllItems(tag, items);
+        tag.putInt("InventoryVersion", 2);
         if (lastUser != null) tag.putUUID("LastUser", lastUser);
         tag.putInt("FuelTime", fuelTime);
         tag.putInt("Progress", progress);
@@ -124,11 +132,20 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
         if (level.isClientSide) return;
         if (be.needCheckRecipe) { be.checkRecipe(); be.needCheckRecipe = false; }
         boolean dirty = false;
-        // Forge parity: simplify fuel handling – ignore fuel requirement for now, just progress when recipe matches
-        // Keep fuelTime for GUI display but don't block progress
-        if (be.currentRecipe != null) {
-            be.progress++;
+        ItemStack fuel = be.items.get(10);
+        int fuelValue = getFuelTime(fuel);
+        if (fuelValue > 0 && be.fuelTime <= MAX_FUEL - fuelValue) {
+            be.fuelTime += fuelValue;
+            fuel.shrink(1);
             dirty = true;
+        }
+        if (be.currentRecipe != null) {
+            int usage = be.currentRecipe.fuelUsage(be.progress);
+            if (be.fuelTime >= usage) {
+                be.fuelTime -= usage;
+                be.progress++;
+                dirty = true;
+            }
             if (be.progress >= be.currentRecipe.getRecipeTime()) {
                 if (be.craftRecipe()) {
                     be.progress = 0;
@@ -179,7 +196,7 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
     }
 
     private boolean canOutput(AltarRecipe r) {
-        ItemStack outSlot = items.get(10);
+        ItemStack outSlot = items.get(11);
         ItemStack result = r.assemble(this, Objects.requireNonNull(level).registryAccess());
         if (result.isEmpty()) return false;
         if (outSlot.isEmpty()) return true;
@@ -191,23 +208,21 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
         if (currentRecipe == null || level == null) return false;
         if (!canOutput(currentRecipe)) return false;
         ItemStack result = currentRecipe.assemble(this, level.registryAccess());
-        ItemStack outSlot = items.get(10);
-        if (outSlot.isEmpty()) items.set(10, result.copy());
+        ItemStack outSlot = items.get(11);
+        if (outSlot.isEmpty()) items.set(11, result.copy());
         else outSlot.grow(result.getCount());
         if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapedRecipe shaped) {
             for (int y = 0; y < 3; y++) {
                 for (int x = 0; x < 3; x++) {
                     if (shaped.ingredientAt(x, y).isEmpty()) continue;
                     ItemStack s = items.get(x + y * 3);
-                    if (!s.isEmpty()) s.shrink(1);
+                    consumeInput(x + y * 3);
                 }
             }
-        } else if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe shapeless) {
-            for (var ing : shapeless.getIngredients()) {
-                for (int i = 0; i < 9; i++) {
-                    ItemStack s = items.get(i);
-                    if (!s.isEmpty() && ing.test(s)) { s.shrink(1); break; }
-                }
+        } else if (currentRecipe instanceof net.onixary.shapeShifterCurseForge.recipe.altar.AltarShapelessRecipe) {
+            // A successful shapeless match uses every occupied grid slot exactly once.
+            for (int i = 0; i < 9; i++) {
+                consumeInput(i);
             }
         } else {
             // Unknown AltarRecipe implementation: consume one item from each occupied input slot.
@@ -216,10 +231,20 @@ public class AltarBlockEntity extends BlockEntity implements WorldlyContainer, M
                 if (!s.isEmpty()) s.shrink(1);
             }
         }
-        if (currentRecipe.getCatalyst() != null && !currentRecipe.getCatalyst().isEmpty()) {
-            ItemStack cat = items.get(9);
-            if (!cat.isEmpty() && currentRecipe.getCatalyst().test(cat)) cat.shrink(1);
-        }
+        // The catalyst is a reusable requirement in Fabric's altar recipes.
         return true;
+    }
+
+    private void consumeInput(int slot) {
+        ItemStack input = items.get(slot);
+        if (input.isEmpty()) return;
+        ItemStack remainder = input.is(net.minecraft.world.item.Items.POWDER_SNOW_BUCKET)
+                ? new ItemStack(net.minecraft.world.item.Items.BUCKET) : input.getCraftingRemainingItem();
+        input.shrink(1);
+        if (!remainder.isEmpty()) {
+            if (input.isEmpty()) items.set(slot, remainder);
+            else if (level != null) net.minecraft.world.Containers.dropItemStack(level,
+                    worldPosition.getX() + 0.5, worldPosition.getY() + 1, worldPosition.getZ() + 0.5, remainder);
+        }
     }
 }
