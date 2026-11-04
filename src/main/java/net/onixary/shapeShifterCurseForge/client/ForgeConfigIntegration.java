@@ -13,6 +13,7 @@ import net.onixary.shapeShifterCurseForge.client.screen.SscConfigScreen;
 public final class ForgeConfigIntegration {
     private ForgeConfigIntegration() {}
 
+    @SuppressWarnings("removal")
     @SubscribeEvent
     public static void setup(FMLClientSetupEvent event) {
         ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,

@@ -10,6 +10,8 @@ import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.PlayerSkinData;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -37,6 +39,24 @@ public final class FormTextureUtils {
     }
 
     public static TempFormModelProcessor tempFormModelProcessor = null;
+
+    /** Previews the menu's unsaved "keep original skin" choice on the local player. */
+    public interface TempCustomSkinConfigOverrider {
+        boolean keepOriginalSkin();
+    }
+
+    public static TempCustomSkinConfigOverrider tempCustomSkinConfigOverrider = null;
+
+    /** Enabled players wear the mod's base skin unless they chose to keep their own. */
+    public static boolean usesBaseSkin(Player player) {
+        if (FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(FormManager.current(player).id())) {
+            return false;
+        }
+        if (tempCustomSkinConfigOverrider != null && player == Minecraft.getInstance().player) {
+            return !tempCustomSkinConfigOverrider.keepOriginalSkin();
+        }
+        return !SscApi.currentSkin(player).map(PlayerSkinData::isKeepOriginalSkin).orElse(false);
+    }
 
     private FormTextureUtils() {
     }

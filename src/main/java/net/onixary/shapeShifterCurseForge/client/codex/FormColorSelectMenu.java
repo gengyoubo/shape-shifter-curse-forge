@@ -38,7 +38,8 @@ import java.util.function.Supplier;
  * per-form default slot. Browsing to another unlocked form also previews its model.
  */
 public class FormColorSelectMenu extends Screen
-        implements FormTextureUtils.TempFormTextureProcessor, FormTextureUtils.TempFormModelProcessor {
+        implements FormTextureUtils.TempFormTextureProcessor, FormTextureUtils.TempFormModelProcessor,
+        FormTextureUtils.TempCustomSkinConfigOverrider {
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
             ShapeShifterCurseForge.RESOURCE_NAMESPACE, "textures/gui/v1_form_color_select_menu.png");
     private static final int BG_WIDTH = 420;
@@ -143,6 +144,7 @@ public class FormColorSelectMenu extends Screen
     private boolean lastLoadDataIsServerSide = false;
     private boolean isUsingTempTexture = true;
     private boolean isUsingTempModel = true;
+    private boolean isUsingSkinOverrider = true;
     private @Nullable Screen parsetScreen = null;
     private boolean isUpdateUI = false;
     private int isUpdateSlider = 0;
@@ -175,6 +177,12 @@ public class FormColorSelectMenu extends Screen
         } else {
             LogUtils.getLogger().warn("Temp Form Model System is already in use, dynamic form rendering will not work");
             this.isUsingTempModel = false;
+        }
+        if (FormTextureUtils.tempCustomSkinConfigOverrider == null) {
+            FormTextureUtils.tempCustomSkinConfigOverrider = this;
+        } else {
+            LogUtils.getLogger().warn("Temp Custom Skin Config System is already in use, dynamic custom skin config will not work");
+            this.isUsingSkinOverrider = false;
         }
         if (instance != null) {
             LogUtils.getLogger().error("FormColorSelectMenu is already in use, only one instance is allowed");
@@ -262,6 +270,11 @@ public class FormColorSelectMenu extends Screen
     @Nullable
     public ResourceLocation getPreviewForm() {
         return this.getForm();
+    }
+
+    @Override
+    public boolean keepOriginalSkin() {
+        return this.keepOriginalSkin;
     }
 
     public void updateSlider() {
@@ -756,6 +769,10 @@ public class FormColorSelectMenu extends Screen
         if (this.isUsingTempModel) {
             FormTextureUtils.tempFormModelProcessor = null;
             this.isUsingTempModel = false;
+        }
+        if (this.isUsingSkinOverrider) {
+            FormTextureUtils.tempCustomSkinConfigOverrider = null;
+            this.isUsingSkinOverrider = false;
         }
         instance = null;
         try {

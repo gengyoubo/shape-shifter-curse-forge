@@ -29,6 +29,7 @@ public final class FirstPersonModelCompat {
     private static boolean resolved;
     private static Field instanceField;
     private static java.lang.reflect.Method getConfig;
+    private static java.lang.reflect.Method isEnabled;
     private static boolean newVersion;
     private static boolean versionCheckFailed;
     private static ResourceLocation lastForm;
@@ -63,6 +64,21 @@ public final class FirstPersonModelCompat {
         }
     }
 
+    /** Whether First-person Model is installed and currently drawing the player's body. */
+    public static boolean isEnabled() {
+        if (!resolve()) {
+            return false;
+        }
+        try {
+            Object core = instanceField.get(null);
+            return core != null && (boolean) isEnabled.invoke(core);
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            LogUtils.getLogger().warn("Disabling First-person Model integration", exception);
+            instanceField = null;
+            return false;
+        }
+    }
+
     private static boolean resolve() {
         if (resolved) {
             return instanceField != null;
@@ -75,6 +91,7 @@ public final class FirstPersonModelCompat {
             Class<?> core = Class.forName("dev.tr7zw.firstperson.FirstPersonModelCore");
             instanceField = core.getField("instance");
             getConfig = core.getMethod("getConfig");
+            isEnabled = core.getMethod("isEnabled");
         } catch (ReflectiveOperationException exception) {
             LogUtils.getLogger().warn("First-person Model is loaded but its config API was not found", exception);
             instanceField = null;

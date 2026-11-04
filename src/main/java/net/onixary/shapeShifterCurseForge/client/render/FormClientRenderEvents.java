@@ -73,8 +73,10 @@ public final class FormClientRenderEvents {
                 : PlayerAnimatorCompat.firstPersonArms(player);
         // Vanilla never renders the camera entity's body in first person; the form's
         // first-person arms are handled separately by FormFirstPersonArmEvents.
-        if (!inventoryPreview && player == minecraft.player
-                && minecraft.options.getCameraType().isFirstPerson() && animatedArms == null) {
+        // First-person Model does render it, and that body must be the form.
+        boolean selfFirstPerson = !inventoryPreview && player == minecraft.player
+                && minecraft.options.getCameraType().isFirstPerson() && animatedArms == null;
+        if (selfFirstPerson && !FirstPersonModelCompat.isEnabled()) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:first-person-self");
             return;
@@ -97,6 +99,7 @@ public final class FormClientRenderEvents {
         // before vanilla ran, stranding the player invisible with no recovery signal.
         PoseStack poseStack = event.getPoseStack();
         FirstPersonGeoVisibility armVisibility = null;
+        software.bernie.geckolib.cache.object.GeoBone hiddenNeck = null;
         poseStack.pushPose();
         try {
             renderer.setPlayer(player);
@@ -126,6 +129,12 @@ public final class FormClientRenderEvents {
                 if (!hideArms && animatedArms.right()) visibleArms.add(geoModel.firstPersonArmBone(true));
                 armVisibility = new FirstPersonGeoVisibility(
                         geoModel.getBakedModel(geoModel.modelResource()).topLevelBones(), visibleArms);
+            }
+            if (selfFirstPerson) {
+                FormGeoModel geoModel = (FormGeoModel) renderer.getGeoModel();
+                geoModel.getBakedModel(geoModel.modelResource());
+                hiddenNeck = geoModel.neckRootBone().orElse(null);
+                if (hiddenNeck != null) hiddenNeck.setHidden(true);
             }
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
             // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
@@ -157,6 +166,7 @@ public final class FormClientRenderEvents {
             reportRenderFailure(player, form, exception);
         } finally {
             if (armVisibility != null) armVisibility.close();
+            if (hiddenNeck != null) hiddenNeck.setHidden(false);
             poseStack.popPose();
         }
     }
