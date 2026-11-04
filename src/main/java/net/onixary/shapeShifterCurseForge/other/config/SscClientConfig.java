@@ -77,6 +77,21 @@ public final class SscClientConfig {
     public static final ForgeConfigSpec.IntValue MANA_OFFSET_Y = BUILDER
             .defineInRange("hud.mana_offset_y", -17, -10000, 10000);
 
+    public static final ForgeConfigSpec.BooleanValue BETTER_COMBAT_FIX = BUILDER
+            .define("render.better_combat_fix", true);
+    public static final ForgeConfigSpec.BooleanValue DISABLE_COLOR_UNLOCK_CHECK = BUILDER
+            .define("custom.disable_color_unlock_check", false);
+    public static final ForgeConfigSpec.BooleanValue FCS_USE_V1_MENU = BUILDER
+            .comment("Open the professional (V1) form color menu from the codex instead of V2.")
+            .define("custom.fcs_use_v1_menu", false);
+    public static final ForgeConfigSpec.BooleanValue CHANGE_FPM_CONFIG = BUILDER
+            .comment("Let feral forms adjust First-person Model's X offsets while that mod is loaded.")
+            .define("render.enable_change_fpm_config", true);
+
+    public static final ForgeConfigSpec.IntValue MAGIC_POSITION = BUILDER.defineInRange("hud.magic_position", 8, 1, 9);
+    public static final ForgeConfigSpec.IntValue MAGIC_OFFSET_X = BUILDER.defineInRange("hud.magic_offset_x", -200, -10000, 10000);
+    public static final ForgeConfigSpec.IntValue MAGIC_OFFSET_Y = BUILDER.defineInRange("hud.magic_offset_y", -35, -10000, 10000);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private SscClientConfig() {

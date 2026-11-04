@@ -42,6 +42,7 @@ public final class ModClient {
 
     @SubscribeEvent
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(ModEntities.MANA_RESERVOIR.get(), context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 1.0F, true));
         event.registerEntityRenderer(ModEntities.ANUBIS_WOLF_MINION.get(), AnubisWolfMinionRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_BAT.get(), BatRenderer::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_AXOLOTL.get(), AxolotlRenderer::new);

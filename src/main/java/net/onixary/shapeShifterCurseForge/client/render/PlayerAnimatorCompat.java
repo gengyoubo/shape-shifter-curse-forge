@@ -18,7 +18,8 @@ public final class PlayerAnimatorCompat {
 
     /** Null for normal world/vanilla-hand rendering, including every remote player. */
     public static ArmVisibility firstPersonArms(Player player) {
-        if (API == null || failed || player != Minecraft.getInstance().player || !API.playerType.isInstance(player)) {
+        if (!net.onixary.shapeShifterCurseForge.other.config.SscClientConfig.BETTER_COMBAT_FIX.get()
+                || API == null || failed || player != Minecraft.getInstance().player || !API.playerType.isInstance(player)) {
             return null;
         }
         try {

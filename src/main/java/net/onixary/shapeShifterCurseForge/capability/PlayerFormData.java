@@ -32,6 +32,15 @@ public final class PlayerFormData implements IPlayerFormData {
     private static final String UNLOCKED_PERKS_KEY = "UnlockedPerks";
     private static final String MANA_POOLS_KEY = "ManaPools";
     private static final String ITEM_STORES_KEY = "ItemStores";
+    private static final String POWER_RESOURCES_KEY = "PowerResources";
+
+    private boolean initialFormPending = true;
+
+    public boolean takeInitialFormPending() {
+        boolean pending = initialFormPending;
+        initialFormPending = false;
+        return pending;
+    }
 
     private String formId = ORIGINAL_BEFORE_ENABLE_FORM;
     private String previousFormId = ORIGINAL_BEFORE_ENABLE_FORM;
@@ -49,6 +58,10 @@ public final class PlayerFormData implements IPlayerFormData {
     private int transformativeEffectTicks;
     private final Set<ResourceLocation> unlockedPerks = new LinkedHashSet<>();
     private final Map<String, Float> manaPools = new LinkedHashMap<>();
+    private final Map<String, Double> powerResources = new LinkedHashMap<>();
+    public Map<String, Double> powerResources() { return java.util.Collections.unmodifiableMap(powerResources); }
+    public void setPowerResource(String id, double value) { powerResources.put(id, value); }
+    public void clearPowerResources() { powerResources.clear(); }
     private CompoundTag itemStores = new CompoundTag();
 
     @Override
@@ -178,6 +191,7 @@ public final class PlayerFormData implements IPlayerFormData {
 
     @Override
     public void copyFrom(IPlayerFormData other) {
+        initialFormPending = false;
         setFormId(other.getFormId());
         setPreviousFormId(other.getPreviousFormId());
         setFormGroupId(other.getFormGroupId());
@@ -197,6 +211,8 @@ public final class PlayerFormData implements IPlayerFormData {
         manaPools.clear();
         manaPools.putAll(other.getManaPools());
         setItemStores(other.getItemStores());
+        powerResources.clear();
+        if (other instanceof PlayerFormData actual) powerResources.putAll(actual.powerResources);
     }
 
     @Override
@@ -229,11 +245,20 @@ public final class PlayerFormData implements IPlayerFormData {
         manaPools.forEach(mana::putFloat);
         tag.put(MANA_POOLS_KEY, mana);
         tag.put(ITEM_STORES_KEY, itemStores.copy());
+        CompoundTag resources = new CompoundTag();
+        powerResources.forEach(resources::putDouble);
+        tag.put(POWER_RESOURCES_KEY, resources);
         return tag;
     }
 
     @Override
     public void deserializeNBT(CompoundTag tag) {
+        initialFormPending = false;
+        powerResources.clear();
+        if (tag.contains(POWER_RESOURCES_KEY, Tag.TAG_COMPOUND)) {
+            CompoundTag resources = tag.getCompound(POWER_RESOURCES_KEY);
+            for (String id : resources.getAllKeys()) powerResources.put(id, resources.getDouble(id));
+        }
         if (tag.contains(FORM_ID_KEY)) {
             setFormId(tag.getString(FORM_ID_KEY));
         }

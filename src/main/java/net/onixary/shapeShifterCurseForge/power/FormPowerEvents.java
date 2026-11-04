@@ -282,14 +282,16 @@ public final class FormPowerEvents {
                                        float amount) {
         if (target.level().isClientSide || !(source.getEntity() instanceof Player player)) return;
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if (!"apoli:self_action_on_hit".equals(FormPowerRegistry.typeOf(power))
-                    || !FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
+            String hitType = FormPowerRegistry.typeOf(power);
+            if (!"apoli:self_action_on_hit".equals(hitType) && !"apoli:target_action_on_hit".equals(hitType)) return;
+            if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))
                     || !FormPowerRuntime.testDamageCondition(player, target, source, amount,
                     power.getAsJsonObject("damage_condition"))
                     || !FormPowerRuntime.test(player, target, power.getAsJsonObject("target_condition"))
                     || !FormActivePowerService.usePowerCooldown(player, id,
                     FormPowerRuntime.intValue(power, "cooldown", 1))) return;
-            FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
+            FormPowerRuntime.execute(player, "apoli:target_action_on_hit".equals(hitType) ? target : player,
+                    power.getAsJsonObject("entity_action"));
         });
     }
 
@@ -543,19 +545,22 @@ public final class FormPowerEvents {
             int interval = Math.max(1, FormPowerRuntime.intValue(power, "interval", 20));
             Map<ResourceLocation, Integer> phases = ACTION_OVER_TIME_PHASES.computeIfAbsent(
                     player.getUUID(), ignored -> new HashMap<>());
-            Integer phase = phases.putIfAbsent(powerId, player.tickCount % interval);
+            // Multiple powers may share a parent ID, but their schedules and edges are independent.
+            ResourceLocation instanceId = ResourceLocation.fromNamespaceAndPath(powerId.getNamespace(),
+                    powerId.getPath() + "/timer_" + UUID.nameUUIDFromBytes(power.toString().getBytes(StandardCharsets.UTF_8)).toString().replace("-", ""));
+            Integer phase = phases.putIfAbsent(instanceId, player.tickCount % interval);
             if (phase != null && player.tickCount % interval == phase) {
                 boolean active = FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"));
                 Map<ResourceLocation, Boolean> prior = ACTION_OVER_TIME_ACTIVE.computeIfAbsent(
                         player.getUUID(), ignored -> new HashMap<>());
-                boolean wasActive = prior.getOrDefault(powerId, false);
+                boolean wasActive = prior.getOrDefault(instanceId, false);
                 if (active) {
                     if (!wasActive) FormPowerRuntime.execute(player, player, power.getAsJsonObject("rising_action"));
                     FormPowerRuntime.execute(player, player, power.getAsJsonObject("entity_action"));
                 } else if (wasActive) {
                     FormPowerRuntime.execute(player, player, power.getAsJsonObject("falling_action"));
                 }
-                prior.put(powerId, active);
+                prior.put(instanceId, active);
             }
         }
         if ("shape-shifter-curse:add_sustained_instinct".equals(FormPowerRegistry.typeOf(power))
@@ -892,7 +897,9 @@ public final class FormPowerEvents {
         boolean result;
         if ("apoli:projectile".equals(type)) {
             ResourceLocation id = ResourceLocation.tryParse(FormPowerRuntime.stringValue(condition, "projectile", ""));
-            result = id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType()));
+            result = (!condition.has("projectile") || id != null && id.equals(BuiltInRegistries.ENTITY_TYPE.getKey(projectile.getType())))
+                    && (!condition.has("projectile_condition") || FormPowerRuntime.matchesEntityNbt(
+                            projectile, condition.getAsJsonObject("projectile_condition")));
         } else if (("apoli:or".equals(type) || "apoli:and".equals(type)) && condition.has("conditions")) {
             boolean all = "apoli:and".equals(type);
             result = all;

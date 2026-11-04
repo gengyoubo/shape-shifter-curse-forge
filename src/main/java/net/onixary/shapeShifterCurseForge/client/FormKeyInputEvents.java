@@ -39,7 +39,9 @@ public final class FormKeyInputEvents {
             clipAtLedgeDisabled = false;
         }
         for (KeyMapping key : FormKeyMappings.ACTIVE_SKILLS) {
-            boolean pressed = key.isDown();
+            int index = FormKeyMappings.ACTIVE_SKILLS.indexOf(key);
+            boolean pressed = key.isDown() || index < 6
+                    && net.onixary.shapeShifterCurseForge.client.render.MagicHudRenderer.virtualPressed(index);
             boolean previous = LAST_STATE.getOrDefault(key, false);
             if (pressed != previous) {
                 ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket(key.getName(), pressed));

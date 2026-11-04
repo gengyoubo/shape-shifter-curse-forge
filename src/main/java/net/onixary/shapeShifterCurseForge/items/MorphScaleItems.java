@@ -18,6 +18,11 @@ public final class MorphScaleItems {
         return !stack.isEmpty() && (stack.is(ITEMS) || hasUpgradeMarker(stack));
     }
 
+    public static boolean isMorphScaleFood(ItemStack stack) {
+        var tag = stack.getTag();
+        return isMorphScaleItem(stack) || tag != null && tag.getBoolean("MorphScaleFood");
+    }
+
     /** Keep equipment marked by earlier Forge versions and add-ons usable. */
     public static boolean hasUpgradeMarker(ItemStack stack) {
         var tag = stack.getTag();

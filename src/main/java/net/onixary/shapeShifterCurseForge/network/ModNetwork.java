@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "11";
+    private static final String PROTOCOL_VERSION = "12";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -218,6 +218,18 @@ public final class ModNetwork {
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(24, FrostDiveStatePacket.class,
                 FrostDiveStatePacket::encode, FrostDiveStatePacket::decode, FrostDiveStatePacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(25, UpdateRandomSoundPacket.class,
+                UpdateRandomSoundPacket::encode, UpdateRandomSoundPacket::decode, UpdateRandomSoundPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(26, GameplayConfigPacket.class,
+                GameplayConfigPacket::encode, GameplayConfigPacket::decode, GameplayConfigPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(27, PowerResourcePacket.class,
+                PowerResourcePacket::encode, PowerResourcePacket::decode, PowerResourcePacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(28, ChargeStatePacket.class,
+                ChargeStatePacket::encode, ChargeStatePacket::decode, ChargeStatePacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
     }
 

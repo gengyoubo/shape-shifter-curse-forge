@@ -93,6 +93,20 @@ public final class AnubisMinionService {
                 player.getY() + 0.5D, player.getZ() + 0.5D, 8, 0.0D, 0.0D, 0.0D, 0.0D);
     }
 
+    public static void recall(Player owner) {
+        if (!(owner instanceof net.minecraft.server.level.ServerPlayer player)) return;
+        for (Tag entry : minions(owner).copy()) {
+            try {
+                UUID id = UUID.fromString(entry.getAsString());
+                for (ServerLevel level : player.server.getAllLevels()) {
+                    if (level.getEntity(id) instanceof AnubisWolfMinionEntity wolf
+                            && owner.getUUID().equals(wolf.getOwnerUUID()) && wolf.isAlive()) wolf.discard();
+                }
+            } catch (IllegalArgumentException ignored) { }
+        }
+        owner.getPersistentData().put(MINIONS_KEY, new ListTag());
+    }
+
     public static void applySpawnBonuses(Player owner, LivingEntity minion) {
         FormPowerRegistry.visitActive(owner, (id, power) -> {
             if ("shape-shifter-curse:wolf_minion_bonus".equals(FormPowerRegistry.typeOf(power))

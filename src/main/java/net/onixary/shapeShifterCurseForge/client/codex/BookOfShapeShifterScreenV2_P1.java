@@ -74,7 +74,12 @@ public class BookOfShapeShifterScreenV2_P1 extends Screen implements WidgetEXUti
         // Open FCS Menu Button
         // 21,194,98,11
         this.addRenderableWidget(Button.builder(OPEN_FCS_MENU_BUTTON_LABEL, button -> {
-            if (FormColorSelectMenuV2.instance == null) {
+            if (net.onixary.shapeShifterCurseForge.other.config.SscClientConfig.FCS_USE_V1_MENU.get()) {
+                if (FormColorSelectMenu.instance == null) {
+                    Objects.requireNonNull(this.minecraft).setScreen(new FormColorSelectMenu(
+                            Component.literal("text.shape-shifter-curse.config.form_color_select_menu"), this));
+                }
+            } else if (FormColorSelectMenuV2.instance == null) {
                 Objects.requireNonNull(this.minecraft).setScreen(new FormColorSelectMenuV2(
                         Component.literal("text.shape-shifter-curse.config.form_color_select_menu_v2"), this));
             }

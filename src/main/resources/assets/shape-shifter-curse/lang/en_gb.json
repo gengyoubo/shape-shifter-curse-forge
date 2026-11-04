@@ -964,5 +964,21 @@
     "screen.shape-shifter-curse.config.mana_position": "Mana HUD anchor (1–9)",
     "screen.shape-shifter-curse.config.mana_offset_x": "Mana HUD horizontal offset",
     "screen.shape-shifter-curse.config.mana_offset_y": "Mana HUD vertical offset",
-    "screen.shape-shifter-curse.config.immediate_transform": "Immediate transformation"
+    "screen.shape-shifter-curse.config.immediate_transform": "Immediate transformation",
+    "screen.shape-shifter-curse.config.food_habit": "Enable morph-scale food restriction",
+    "screen.shape-shifter-curse.config.full_stack_upgrade": "Upgrade entire stacks",
+    "screen.shape-shifter-curse.config.initial_form_enabled": "Enable random initial forms",
+    "screen.shape-shifter-curse.config.initial_forms": "Initial forms and weights (comma-separated)",
+    "screen.shape-shifter-curse.config.better_combat_fix": "Enable Better Combat first-person fix",
+    "screen.shape-shifter-curse.config.disable_color_unlock_check": "Ignore form colour unlocks",
+    "screen.shape-shifter-curse.config.magic_position": "Skill HUD anchor (1–9)",
+    "screen.shape-shifter-curse.config.magic_offset_x": "Skill HUD horizontal offset",
+    "screen.shape-shifter-curse.config.magic_offset_y": "Skill HUD vertical offset",
+    "screen.shape-shifter-curse.config.colors_v1": "Professional colour selector",
+    "screen.shape-shifter-curse.config.fcs_use_v1_menu": "Codex opens professional colour selector",
+    "screen.shape-shifter-curse.config.change_fpm_config": "Adjust First-person Model offsets",
+    "key.shape-shifter-curse.scroll_active_skill": "Hold to scroll skills",
+    "key.shape-shifter-curse.prev_active_skill": "Previous active skill",
+    "key.shape-shifter-curse.next_active_skill": "Next active skill",
+    "key.shape-shifter-curse.active_skill": "Use selected skill"
 }

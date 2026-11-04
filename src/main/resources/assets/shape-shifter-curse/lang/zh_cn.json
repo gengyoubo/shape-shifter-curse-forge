@@ -974,5 +974,21 @@
     "screen.shape-shifter-curse.config.mana_position": "魔力栏位置（1–9）",
     "screen.shape-shifter-curse.config.mana_offset_x": "魔力栏横向偏移",
     "screen.shape-shifter-curse.config.mana_offset_y": "魔力栏纵向偏移",
-    "screen.shape-shifter-curse.config.immediate_transform": "立即变形"
+    "screen.shape-shifter-curse.config.immediate_transform": "立即变形",
+    "screen.shape-shifter-curse.config.food_habit": "启用幻形鳞食品限制",
+    "screen.shape-shifter-curse.config.full_stack_upgrade": "整组幻形鳞升级",
+    "screen.shape-shifter-curse.config.initial_form_enabled": "启用随机初始形态",
+    "screen.shape-shifter-curse.config.initial_forms": "初始形态及权重（逗号分隔）",
+    "screen.shape-shifter-curse.config.better_combat_fix": "启用 Better Combat 第一人称修复",
+    "screen.shape-shifter-curse.config.disable_color_unlock_check": "颜色选择器忽略形态解锁",
+    "screen.shape-shifter-curse.config.magic_position": "技能栏位置（1–9）",
+    "screen.shape-shifter-curse.config.magic_offset_x": "技能栏横向偏移",
+    "screen.shape-shifter-curse.config.magic_offset_y": "技能栏纵向偏移",
+    "screen.shape-shifter-curse.config.colors_v1": "颜色选择器(专业版)",
+    "screen.shape-shifter-curse.config.fcs_use_v1_menu": "图鉴打开专业版颜色选择器",
+    "screen.shape-shifter-curse.config.change_fpm_config": "自动调整第一人称模型偏移",
+    "key.shape-shifter-curse.scroll_active_skill": "按住并滚轮切换技能",
+    "key.shape-shifter-curse.prev_active_skill": "上一个主动技能",
+    "key.shape-shifter-curse.next_active_skill": "下一个主动技能",
+    "key.shape-shifter-curse.active_skill": "使用所选技能"
 }

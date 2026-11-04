@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.onixary.shapeShifterCurseForge.client.ColorAutoSync;
+import net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenu;
 import net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenuV2;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
 import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
@@ -50,7 +51,9 @@ public final class SscConfigScreen extends Screen {
         if (page == 0) {
             bool("big_screen", SscClientConfig.BIG_CODEX);
             bool("first_person_form_arms", SscClientConfig.FIRST_PERSON_FORM_ARMS);
+            bool("better_combat_fix", SscClientConfig.BETTER_COMBAT_FIX);
             bool("ignore_hide_arms", SscClientConfig.IGNORE_HIDE_ARMS);
+            bool("change_fpm_config", SscClientConfig.CHANGE_FPM_CONFIG);
             integer("blink_min_interval", SscClientConfig.BLINK_MIN_INTERVAL, 1, 12000);
             integer("blink_max_interval", SscClientConfig.BLINK_MAX_INTERVAL, 1, 12000);
             integer("blink_duration", SscClientConfig.BLINK_DURATION, 1, 1200);
@@ -60,10 +63,15 @@ public final class SscConfigScreen extends Screen {
             integer("mana_position", SscClientConfig.MANA_POSITION, 1, 9);
             integer("mana_offset_x", SscClientConfig.MANA_OFFSET_X, -10000, 10000);
             integer("mana_offset_y", SscClientConfig.MANA_OFFSET_Y, -10000, 10000);
+            integer("magic_position", SscClientConfig.MAGIC_POSITION, 1, 9);
+            integer("magic_offset_x", SscClientConfig.MAGIC_OFFSET_X, -10000, 10000);
+            integer("magic_offset_y", SscClientConfig.MAGIC_OFFSET_Y, -10000, 10000);
             integer("item_store_position", SscClientConfig.ITEM_STORE_POSITION, 1, 9);
             integer("item_store_offset_x", SscClientConfig.ITEM_STORE_OFFSET_X, -10000, 10000);
             integer("item_store_offset_y", SscClientConfig.ITEM_STORE_OFFSET_Y, -10000, 10000);
         } else if (page == 1) {
+            bool("disable_color_unlock_check", SscClientConfig.DISABLE_COLOR_UNLOCK_CHECK);
+            bool("fcs_use_v1_menu", SscClientConfig.FCS_USE_V1_MENU);
             bool("auto_sync_config", SscClientConfig.CUSTOM_AUTO_SYNC_CONFIG);
             bool("enable_server_modify_fcd", SscClientConfig.CUSTOM_ENABLE_SERVER_MODIFY_FCD);
             bool("enable_form_default_color_system", SscClientConfig.CUSTOM_ENABLE_FORM_DEFAULT_COLOR_SYSTEM);
@@ -73,6 +81,14 @@ public final class SscConfigScreen extends Screen {
             bool("enable_form_random_sound", SscClientConfig.CUSTOM_ENABLE_FORM_RANDOM_SOUND);
         } else {
             bool("immediate_transform", SscCommonConfig.IMMEDIATE_TRANSFORM);
+            bool("food_habit", SscCommonConfig.FOOD_HABIT);
+            bool("full_stack_upgrade", SscCommonConfig.FULL_STACK_UPGRADE);
+            bool("initial_form_enabled", SscCommonConfig.ENABLE_INITIAL_FORM);
+            rows.add(new Row("initial_forms", () -> String.join(", ", SscCommonConfig.INITIAL_FORMS.get()), text -> {
+                List<String> entries = java.util.Arrays.stream(text.split(","))
+                        .map(String::trim).filter(part -> !part.isEmpty()).toList();
+                SscCommonConfig.INITIAL_FORMS.set(entries);
+            }, false));
             bool("allow_sleep", SscCommonConfig.ALLOW_SLEEP_IN_CURSED_MOON);
             bool("enable_transform", SscCommonConfig.ENABLE_CURSED_MOON_TRANSFORM);
             bool("movement_logging", SscCommonConfig.ENABLE_MOVEMENT_DEBUG_LOGGING);
@@ -113,7 +129,7 @@ public final class SscConfigScreen extends Screen {
                 addRenderableWidget(button);
             } else {
                 EditBox edit = new EditBox(font, left + 235, y, 100, 20, label(row.key));
-                edit.setMaxLength(40); edit.setValue(row.value.get()); edit.setResponder(row.set); addRenderableWidget(edit);
+                edit.setMaxLength(2048); edit.setValue(row.value.get()); edit.setResponder(row.set); addRenderableWidget(edit);
             }
         }
         addRenderableWidget(Button.builder(Component.literal("<"), b -> { page = (page + 2) % 3; offset = 0; rebuildWidgets(); }).bounds(left, 25, 30, 20).build());
@@ -121,7 +137,8 @@ public final class SscConfigScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("▲"), b -> { offset = Math.max(0, offset - 1); rebuildWidgets(); }).bounds(left + 180, height - 67, 35, 20).build());
         addRenderableWidget(Button.builder(Component.literal("▼"), b -> { offset = Math.min(Math.max(0, rows.size() - visible), offset + 1); rebuildWidgets(); }).bounds(left + 220, height - 67, 35, 20).build());
         if (page == 1) {
-            addRenderableWidget(Button.builder(label("colors"), b -> minecraft.setScreen(new FormColorSelectMenuV2(label("colors"), this))).bounds(left, height - 67, 170, 20).build());
+            addRenderableWidget(Button.builder(label("colors"), b -> minecraft.setScreen(new FormColorSelectMenuV2(label("colors"), this))).bounds(left, height - 67, 85, 20).build());
+            addRenderableWidget(Button.builder(label("colors_v1"), b -> minecraft.setScreen(new FormColorSelectMenu(label("colors_v1"), this))).bounds(left + 88, height - 67, 85, 20).build());
             addRenderableWidget(Button.builder(label("unlock_all"), b -> FormColorData.client().unlockAll()).bounds(left, height - 44, 165, 20).build());
             addRenderableWidget(Button.builder(label("clear_unlocks"), b -> { FormColorData.client().unlockedForms.clear(); FormColorData.client().writeToConfig(); }).bounds(left + 170, height - 44, 165, 20).build());
         }
@@ -143,6 +160,13 @@ public final class SscConfigScreen extends Screen {
     }
     @Override public void onClose() {
         SscClientConfig.SPEC.save(); SscCommonConfig.SPEC.save(); ColorAutoSync.syncNow();
+        var server = minecraft.getSingleplayerServer();
+        if (server != null) server.execute(() -> {
+            var packet = new net.onixary.shapeShifterCurseForge.network.GameplayConfigPacket(
+                    SscCommonConfig.FOOD_HABIT.get(), SscCommonConfig.FULL_STACK_UPGRADE.get());
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.CHANNEL.send(
+                    net.minecraftforge.network.PacketDistributor.ALL.noArg(), packet);
+        });
         minecraft.setScreen(parent);
     }
 }

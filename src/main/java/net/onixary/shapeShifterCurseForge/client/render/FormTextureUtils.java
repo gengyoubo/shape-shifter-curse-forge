@@ -30,6 +30,14 @@ public final class FormTextureUtils {
     public static boolean useTempFormTexture = false;
     public static TempFormTextureProcessor tempFormTextureProcessor = null;
 
+    /** Form shown in the local player's screen preview; the V1 color menu browses forms with it. */
+    public interface TempFormModelProcessor {
+        @Nullable
+        ResourceLocation getPreviewForm();
+    }
+
+    public static TempFormModelProcessor tempFormModelProcessor = null;
+
     private FormTextureUtils() {
     }
 

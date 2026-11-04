@@ -43,6 +43,18 @@ public final class SscCommonConfig {
             .comment("Skip transformation animation and apply form changes immediately.")
             .define("transform.immediately", false);
 
+    public static final ForgeConfigSpec.BooleanValue FOOD_HABIT = BUILDER
+            .comment("Enable the morph-scale food requirement.")
+            .define("gameplay.food_habit", true);
+    public static final ForgeConfigSpec.BooleanValue FULL_STACK_UPGRADE = BUILDER
+            .comment("Upgrade the entire base stack with one template and addition.")
+            .define("gameplay.full_stack_upgrade", true);
+    public static final ForgeConfigSpec.BooleanValue ENABLE_INITIAL_FORM = BUILDER
+            .define("initial_form.enabled", false);
+    public static final ForgeConfigSpec.ConfigValue<List<? extends String>> INITIAL_FORMS = BUILDER
+            .comment("Weighted forms as namespace:id:weight, weight defaults to 1.")
+            .defineList("initial_form.forms", List.of("shape-shifter-curse:original_before_enable:1"), value -> value instanceof String);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private SscCommonConfig() {

@@ -196,7 +196,8 @@ public final class FormPowerRegistry {
     }
 
     public static String typeOf(JsonObject data) {
-        return data.has("type") ? data.get("type").getAsString() : "";
+        String type = data.has("type") ? data.get("type").getAsString() : "";
+        return "origins:action_over_time".equals(type) ? "apoli:action_over_time" : type;
     }
 
     private static void replacePowers(Map<ResourceLocation, FormPowerDefinition> loaded) {

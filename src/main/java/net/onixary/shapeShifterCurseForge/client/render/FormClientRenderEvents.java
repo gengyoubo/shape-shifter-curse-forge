@@ -22,6 +22,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
@@ -50,7 +51,12 @@ public final class FormClientRenderEvents {
     public static void renderPlayer(RenderPlayerEvent.Pre event) {
         Player player = event.getEntity();
         PlayerModel<?> vanillaModel = event.getRenderer().getModel();
-        FormDefinition form = FormManager.current(player);
+        Minecraft minecraft = Minecraft.getInstance();
+        // Both survival and creative inventories render their player preview full-bright.  This
+        // is stable across the two screen classes, unlike instanceof InventoryScreen.
+        boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
+                && event.getPackedLight() == LightTexture.FULL_BRIGHT;
+        FormDefinition form = renderedForm(player, inventoryPreview);
         if (player.isSpectator() || player.isInvisible()) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:spectator-or-invisible");
@@ -63,11 +69,6 @@ public final class FormClientRenderEvents {
             return;
         }
 
-        Minecraft minecraft = Minecraft.getInstance();
-        // Both survival and creative inventories render their player preview full-bright.  This
-        // is stable across the two screen classes, unlike instanceof InventoryScreen.
-        boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
-                && event.getPackedLight() == LightTexture.FULL_BRIGHT;
         PlayerAnimatorCompat.ArmVisibility animatedArms = inventoryPreview ? null
                 : PlayerAnimatorCompat.firstPersonArms(player);
         // Vanilla never renders the camera entity's body in first person; the form's
@@ -166,9 +167,24 @@ public final class FormClientRenderEvents {
     public static void renderPlayerPost(RenderPlayerEvent.Post event) {
         if (event.getEntity() instanceof Player) {
             setAllPartsVisible(event.getRenderer().getModel());
-            FormGeoRenderer renderer = rendererFor(FormManager.current(event.getEntity()));
+            Minecraft minecraft = Minecraft.getInstance();
+            boolean inventoryPreview = minecraft.screen != null && event.getEntity() == minecraft.player
+                    && event.getPackedLight() == LightTexture.FULL_BRIGHT;
+            FormGeoRenderer renderer = rendererFor(renderedForm(event.getEntity(), inventoryPreview));
             if (renderer != null) renderer.getAnimatable().clearPreparedPose();
         }
+    }
+
+    /** The player's form, or the form the color menu is previewing in a screen render. */
+    private static FormDefinition renderedForm(Player player, boolean inventoryPreview) {
+        if (inventoryPreview && FormTextureUtils.tempFormModelProcessor != null) {
+            ResourceLocation preview = FormTextureUtils.tempFormModelProcessor.getPreviewForm();
+            FormDefinition form = preview == null ? null : FormRegistry.get(preview);
+            if (form != null) {
+                return form;
+            }
+        }
+        return FormManager.current(player);
     }
 
     private static final String[] VANILLA_PART_NAMES = {"hat", "head", "body", "jacket",

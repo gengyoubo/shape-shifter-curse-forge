@@ -58,7 +58,7 @@ public final class MorphScaleUpgradeRecipe implements SmithingRecipe {
     @Override
     public ItemStack assemble(Container container, RegistryAccess access) {
         ItemStack result = container.getItem(1).copy();
-        result.setCount(1);
+        if (!net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.fullStackUpgrade()) result.setCount(1);
         result.getOrCreateTag().putBoolean(MorphScaleItems.MARKER_KEY, true);
         return result;
     }

@@ -15,6 +15,7 @@
         "ElytraFlightPlayerMixin",
         "PotionStackMixin",
         "ItemOnItemMixin",
+        "SmithingFullStackMixin",
         "SplashPotionPowerMixin",
         "StatusEffectMixin",
         "WitherIntervalMixin",
@@ -51,6 +52,8 @@
     ],
     "client": [
         "client.CameraBobbingMixin",
+        "client.HurtCameraMixin",
+        "client.WitherHeartsMixin",
         "client.PowerEntityGlowMixin",
         "client.PowerEntityGlowColorMixin",
         "client.KeepSneakingInputMixin",

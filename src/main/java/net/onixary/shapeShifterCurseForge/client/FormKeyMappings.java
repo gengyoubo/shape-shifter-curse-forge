@@ -30,12 +30,18 @@ public final class FormKeyMappings {
             ACTIVE_SKILL_5, TOGGLE_CLIP_AT_LEDGE, MAKE_SOUND
     );
 
+    public static final KeyMapping SCROLL_SKILL = key("scroll_active_skill");
+    public static final KeyMapping PREVIOUS_SKILL = key("prev_active_skill");
+    public static final KeyMapping NEXT_SKILL = key("next_active_skill");
+    public static final KeyMapping SELECTED_SKILL = key("active_skill");
+
     private FormKeyMappings() {
     }
 
     @SubscribeEvent
     public static void register(RegisterKeyMappingsEvent event) {
         ACTIVE_SKILLS.forEach(event::register);
+        event.register(SCROLL_SKILL); event.register(PREVIOUS_SKILL); event.register(NEXT_SKILL); event.register(SELECTED_SKILL);
     }
 
     private static KeyMapping key(String name) {

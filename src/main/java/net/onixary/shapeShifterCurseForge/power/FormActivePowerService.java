@@ -26,12 +26,17 @@ public final class FormActivePowerService {
     private static final Map<UUID, Map<String, Boolean>> PRESSED_KEYS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, ChargeState>> CHARGES = new HashMap<>();
+    private static final Map<UUID, java.util.Set<ResourceLocation>> CLIENT_CHARGES = new HashMap<>();
     private static final class ChargeState {
         int ticks;
         int tier;
         int lastUseTick = Integer.MIN_VALUE;
     }
     private static final Map<UUID, Map<ResourceLocation, Double>> RESOURCES = new HashMap<>();
+    private static final Map<UUID, Map<ResourceLocation, Double>> CLIENT_RESOURCES = new HashMap<>();
+    private static Map<UUID, Map<ResourceLocation, Double>> resourcesFor(Player player) {
+        return player.level().isClientSide ? CLIENT_RESOURCES : RESOURCES;
+    }
     private static final Map<UUID, Map<ResourceLocation, Boolean>> TOGGLES = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINTING = new HashMap<>();
     private static final Map<UUID, Boolean> SPRINT_TO_SNEAK_TRIGGERED = new HashMap<>();
@@ -47,10 +52,13 @@ public final class FormActivePowerService {
     public static void clearTransientInput(Player player) {
         UUID id = player.getUUID();
         PRESSED_KEYS.remove(id);
-        CHARGES.remove(id);
+        resourcesFor(player).remove(id);
+        if (player.level().isClientSide) CLIENT_CHARGES.remove(id); else CHARGES.remove(id);
         WATER_LAUNCH_GRACE.remove(id);
         AirJumpService.clearTransient(player);
         FrostDiveService.clear(player);
+        TargetPounceService.stop(player);
+        SurfaceGrappleService.cancel(player);
     }
 
     /** An Origin replacement removes its power instances; discard the matching runtime state. */
@@ -58,7 +66,10 @@ public final class FormActivePowerService {
         UUID id = player.getUUID();
         clearTransientInput(player);
         COOLDOWNS.remove(id);
-        RESOURCES.remove(id);
+        resourcesFor(player).remove(id);
+        if (!player.level().isClientSide) SscApi.currentForm(player).ifPresent(data -> {
+            if (data instanceof net.onixary.shapeShifterCurseForge.capability.PlayerFormData stored) stored.clearPowerResources();
+        });
         TOGGLES.remove(id);
         SPRINTING.remove(id);
         SPRINT_TO_SNEAK_TRIGGERED.remove(id);
@@ -102,6 +113,7 @@ public final class FormActivePowerService {
             return;
         }
         AirJumpService.tick(player);
+        TargetPounceService.tick(player);
         if (player instanceof ServerPlayer serverPlayer) FrostDiveService.tick(serverPlayer);
         if (FAMILIAR_FOX_MANA.equals(manaType(player))
                 && net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService
@@ -139,12 +151,9 @@ public final class FormActivePowerService {
             });
         }
         Map<String, Boolean> keys = PRESSED_KEYS.get(player.getUUID());
-        if (keys == null) {
-            return;
-        }
-        if (!(player instanceof ServerPlayer serverPlayer)) {
-            return;
-        }
+        if (!(player instanceof ServerPlayer serverPlayer)) return;
+        SurfaceGrappleService.tick(serverPlayer, keys == null ? Map.of() : keys);
+        if (keys == null) return;
         keys.forEach((key, pressed) -> {
             if (pressed) {
                 triggerContinuousActive(serverPlayer, key);
@@ -156,6 +165,8 @@ public final class FormActivePowerService {
     public static boolean hasMana(Player player, float amount) {
         return mana(player) >= amount;
     }
+
+    public static boolean hasWebMana(Player player) { return WEB_RESOURCE.equals(manaType(player)); }
 
     public static boolean hasFamiliarFoxMana(Player player) {
         return FAMILIAR_FOX_MANA.equals(manaType(player));
@@ -251,32 +262,79 @@ public final class FormActivePowerService {
         setMana(player, mana(player) + amount);
     }
 
-    /** Returns the current Apoli resource value. Cooldowns are exposed as 0/1, as in the source data. */
+    private static JsonObject resourceDefinition(ResourceLocation id) {
+        FormPowerDefinition exact = FormPowerRegistry.get(id);
+        if (exact != null) return exact.data();
+        String path = id.getPath();
+        for (int cut = path.lastIndexOf('_'); cut > 0; cut = path.lastIndexOf('_', cut - 1)) {
+            var parent = FormPowerRegistry.get(ResourceLocation.fromNamespaceAndPath(id.getNamespace(), path.substring(0, cut)));
+            if (parent != null && "apoli:multiple".equals(FormPowerRegistry.typeOf(parent.data()))) {
+                var child = parent.data().get(path.substring(cut + 1));
+                if (child != null && child.isJsonObject()) return child.getAsJsonObject();
+            }
+        }
+        return null;
+    }
+
+    /** Returns the current Apoli resource value. Cooldowns are exposed as 0/1. */
     public static double resource(Player player, ResourceLocation id) {
-        FormPowerDefinition definition = FormPowerRegistry.all().get(id);
-        if (definition != null && "apoli:cooldown".equals(FormPowerRegistry.typeOf(definition.data()))) {
+        JsonObject definition = resourceDefinition(id);
+        if (definition != null && "apoli:cooldown".equals(FormPowerRegistry.typeOf(definition))) {
             return isOnCooldown(player, id) ? 1.0D : 0.0D;
         }
-        return RESOURCES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
-                .computeIfAbsent(id, ignored -> defaultResource(definition));
+        return resourcesFor(player).computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
+                .computeIfAbsent(id, ignored -> {
+                    if (!player.level().isClientSide) {
+                        var data = SscApi.currentForm(player).orElse(null);
+                        if (data instanceof net.onixary.shapeShifterCurseForge.capability.PlayerFormData stored
+                                && stored.powerResources().containsKey(id.toString())) return stored.powerResources().get(id.toString());
+                    }
+                    return definition == null ? 0.0D
+                            : FormPowerRuntime.doubleValue(definition, "start_value", FormPowerRuntime.doubleValue(definition, "min", 0));
+                });
     }
 
     public static void modifyResource(Player player, ResourceLocation id, JsonObject modifier) {
-        FormPowerDefinition definition = FormPowerRegistry.all().get(id);
-        if (definition != null && "apoli:cooldown".equals(FormPowerRegistry.typeOf(definition.data()))) {
-            if (FormPowerRuntime.doubleValue(modifier, "value", 0.0D) >= 1.0D) {
-                triggerCooldown(player, id);
-            }
+        JsonObject definition = resourceDefinition(id);
+        if (definition != null && "apoli:cooldown".equals(FormPowerRegistry.typeOf(definition))) {
+            if (FormPowerRuntime.doubleValue(modifier, "value", 0) >= 1) triggerCooldown(player, id);
             return;
         }
         double current = resource(player, id);
-        double value = switch (FormPowerRuntime.stringValue(modifier, "operation", "addition")) {
-            case "set_total" -> FormPowerRuntime.doubleValue(modifier, "value", current);
-            default -> FormPowerRuntime.applyModifier(current, modifier);
-        };
-        double min = definition == null ? Double.NEGATIVE_INFINITY : FormPowerRuntime.doubleValue(definition.data(), "min", 0.0D);
-        double max = definition == null ? Double.POSITIVE_INFINITY : FormPowerRuntime.doubleValue(definition.data(), "max", Double.MAX_VALUE);
-        RESOURCES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(id, Math.max(min, Math.min(max, value)));
+        double value = "set_total".equals(FormPowerRuntime.stringValue(modifier, "operation", "addition"))
+                ? FormPowerRuntime.doubleValue(modifier, "value", current) : FormPowerRuntime.applyModifier(current, modifier);
+        double min = definition == null ? Double.NEGATIVE_INFINITY : FormPowerRuntime.doubleValue(definition, "min", 0);
+        double max = definition == null ? Double.POSITIVE_INFINITY : FormPowerRuntime.doubleValue(definition, "max", Double.MAX_VALUE);
+        value = Math.max(min, Math.min(max, value));
+        if (value == current) return;
+        resourcesFor(player).computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(id, value);
+        final double storedValue = value;
+        if (!player.level().isClientSide) SscApi.currentForm(player).ifPresent(data -> {
+            if (data instanceof net.onixary.shapeShifterCurseForge.capability.PlayerFormData stored)
+                stored.setPowerResource(id.toString(), storedValue);
+        });
+        if (player instanceof ServerPlayer serverPlayer && serverPlayer.connection != null
+                && serverPlayer.connection.connection.isConnected()) {
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.CHANNEL.send(
+                    net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> serverPlayer),
+                    new net.onixary.shapeShifterCurseForge.network.PowerResourcePacket(id, value));
+        }
+    }
+
+    public static void synchronizeResources(ServerPlayer player) {
+        SscApi.currentForm(player).ifPresent(data -> {
+            if (data instanceof net.onixary.shapeShifterCurseForge.capability.PlayerFormData stored)
+                stored.powerResources().forEach((name, value) -> {
+                    ResourceLocation id = ResourceLocation.tryParse(name);
+                    if (id != null) net.onixary.shapeShifterCurseForge.network.ModNetwork.CHANNEL.send(
+                            net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
+                            new net.onixary.shapeShifterCurseForge.network.PowerResourcePacket(id, value));
+                });
+        });
+    }
+
+    public static void acceptClientResource(Player player, ResourceLocation id, double value) {
+        resourcesFor(player).computeIfAbsent(player.getUUID(), ignored -> new HashMap<>()).put(id, value);
     }
 
     public static void triggerCooldown(Player player, ResourceLocation id) {
@@ -471,8 +529,15 @@ public final class FormActivePowerService {
                     || isOnCooldown(player, id)) {
                 return;
             }
-            ChargeState state = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>())
-                    .computeIfAbsent(id, ignored -> new ChargeState());
+            Map<ResourceLocation, ChargeState> states = CHARGES.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
+            ChargeState state = states.get(id);
+            if (state == null) {
+                if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("start_condition"))) return;
+                FormPowerRuntime.execute(player, player, power.getAsJsonObject("start_action"));
+                state = new ChargeState();
+                states.put(id, state);
+                syncCharge(player, id, true);
+            }
             state.lastUseTick = player.tickCount;
             state.ticks++;
             for (int tier = 0; tier < 10; tier++) {
@@ -507,6 +572,8 @@ public final class FormActivePowerService {
                 JsonObject autoFire = power.getAsJsonObject(prefix + "auto_fire_condition");
                 if (justCompleted && autoFire != null && FormPowerRuntime.test(player, player, autoFire)) {
                     fireCharge(player, id, power, state);
+                    states.remove(id);
+                    syncCharge(player, id, false);
                     break;
                 }
             }
@@ -527,8 +594,31 @@ public final class FormActivePowerService {
             if (!keys.getOrDefault(key, false) && player.tickCount - state.lastUseTick > 2) {
                 if (!isOnCooldown(player, id)) fireCharge(serverPlayer, id, power, state);
                 states.remove(id);
+                syncCharge(serverPlayer, id, false);
             }
         });
+    }
+
+    public static boolean isCharging(Player player, ResourceLocation id) {
+        String path = id.getPath();
+        ResourceLocation parent = path.endsWith("_charge")
+                ? ResourceLocation.fromNamespaceAndPath(id.getNamespace(), path.substring(0, path.length() - 7)) : id;
+        if (player.level().isClientSide) {
+            var states = CLIENT_CHARGES.getOrDefault(player.getUUID(), java.util.Set.of());
+            return states.contains(id) || states.contains(parent);
+        }
+        var states = CHARGES.getOrDefault(player.getUUID(), Map.of());
+        return states.containsKey(id) || states.containsKey(parent);
+    }
+    public static void acceptClientCharge(Player player, ResourceLocation id, boolean charging) {
+        var states = CLIENT_CHARGES.computeIfAbsent(player.getUUID(), ignored -> new java.util.HashSet<>());
+        if (charging) states.add(id); else states.remove(id);
+    }
+    private static void syncCharge(ServerPlayer player, ResourceLocation id, boolean charging) {
+        if (player.connection != null && player.connection.connection.isConnected())
+            net.onixary.shapeShifterCurseForge.network.ModNetwork.CHANNEL.send(
+                    net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
+                    new net.onixary.shapeShifterCurseForge.network.ChargeStatePacket(id, charging));
     }
 
     private static void fireCharge(ServerPlayer player, ResourceLocation id, JsonObject power, ChargeState state) {

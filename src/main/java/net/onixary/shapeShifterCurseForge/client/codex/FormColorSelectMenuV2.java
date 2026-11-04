@@ -242,7 +242,7 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
 
     public void reloadFormIDName() {
         ResourceLocation form = this.getFormNoCheckUnlock();
-        boolean isUnlocked = FormColorData.client().isUnlock(form);
+        boolean isUnlocked = SscClientConfig.DISABLE_COLOR_UNLOCK_CHECK.get() || FormColorData.client().isUnlock(form);
         Component message = NONE_FROM_NAME_LABEL;
         if (!FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(form)) {
             message = CodexData.getContentText(form, CodexData.ContentType.NAME);
@@ -721,6 +721,8 @@ public class FormColorSelectMenuV2 extends Screen implements FormTextureUtils.Te
     }
 
     private void resetToStock() {
+        ResourceLocation selected = getFormNoCheckUnlock();
+        if (!SscClientConfig.DISABLE_COLOR_UNLOCK_CHECK.get() && !FormColorData.client().isUnlock(selected)) return;
         FormTextureUtils.ColorSetting stock = FormTextureUtils.stockColorsForForm(getFormNoCheckUnlock());
         if (stock == null && minecraftClient.player != null) {
             stock = FormTextureUtils.stockColorsForForm(FormManager.current(minecraftClient.player).id());

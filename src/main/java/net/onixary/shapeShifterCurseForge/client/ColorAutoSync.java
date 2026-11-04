@@ -54,6 +54,8 @@ public final class ColorAutoSync {
         if (minecraft.player == null || minecraft.getConnection() == null || !SscClientConfig.CUSTOM_AUTO_SYNC_CONFIG.get()) {
             return;
         }
+        ModNetwork.CHANNEL.sendToServer(new net.onixary.shapeShifterCurseForge.network.UpdateRandomSoundPacket(
+                SscClientConfig.CUSTOM_ENABLE_FORM_RANDOM_SOUND.get()));
         boolean keep = SscClientConfig.CUSTOM_KEEP_ORIGINAL_SKIN.get();
         boolean enable = SscClientConfig.CUSTOM_ENABLE_FORM_COLOR.get();
         FormTextureUtils.ColorSetting colors;

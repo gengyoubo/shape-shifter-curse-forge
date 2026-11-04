@@ -57,6 +57,12 @@ public final class PlayerCapabilityEvents {
     @SubscribeEvent
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            net.onixary.shapeShifterCurseForge.power.SurfaceGrappleService.recoverAfterLogin(player);
+            net.onixary.shapeShifterCurseForge.other.initial.InitialFormService.applyOnce(player);
+            ModNetwork.CHANNEL.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
+                    new net.onixary.shapeShifterCurseForge.network.GameplayConfigPacket(
+                            net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig.FOOD_HABIT.get(),
+                            net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig.FULL_STACK_UPGRADE.get()));
             SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
             MovementPowerService.synchronizeForcedSneaking(player);
@@ -64,6 +70,7 @@ public final class PlayerCapabilityEvents {
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
             FormActivePowerService.synchronizeMana(player);
+            FormActivePowerService.synchronizeResources(player);
             InstinctService.synchronizeHud(player);
         }
     }

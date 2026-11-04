@@ -85,6 +85,14 @@ public final class FormPowerRuntime {
             case "apoli:sneaking" -> actor.isShiftKeyDown();
             case "apoli:sprinting" -> actor.isSprinting();
             case "apoli:on_ground" -> actor.onGround();
+            case "shape-shifter-curse:airborne" -> !actor.onGround();
+            case "shape-shifter-curse:diving" -> FrostDiveService.isDiving(actor);
+            case "shape-shifter-curse:blocking" -> actor.isBlocking();
+            case "shape-shifter-curse:charging" -> {
+                var powerId = ResourceLocation.tryParse(stringValue(condition, "power", ""));
+                yield powerId != null && FormActivePowerService.isCharging(actor, powerId);
+            }
+            case "apoli:can_see" -> target != null && actor.hasLineOfSight(target);
             case "apoli:moving" -> moving(actor, condition);
             case "apoli:food_level" -> compare(actor.getFoodData().getFoodLevel(), condition);
             case "apoli:fluid_height" -> compare(fluidHeight(actor, condition), condition);
@@ -100,6 +108,10 @@ public final class FormPowerRuntime {
                         BlockPos.containing(actor.getX(), actor.getEyeY(), actor.getZ())), condition);
             }
             case "apoli:inventory" -> matchesInventory(actor, condition);
+            case "apoli:equipped_item" -> matchesItem(actor.getItemBySlot(equipmentSlot(
+                    stringValue(condition, "equipment_slot", "mainhand"))), condition.getAsJsonObject("item_condition"));
+            case "shape-shifter-curse:raycast_target" -> target != null && raycastEntity(actor, condition) == target;
+            case "shape-shifter-curse:in_oriented_box" -> target != null && inOrientedBox(actor, target, condition);
             case "apoli:on_block" -> matchesBlock(actor, condition);
             case "apoli:in_block_anywhere" -> matchesBlockAnywhere(actor, condition.getAsJsonObject("block_condition"));
             case "apoli:block_in_radius" -> compare(blockCountInRadius(actor, condition), condition);
@@ -389,6 +401,41 @@ public final class FormPowerRuntime {
             case "apoli:actor_action" -> execute(actor, actor, action.getAsJsonObject("action"));
             case "apoli:trigger_cooldown" -> triggerCooldown(actor, action);
             case "apoli:modify_resource" -> modifyResource(actor, action);
+            case "apoli:change_resource", "apoli:set_resource" -> {
+                var id = ResourceLocation.tryParse(stringValue(action, "resource", ""));
+                if (id != null) {
+                    var modifier = new JsonObject();
+                    modifier.addProperty("operation", "apoli:set_resource".equals(type)
+                            || "set".equals(stringValue(action, "operation", "add")) ? "set_total" : "addition");
+                    modifier.addProperty("value", doubleValue(action, "apoli:set_resource".equals(type) ? "value" : "change", 0));
+                    FormActivePowerService.modifyResource(actor, id, modifier);
+                }
+            }
+            case "apoli:raycast" -> {
+                if (!actor.level().isClientSide) {
+                    LivingEntity found = raycastEntity(actor, action);
+                    if (found != null) executeBiEntity(actor, found, action.getAsJsonObject("bientity_action"));
+                }
+            }
+            case "shape-shifter-curse:oriented_box" -> {
+                if (!actor.level().isClientSide) {
+                    double reach = Math.max(doubleValue(action, "width", 1), doubleValue(action, "length", 1))
+                            + doubleValue(action, "height", 1);
+                    for (LivingEntity entity : actor.level().getEntitiesOfClass(LivingEntity.class, actor.getBoundingBox().inflate(reach),
+                            entity -> entity != actor && entity.isAlive() && inOrientedBox(actor, entity, action))) {
+                        if (test(actor, entity, action.getAsJsonObject("bientity_condition")))
+                            executeBiEntity(actor, entity, action.getAsJsonObject("bientity_action"));
+                    }
+                }
+            }
+            case "shape-shifter-curse:surface_area" -> surfaceArea(actor, action);
+            case "shape-shifter-curse:summon_mana_reservoir" -> summonManaReservoir(actor, action);
+            case "shape-shifter-curse:fire_held_arrow" -> fireHeldArrow(actor, action);
+            case "apoli:clear_effect" -> {
+                var id = ResourceLocation.tryParse(stringValue(action, "effect", ""));
+                if (id != null && BuiltInRegistries.MOB_EFFECT.containsKey(id)) recipient.removeEffect(BuiltInRegistries.MOB_EFFECT.get(id));
+            }
+            case "shape-shifter-curse:recall_wolf_minions" -> AnubisMinionService.recall(actor);
             case "apoli:execute_command" -> executeCommand(actor, recipient, action);
             case "apoli:spawn_particles" -> spawnParticles(actor, recipient, action);
             case "apoli:area_of_effect" -> {
@@ -465,6 +512,16 @@ public final class FormPowerRuntime {
             }
             case "apoli:actor_action" -> execute(actor, actor, action.getAsJsonObject("action"));
             case "apoli:target_action" -> execute(actor, target, action.getAsJsonObject("action"));
+            case "shape-shifter-curse:start_target_pounce" -> TargetPounceService.start(actor, target, action);
+            case "shape-shifter-curse:echolocation_vibration" -> {
+                if (actor instanceof net.minecraft.server.level.ServerPlayer player && target.level() instanceof net.minecraft.server.level.ServerLevel level) {
+                    Vec3 origin = target.getBoundingBox().getCenter();
+                    var particle = new net.minecraft.core.particles.VibrationParticleOption(
+                            new net.minecraft.world.level.gameevent.EntityPositionSource(actor, actor.getEyeHeight()), 10);
+                    level.sendParticles(player, particle, true, origin.x, origin.y, origin.z, 1, 0, 0, 0, 0);
+                }
+            }
+            case "shape-shifter-curse:directed_particles" -> directedParticles(actor, target, action);
             case "shape-shifter-curse:bi_summon_anubis_wolf_minion" ->
                     AnubisMinionService.summon(actor, target, action);
             case "shape-shifter-curse:fireball_at_target" -> {
@@ -756,7 +813,7 @@ public final class FormPowerRuntime {
             }
         }
         return !condition.has("projectile_condition")
-                || test(actor, projectile, condition.getAsJsonObject("projectile_condition"));
+                || testEntity(actor, projectile, condition.getAsJsonObject("projectile_condition"));
     }
 
     private static boolean damageConditionList(Player actor, Entity victim,
@@ -815,16 +872,29 @@ public final class FormPowerRuntime {
             case "apoli:and" -> testEntityAll(actor, target, condition.getAsJsonArray("conditions"));
             case "apoli:or" -> testEntityAny(actor, target, condition.getAsJsonArray("conditions"));
             case "apoli:entity_type" -> matchesEntityType(target, condition);
+            case "apoli:nbt" -> matchesEntityNbt(target, condition);
             case "apoli:in_tag" -> matchesEntityTag(target, condition);
             case "apoli:status_effect" -> target instanceof LivingEntity living && hasEffect(living, condition);
+            case "apoli:health" -> target instanceof LivingEntity living && compare(living.getHealth(), condition);
             case "apoli:owner" -> (target instanceof Projectile projectile && projectile.getOwner() == actor)
                     || (target instanceof TamableAnimal tameable && tameable.getOwner() == actor);
             default -> test(actor, target, condition);
         };
         // test() already observes inversion for its fallback branch.
         return !type.equals("apoli:owner") && !type.equals("apoli:entity_type") && !type.equals("apoli:in_tag")
-                && !type.equals("apoli:status_effect") && !type.equals("apoli:and") && !type.equals("apoli:or")
+                && !type.equals("apoli:status_effect") && !type.equals("apoli:nbt") && !type.equals("apoli:health")
+                && !type.equals("apoli:and") && !type.equals("apoli:or")
                 ? result : ((condition.has("inverted") && condition.get("inverted").getAsBoolean()) != result);
+    }
+
+    public static boolean matchesEntityNbt(Entity entity, JsonObject condition) {
+        if (entity == null || condition == null || !"apoli:nbt".equals(FormPowerRegistry.typeOf(condition))) return false;
+        try {
+            var expected = net.minecraft.nbt.TagParser.parseTag(stringValue(condition, "nbt", "{}"));
+            var actual = new net.minecraft.nbt.CompoundTag();
+            entity.saveWithoutId(actual);
+            return net.minecraft.nbt.NbtUtils.compareNbt(expected, actual, true);
+        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException ignored) { return false; }
     }
 
     private static boolean testEntityAll(Player actor, Entity target, JsonArray conditions) {
@@ -1026,8 +1096,10 @@ public final class FormPowerRuntime {
                     && Objects.requireNonNull(stack.getFoodProperties(null)).isMeat();
             case "shape-shifter-curse:is_vegan_ex" -> isVegan(stack, condition);
             case "shape-shifter-curse:is_weapon" -> isWeapon(stack);
-            case "shape-shifter-curse:is_morph_scale_item", "shape-shifter-curse:is_morph_scale_food"
-                    -> MorphScaleItems.isMorphScaleItem(stack);
+            case "shape-shifter-curse:is_morph_scale_item" -> MorphScaleItems.isMorphScaleItem(stack);
+            case "shape-shifter-curse:is_morph_scale_food" ->
+                    !net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.foodHabitEnabled()
+                            || MorphScaleItems.isMorphScaleFood(stack);
             case "apoli:armor_value" -> stack.getItem() instanceof net.minecraft.world.item.ArmorItem armor
                     && compare(armor.getDefense(), condition);
             case "apoli:harvest_level" -> {
@@ -1095,6 +1167,8 @@ public final class FormPowerRuntime {
             result = block != null && state.is(block);
         } else if ("apoli:block_state".equals(type)) {
             result = matchesBlockProperty(state, condition);
+        } else if ("apoli:light_level".equals(type)) {
+            result = compare(actor.level().getMaxLocalRawBrightness(pos), condition);
         } else if ("apoli:hardness".equals(type)) {
             result = compare(state.getDestroySpeed(actor.level(), pos), condition);
         } else if ("apoli:replacable".equals(type)) {
@@ -1130,6 +1204,109 @@ public final class FormPowerRuntime {
         ResourceLocation id = ResourceLocation.tryParse(stringValue(condition, "enchantment", ""));
         Enchantment enchantment = id == null ? null : BuiltInRegistries.ENCHANTMENT.get(id);
         return enchantment != null && compare(EnchantmentHelper.getTagEnchantmentLevel(enchantment, stack), condition);
+    }
+
+    private static void directedParticles(Player actor, LivingEntity target, JsonObject action) {
+        if (!(actor.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+        ResourceLocation id = ResourceLocation.tryParse(stringValue(action, "particle", ""));
+        var particle = id == null ? null : BuiltInRegistries.PARTICLE_TYPE.get(id);
+        if (!(particle instanceof net.minecraft.core.particles.ParticleOptions option)) return;
+        boolean reverse = "target_to_actor".equals(stringValue(action, "direction", "actor_to_target"));
+        JsonObject actorOffset = action.getAsJsonObject("actor_offset"), targetOffset = action.getAsJsonObject("target_offset");
+        Vec3 from = actor.position().add(doubleValue(actorOffset, "x", 0), doubleValue(actorOffset, "y", 0), doubleValue(actorOffset, "z", 0));
+        Vec3 to = target.position().add(doubleValue(targetOffset, "x", 0), doubleValue(targetOffset, "y", 0), doubleValue(targetOffset, "z", 0));
+        Vec3 origin = reverse ? to : from;
+        Vec3 velocity = (reverse ? from.subtract(to) : to.subtract(from)).normalize().scale(doubleValue(action, "speed", 1));
+        for (int i = 0, count = Math.min(100, Math.max(0, intValue(action, "count", 1))); i < count; i++)
+            level.sendParticles(option, origin.x, origin.y, origin.z, 0, velocity.x, velocity.y, velocity.z, 1);
+    }
+
+    private static LivingEntity raycastEntity(Player actor, JsonObject data) {
+        double distance = Math.max(0, doubleValue(data, "distance", 5));
+        Vec3 start = actor.getEyePosition(), end = start.add(actor.getLookAngle().scale(distance));
+        var hitBlock = actor.level().clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, actor));
+        double closestDistance = hitBlock.getType() == net.minecraft.world.phys.HitResult.Type.MISS
+                ? distance * distance : start.distanceToSqr(hitBlock.getLocation());
+        LivingEntity closest = null;
+        for (LivingEntity candidate : actor.level().getEntitiesOfClass(LivingEntity.class,
+                actor.getBoundingBox().expandTowards(actor.getLookAngle().scale(distance)).inflate(1), entity -> entity != actor && entity.isAlive())) {
+            var hit = candidate.getBoundingBox().inflate(0.3).clip(start, end);
+            if (hit.isEmpty() || !test(actor, candidate, data.getAsJsonObject("bientity_condition"))) continue;
+            double d = start.distanceToSqr(hit.get());
+            if (d < closestDistance) { closest = candidate; closestDistance = d; }
+        }
+        return closest;
+    }
+
+    private static boolean inOrientedBox(Player actor, Entity target, JsonObject data) {
+        Vec3 forward = actor.getLookAngle().multiply(1, 0, 1).normalize();
+        if (forward.lengthSqr() < 1.0E-8) forward = Vec3.directionFromRotation(0, actor.getYRot());
+        Vec3 offset = target.getBoundingBox().getCenter().subtract(actor.position());
+        double along = offset.x * forward.x + offset.z * forward.z;
+        double sideways = offset.x * -forward.z + offset.z * forward.x;
+        double length = Math.max(0, doubleValue(data, "length", 1));
+        boolean centered = booleanValue(data, "centered", false);
+        return Math.abs(sideways) <= Math.max(0, doubleValue(data, "width", 1)) / 2
+                && Math.abs(offset.y) <= Math.max(0, doubleValue(data, "height", 1)) / 2
+                && (centered ? Math.abs(along) <= length / 2 : along >= 0 && along <= length);
+    }
+
+    private static void surfaceArea(Player actor, JsonObject data) {
+        if (!(actor.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+        double distance = Math.max(0, doubleValue(data, "distance", 20));
+        Vec3 start = actor.getEyePosition(), end = start.add(actor.getLookAngle().scale(distance));
+        var hit = level.clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, actor));
+        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return;
+        Vec3 center = hit.getLocation();
+        double radius = Math.max(0, doubleValue(data, "radius", 4));
+        if (booleanValue(data, "preview", false)) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, center.x, center.y, center.z, 5, radius / 2, .05, radius / 2, 0);
+            return;
+        }
+        var bounds = new AABB(center.x - radius, center.y - radius, center.z - radius,
+                center.x + radius, center.y + radius, center.z + radius);
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, bounds, entity -> entity != actor && entity.isAlive())) {
+            if (target.position().distanceToSqr(center) <= radius * radius
+                    && test(actor, target, data.getAsJsonObject("bientity_condition")))
+                executeBiEntity(actor, target, data.getAsJsonObject("bientity_action"));
+        }
+    }
+
+    private static void summonManaReservoir(Player player, JsonObject action) {
+        if (!(player instanceof net.minecraft.server.level.ServerPlayer server)) return;
+        int cost = Math.max(0, intValue(action, "food_cost", 6));
+        String ownerKey = net.onixary.shapeShifterCurseForge.entity.ManaReservoirEntity.OWNER_RESERVOIR;
+        String untilKey = net.onixary.shapeShifterCurseForge.entity.ManaReservoirEntity.OWNER_UNTIL;
+        if (player.getPersistentData().hasUUID(ownerKey) && player.level().getGameTime() > player.getPersistentData().getLong(untilKey)) {
+            player.getPersistentData().remove(ownerKey); player.getPersistentData().remove(untilKey);
+        }
+        if (player.getFoodData().getFoodLevel() < cost || player.getPersistentData().hasUUID(ownerKey)) return;
+        var minion = net.onixary.shapeShifterCurseForge.registry.ModEntities.MANA_RESERVOIR.get().create(server.serverLevel());
+        if (minion == null) return;
+        Vec3 pos = player.getEyePosition().add(player.getLookAngle().scale(1.5));
+        minion.setPos(pos); minion.setOwner(player.getUUID());
+        if (!server.serverLevel().noCollision(minion, minion.getBoundingBox()) || !server.serverLevel().addFreshEntity(minion)) return;
+        player.getPersistentData().putUUID(ownerKey, minion.getUUID());
+        player.getPersistentData().putLong(untilKey, player.level().getGameTime() + 100);
+        var food = player.getFoodData(); food.setFoodLevel(food.getFoodLevel() - cost);
+        food.setSaturation(Math.min(food.getSaturationLevel(), food.getFoodLevel()));
+    }
+
+    private static void fireHeldArrow(Player actor, JsonObject data) {
+        if (actor.level().isClientSide) return;
+        ItemStack stack = actor.getMainHandItem();
+        if (!(stack.getItem() instanceof net.minecraft.world.item.ArrowItem arrow)
+                || actor.getCooldowns().isOnCooldown(arrow) || actor.getCooldowns().isOnCooldown(Items.ARROW)) return;
+        var projectile = arrow.createArrow(actor.level(), stack, actor);
+        projectile.shootFromRotation(actor, actor.getXRot(), actor.getYRot(), 0, floatValue(data, "speed", 3), 0);
+        projectile.setCritArrow(true);
+        projectile.pickup = actor.isCreative() ? net.minecraft.world.entity.projectile.AbstractArrow.Pickup.CREATIVE_ONLY
+                : net.minecraft.world.entity.projectile.AbstractArrow.Pickup.ALLOWED;
+        if (actor.level().addFreshEntity(projectile)) {
+            if (!actor.isCreative()) stack.shrink(1);
+            actor.getCooldowns().addCooldown(arrow, intValue(data, "cooldown", 20));
+            actor.getCooldowns().addCooldown(Items.ARROW, intValue(data, "cooldown", 20));
+        }
     }
 
     private static boolean raycast(Player actor, JsonObject condition) {
@@ -1197,6 +1374,8 @@ public final class FormPowerRuntime {
             result = block != null && level.getBlockState(pos).is(block);
         } else if ("apoli:block_state".equals(type)) {
             result = matchesBlockProperty(level.getBlockState(pos), condition);
+        } else if ("apoli:light_level".equals(type)) {
+            result = compare(level.getMaxLocalRawBrightness(pos), condition);
         } else if ("apoli:hardness".equals(type)) {
             result = compare(level.getBlockState(pos).getDestroySpeed(level, pos), condition);
         } else if ("apoli:replacable".equals(type)) {
@@ -1646,6 +1825,22 @@ public final class FormPowerRuntime {
                 actor.level().addFreshEntity(fireball);
                 JsonObject projectileAction = action.getAsJsonObject("projectile_action");
                 if (projectileAction != null) executeProjectileAction(actor, fireball, projectileAction);
+            } else if ("minecraft:fireball".equals(id)) {
+                Vec3 look = actor.getLookAngle();
+                net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+                try { if (action.has("tag")) tag = net.minecraft.nbt.TagParser.parseTag(action.get("tag").getAsString()); }
+                catch (com.mojang.brigadier.exceptions.CommandSyntaxException ignored) { }
+                int explosion = tag.contains("ExplosionPower") ? tag.getInt("ExplosionPower") : 1;
+                var fireball = new net.minecraft.world.entity.projectile.LargeFireball(actor.level(), actor, look.x, look.y, look.z, explosion);
+                if (tag.contains("Tags", net.minecraft.nbt.Tag.TAG_LIST)) {
+                    var tags = tag.getList("Tags", net.minecraft.nbt.Tag.TAG_STRING);
+                    for (var element : tags) fireball.addTag(element.getAsString());
+                }
+                fireball.setPos(actor.getX(), actor.getEyeY(), actor.getZ());
+                fireball.shootFromRotation(actor, actor.getXRot(), actor.getYRot(), 0,
+                        floatValue(action, "speed", 1.5F), floatValue(action, "divergence", 1));
+                actor.level().addFreshEntity(fireball);
+                if (action.has("projectile_action")) executeProjectileAction(actor, fireball, action.getAsJsonObject("projectile_action"));
             } else if ("minecraft:snowball".equals(id)) {
                 Snowball snowball = new Snowball(actor.level(), actor);
                 snowball.setPos(actor.getX(), actor.getEyeY(), actor.getZ());

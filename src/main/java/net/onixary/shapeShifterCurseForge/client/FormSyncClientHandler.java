@@ -16,6 +16,7 @@ import java.util.Set;
 public final class FormSyncClientHandler {
     private static final Set<java.util.UUID> INITIAL_SYNCED_PLAYERS = new HashSet<>();
     private static ClientLevel syncedLevel;
+    private static ResourceLocation localForm;
 
     private FormSyncClientHandler() {
     }
@@ -64,9 +65,15 @@ public final class FormSyncClientHandler {
             FormManager.applySyncedForm(player, packet.formId(), packet.groupId(), packet.tier(), packet.enabled(),
                     packet.assignedPowerIds());
             ResourceLocation syncedForm = ResourceLocation.tryParse(packet.formId());
-            if (syncedForm != null) {
+            // Fabric's FORM_CHANGE only reaches the changed player itself; tracking packets for
+            // other players must not unlock their forms or push their default colors as ours.
+            if (syncedForm != null && player == minecraft.player) {
                 net.onixary.shapeShifterCurseForge.client.color.FormColorData.client().unlockForm(syncedForm);
                 applyDefaultFormColor(syncedForm);
+                if (!syncedForm.equals(localForm)) {
+                    localForm = syncedForm;
+                    net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenu.onClientFormChange();
+                }
             }
             // Login, respawn and tracking packets initialise the snapshot. Only a server
             // confirmed form change is allowed to start TransformingController's clip.

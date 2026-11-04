@@ -37,6 +37,10 @@ public final class ModEntities {
                             net.onixary.shapeShifterCurseForge.entity.PotionCharmArrowEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(1).build("potion_charm_arrow"));
 
+    public static final RegistryObject<EntityType<net.onixary.shapeShifterCurseForge.entity.ManaReservoirEntity>> MANA_RESERVOIR = ENTITIES.register(
+            "mana_reservoir", () -> EntityType.Builder.of(net.onixary.shapeShifterCurseForge.entity.ManaReservoirEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F).clientTrackingRange(8).build("mana_reservoir"));
+
     public static final RegistryObject<EntityType<AnubisWolfMinionEntity>> ANUBIS_WOLF_MINION = ENTITIES.register(
             "anubis_wolf_minion", () -> EntityType.Builder.of(AnubisWolfMinionEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F).build("anubis_wolf_minion"));
@@ -54,6 +58,7 @@ public final class ModEntities {
 
     @SubscribeEvent
     public static void registerAttributes(EntityAttributeCreationEvent event) {
+        event.put(MANA_RESERVOIR.get(), net.onixary.shapeShifterCurseForge.entity.ManaReservoirEntity.createAttributes().build());
         event.put(ANUBIS_WOLF_MINION.get(), AnubisWolfMinionEntity.createAttributes().build());
         event.put(TRANSFORMATIVE_BAT.get(), TransformativeBatEntity.createAttributes().build());
         event.put(TRANSFORMATIVE_AXOLOTL.get(), TransformativeAxolotlEntity.createAttributes().build());
