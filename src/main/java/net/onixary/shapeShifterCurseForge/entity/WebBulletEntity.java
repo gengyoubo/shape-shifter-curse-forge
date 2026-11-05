@@ -13,6 +13,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.onixary.shapeShifterCurseForge.power.WebPowerActions;
 import net.onixary.shapeShifterCurseForge.power.WebEntanglementService;
 import net.onixary.shapeShifterCurseForge.registry.ModEntities;
@@ -75,9 +78,17 @@ public final class WebBulletEntity extends ThrowableItemProjectile {
         super.onHitEntity(hitResult);
         if (hitResult.getEntity() instanceof LivingEntity target) {
             int duration = 40 + tier * 40;
-            if (getOwner() instanceof net.minecraft.world.entity.player.Player player
-                    && isVenomSpindleEquipped(player)) {
+            int spindle = getOwner() instanceof net.minecraft.world.entity.player.Player player
+                    ? equippedVenomSpindle(player) : 0;
+            if (spindle != 0) {
                 applyVenomSpindleEffects(target);
+                if (spindle == 2) {
+                    WebEntanglementService.apply(getOwner(), target, switch (tier) {
+                        case 2 -> 400;
+                        case 3 -> 600;
+                        default -> 200;
+                    });
+                }
             } else {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, tier));
                 target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, tier));
@@ -94,9 +105,19 @@ public final class WebBulletEntity extends ThrowableItemProjectile {
         discard();
     }
 
-    private boolean isVenomSpindleEquipped(net.minecraft.world.entity.player.Player player) {
-        var stack = AccessoryUtils.getEntitySlot(player, "auto", "hand", "extra_hand", 0);
-        return stack != null && !stack.isEmpty() && stack.is(ModItems.VENOM_SPINDLE.get());
+    /** 0 = none, 1 = ordinary, 2 = upgraded. Check every extra-hand slot. */
+    private int equippedVenomSpindle(net.minecraft.world.entity.player.Player player) {
+        var stacks = AccessoryUtils.getEntitySlot(player, "auto", "hand", "extra_hand");
+        if (stacks == null) return 0;
+        int result = 0;
+        for (ItemStack stack : stacks) {
+            ResourceLocation id = ForgeRegistries.ITEMS.getKey(stack.getItem());
+            if (id != null && "shape-shifter-curse".equals(id.getNamespace())) {
+                if ("venom_spindle_plus".equals(id.getPath())) return 2;
+                if ("venom_spindle".equals(id.getPath())) result = 1;
+            }
+        }
+        return result;
     }
 
     /** Mirrors Fabric's Venom Spindle branch: replace slow/entangle with poison and direct damage. */

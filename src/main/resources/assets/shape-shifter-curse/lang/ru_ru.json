@@ -1,4 +1,6 @@
 {
+    "item.shape-shifter-curse.ripple_mirror.tooltip": "Глядя в зеркало, вы видите образы других существ...",
+    "item.shape-shifter-curse.morphscale_core.tooltip": "Используется на кузнечном столе для создания и улучшения снаряжения из чешуи метаморфа.",
     "codex.form.variant_wip": "WIP",
     "screen.shape-shifter-curse.form_attuner.purchase.not_implemented": "This perk is not available yet.",
     "screen.shape-shifter-curse.form_attuner.perk_item_cost": "Glint Prism ×%s",

@@ -7,6 +7,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import net.onixary.shapeShifterCurseForge.items.accessory.AccessoryItem;
 import net.onixary.shapeShifterCurseForge.util.Accessory.AccessoryUtils;
 
@@ -194,6 +195,15 @@ public class TrinketUtils {
         LinkedHashSet<ResourceLocation> removals = new LinkedHashSet<>();
         ResourceLocation currentFormId = FormManager.current(player).id();
         ResourceLocation originLayer = ResourceLocation.fromNamespaceAndPath("origins", "origin");
+        // Accessory JSON may use form IDs, Fabric's form_-prefixed Origin IDs,
+        // or a data-defined Origin ID. Cosmetic variants inherit their master's rules.
+        Set<ResourceLocation> formKeys = new LinkedHashSet<>();
+        for (ResourceLocation form : FormRegistry.lineage(currentFormId)) {
+            formKeys.add(form);
+            formKeys.add(ResourceLocation.fromNamespaceAndPath(form.getNamespace(), "form_" + form.getPath()));
+            ResourceLocation origin = FormRegistry.originIdFor(form);
+            if (origin != null) formKeys.add(origin);
+        }
 
         for (net.minecraft.util.Tuple<AccessoryItem.SlotData, ItemStack> pair : getAllAccessory(player)) {
             ItemStack stack = pair.getB();
@@ -206,18 +216,19 @@ public class TrinketUtils {
             additions.addAll(data.allFormPowerAdd);
             removals.addAll(data.allFormPowerRemove);
 
-            List<ResourceLocation> formAdd = data.formPowerAdd.get(currentFormId);
-            List<ResourceLocation> formRemove = data.formPowerRemove.get(currentFormId);
-            if (formAdd != null) additions.addAll(formAdd);
-            if (formRemove != null) removals.addAll(formRemove);
-
             HashMap<ResourceLocation, List<ResourceLocation>> layerAdds = data.layerPowerAddMap.get(originLayer);
             HashMap<ResourceLocation, List<ResourceLocation>> layerRemoves = data.layerPowerRemoveMap.get(originLayer);
-            if (layerAdds != null && layerAdds.get(currentFormId) != null) {
-                additions.addAll(layerAdds.get(currentFormId));
-            }
-            if (layerRemoves != null && layerRemoves.get(currentFormId) != null) {
-                removals.addAll(layerRemoves.get(currentFormId));
+            for (ResourceLocation formKey : formKeys) {
+                List<ResourceLocation> formAdd = data.formPowerAdd.get(formKey);
+                List<ResourceLocation> formRemove = data.formPowerRemove.get(formKey);
+                if (formAdd != null) additions.addAll(formAdd);
+                if (formRemove != null) removals.addAll(formRemove);
+                if (layerAdds != null && layerAdds.get(formKey) != null) {
+                    additions.addAll(layerAdds.get(formKey));
+                }
+                if (layerRemoves != null && layerRemoves.get(formKey) != null) {
+                    removals.addAll(layerRemoves.get(formKey));
+                }
             }
         }
 

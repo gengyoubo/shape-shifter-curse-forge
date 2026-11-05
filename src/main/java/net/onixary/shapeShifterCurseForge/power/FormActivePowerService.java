@@ -418,6 +418,16 @@ public final class FormActivePowerService {
                     || isOnCooldown(player, id)) {
                 return;
             }
+            // The efficiency perk replaces the original water burst with a child
+            // active power. A fountain belt replaces that burst too, while the
+            // perk's separate attack improvement must remain active.
+            if ("shape-shifter-curse:perks/axolotl_water_magic_efficiency".equals(id.toString())
+                    && (FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
+                            "shape-shifter-curse", "form_axolotl_fountain_belt_trinket"))
+                    || FormPowerRegistry.has(player, ResourceLocation.fromNamespaceAndPath(
+                            "shape-shifter-curse", "form_axolotl_fountain_belt_trinket_plus")))) {
+                return;
+            }
             JsonObject condition = power.has("condition") ? power.getAsJsonObject("condition") : power.getAsJsonObject("entity_condition");
             boolean jumpOutWater = JUMP_OUT_WATER.equals(id);
             boolean conditionMet = FormPowerRuntime.test(player, player, condition);
