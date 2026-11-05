@@ -51,6 +51,7 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Shadow private Optional<BlockPos> lastClimbablePos;
     @Unique private int ssc$lastClimbDebugTick = Integer.MIN_VALUE;
     @Unique private boolean ssc$lastClimbDebugResult;
+    @Unique private boolean ssc$checkingClimbingPower;
 
     /** Apoli's entity_group power changes the value used by vanilla enchantments. */
     @Inject(method = "getMobType", at = @At("HEAD"), cancellable = true)
@@ -438,24 +439,31 @@ public abstract class LivingEntityMixin implements LivingEntityJumpState {
     @Inject(method = "onClimbable", at = @At("RETURN"), cancellable = true)
     private void ssc$powerClimbing(CallbackInfoReturnable<Boolean> cir) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (!(self instanceof Player player) || player.isSpectator()) {
+        if (!(self instanceof Player player) || player.isSpectator() || ssc$checkingClimbingPower) {
             return;
         }
         final boolean[] climbing = {false};
         boolean vanilla = cir.getReturnValue();
         if (!vanilla) {
-            FormPowerRegistry.visitActive(player, (id, power) -> {
-                if (climbing[0]) return;
-                if ("shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))) {
-                    climbing[0] = ClimbingExService.isActive(player, id, power);
-                    return;
-                }
-                if (!"apoli:climbing".equals(FormPowerRegistry.typeOf(power))) return;
-                JsonObject start = power.getAsJsonObject("condition");
-                if (FormPowerRuntime.test(player, player, start)) {
-                    climbing[0] = true;
-                }
-            });
+            // Collision shape providers can query isPushable(), which calls onClimbable()
+            // again. Keep the nested call's vanilla result instead of evaluating powers again.
+            ssc$checkingClimbingPower = true;
+            try {
+                FormPowerRegistry.visitActive(player, (id, power) -> {
+                    if (climbing[0]) return;
+                    if ("shape-shifter-curse:climbing_ex".equals(FormPowerRegistry.typeOf(power))) {
+                        climbing[0] = ClimbingExService.isActive(player, id, power);
+                        return;
+                    }
+                    if (!"apoli:climbing".equals(FormPowerRegistry.typeOf(power))) return;
+                    JsonObject start = power.getAsJsonObject("condition");
+                    if (FormPowerRuntime.test(player, player, start)) {
+                        climbing[0] = true;
+                    }
+                });
+            } finally {
+                ssc$checkingClimbingPower = false;
+            }
         }
         if (climbing[0]) {
             this.lastClimbablePos = Optional.of(player.blockPosition());

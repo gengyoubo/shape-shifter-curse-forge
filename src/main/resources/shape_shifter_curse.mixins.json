@@ -51,6 +51,7 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "client.FormGogglesArmorMixin",
         "client.AbstractClientPlayerSkinMixin",
         "accessor.ItemInHandRendererInvoker",
         "client.CameraBobbingMixin",

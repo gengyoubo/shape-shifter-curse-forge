@@ -159,7 +159,8 @@ public final class MissingPowerEvents {
 
     /** Shared by the armor slot, right-click equip and server fallback paths. */
     public static boolean isArmorRestricted(Player player, EquipmentSlot slot, ItemStack stack) {
-        if (stack.isEmpty()) return false;
+        if (stack.isEmpty() || (slot == EquipmentSlot.HEAD && stack.is(net.minecraft.tags.ItemTags.create(
+                new net.minecraft.resources.ResourceLocation("tc4modern", "form_eye_goggles"))))) return false;
         final boolean[] restricted = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (restricted[0] || !"apoli:restrict_armor".equals(FormPowerRegistry.typeOf(power))) return;
