@@ -975,6 +975,7 @@
     "screen.shape-shifter-curse.config.mana_offset_x": "魔力栏横向偏移",
     "screen.shape-shifter-curse.config.mana_offset_y": "魔力栏纵向偏移",
     "screen.shape-shifter-curse.config.immediate_transform": "立即变形",
+    "screen.shape-shifter-curse.config.shift_crawl": "美西螈潜行键匍匐",
     "screen.shape-shifter-curse.config.food_habit": "启用幻形鳞食品限制",
     "screen.shape-shifter-curse.config.full_stack_upgrade": "整组幻形鳞升级",
     "screen.shape-shifter-curse.config.initial_form_enabled": "启用随机初始形态",

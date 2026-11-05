@@ -965,6 +965,7 @@
     "screen.shape-shifter-curse.config.mana_offset_x": "Mana HUD horizontal offset",
     "screen.shape-shifter-curse.config.mana_offset_y": "Mana HUD vertical offset",
     "screen.shape-shifter-curse.config.immediate_transform": "Immediate transformation",
+    "screen.shape-shifter-curse.config.shift_crawl": "Axolotl: sneak to crawl",
     "screen.shape-shifter-curse.config.food_habit": "Enable morph-scale food restriction",
     "screen.shape-shifter-curse.config.full_stack_upgrade": "Upgrade entire stacks",
     "screen.shape-shifter-curse.config.initial_form_enabled": "Enable random initial forms",

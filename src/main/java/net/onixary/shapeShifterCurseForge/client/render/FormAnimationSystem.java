@@ -273,7 +273,7 @@ public final class FormAnimationSystem {
             case "axolotl_2" -> {
                 if (state == State.SWIM)
                     add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
-                else if (sneak || player.isVisuallyCrawling()) {
+                else if (player.isVisuallyCrawling() || sneak && net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.shiftCrawl()) {
                     switch (state) {
                         case IDLE -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
                         // Form_Axolotl2 only overrides WALK. Sprint, physical crawling and
@@ -288,20 +288,21 @@ public final class FormAnimationSystem {
                 }
             }
             case "axolotl_3" -> {
+                boolean crawlSneak = sneak && net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.shiftCrawl();
                 switch (state) {
                     case SWIM ->
                             add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
-                    case IDLE -> add(result, sneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
-                    case WALK -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_walk");
-                    case SPRINT -> add(result, sneak ? "axolotl_3_crawling" : "axolotl_3_run");
+                    case IDLE -> add(result, crawlSneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
+                    case WALK -> add(result, crawlSneak ? "axolotl_3_crawling" : "axolotl_3_walk");
+                    case SPRINT -> add(result, crawlSneak ? "axolotl_3_crawling" : "axolotl_3_run");
                     case JUMP -> add(result, player.isVisuallyCrawling() ? "axolotl_2_crawling_jump"
                             : isRushJump(player) ? "axolotl_3_rush_jump" : "axolotl_3_jump");
                     case FALL -> add(result, player.isVisuallyCrawling()
                             ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
                     // The Fabric WithSneak controllers intentionally have no normal
                     // attack/mining animation for Axolotl 3.
-                    case ATTACK -> add(result, sneak ? "axolotl_2_crawling_attack_once" : null);
-                    case MINING -> add(result, sneak ? "axolotl_2_crawling_tool_swing" : null);
+                    case ATTACK -> add(result, crawlSneak ? "axolotl_2_crawling_attack_once" : null);
+                    case MINING -> add(result, crawlSneak ? "axolotl_2_crawling_tool_swing" : null);
                     case FLYING, FALL_FLYING -> add(result, "axolotl_3_creative_flight");
                     case SLEEP -> add(result, "axolotl_3_sleep");
                     // One-block clearance triggers the same form Geo crawl as a

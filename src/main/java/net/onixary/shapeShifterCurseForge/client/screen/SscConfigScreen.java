@@ -81,6 +81,7 @@ public final class SscConfigScreen extends Screen {
             bool("enable_form_random_sound", SscClientConfig.CUSTOM_ENABLE_FORM_RANDOM_SOUND);
         } else {
             bool("immediate_transform", SscCommonConfig.IMMEDIATE_TRANSFORM);
+            bool("shift_crawl", SscCommonConfig.SHIFT_CRAWL);
             bool("food_habit", SscCommonConfig.FOOD_HABIT);
             bool("full_stack_upgrade", SscCommonConfig.FULL_STACK_UPGRADE);
             bool("initial_form_enabled", SscCommonConfig.ENABLE_INITIAL_FORM);
@@ -163,7 +164,8 @@ public final class SscConfigScreen extends Screen {
         var server = minecraft.getSingleplayerServer();
         if (server != null) server.execute(() -> {
             var packet = new net.onixary.shapeShifterCurseForge.network.GameplayConfigPacket(
-                    SscCommonConfig.FOOD_HABIT.get(), SscCommonConfig.FULL_STACK_UPGRADE.get());
+                    SscCommonConfig.FOOD_HABIT.get(), SscCommonConfig.FULL_STACK_UPGRADE.get(),
+                    SscCommonConfig.SHIFT_CRAWL.get());
             net.onixary.shapeShifterCurseForge.network.ModNetwork.CHANNEL.send(
                     net.minecraftforge.network.PacketDistributor.ALL.noArg(), packet);
         });

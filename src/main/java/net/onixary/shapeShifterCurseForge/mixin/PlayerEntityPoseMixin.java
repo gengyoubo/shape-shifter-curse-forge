@@ -217,7 +217,8 @@ public abstract class PlayerEntityPoseMixin extends LivingEntity {
         // Shift may start a crawl only on the ground. Once entered, preserve
         // the swimming pose through a jump or fall until the input/Power ends.
         // keep_sneaking counts as held Shift for head-collide / no-air powers.
-        if (player.getAbilities().flying
+        if (!net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.shiftCrawl()
+                || player.getAbilities().flying
                 || !MovementPowerService.isSneakingOrForced(player) || player.isInWaterOrBubble() || player.isPassenger()
                 || player.isFallFlying() || player.isSleeping() || player.isAutoSpinAttack()) {
             ssc$forcedCrawlActive = false;

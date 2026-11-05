@@ -43,6 +43,10 @@ public final class SscCommonConfig {
             .comment("Skip transformation animation and apply form changes immediately.")
             .define("transform.immediately", false);
 
+    public static final ForgeConfigSpec.BooleanValue SHIFT_CRAWL = BUILDER
+            .comment("Use crawling instead of crouching when holding sneak for forms with a crawling power (built-in: axolotl stages 2 and 3).")
+            .define("gameplay.shift_crawl", true);
+
     public static final ForgeConfigSpec.BooleanValue FOOD_HABIT = BUILDER
             .comment("Enable the morph-scale food requirement.")
             .define("gameplay.food_habit", true);

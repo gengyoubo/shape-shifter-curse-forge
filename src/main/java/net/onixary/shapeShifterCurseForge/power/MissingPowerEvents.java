@@ -20,6 +20,7 @@ import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -159,7 +160,8 @@ public final class MissingPowerEvents {
 
     /** Shared by the armor slot, right-click equip and server fallback paths. */
     public static boolean isArmorRestricted(Player player, EquipmentSlot slot, ItemStack stack) {
-        if (stack.isEmpty() || (slot == EquipmentSlot.HEAD && stack.is(net.minecraft.tags.ItemTags.create(
+        if (stack.isEmpty() || (slot == EquipmentSlot.HEAD && FormManager.current(player).stage() == 4
+                && stack.is(net.minecraft.tags.ItemTags.create(
                 new net.minecraft.resources.ResourceLocation("tc4modern", "form_eye_goggles"))))) return false;
         final boolean[] restricted = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {

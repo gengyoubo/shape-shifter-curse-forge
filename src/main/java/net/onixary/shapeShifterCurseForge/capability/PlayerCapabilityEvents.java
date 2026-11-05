@@ -62,7 +62,8 @@ public final class PlayerCapabilityEvents {
             ModNetwork.CHANNEL.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
                     new net.onixary.shapeShifterCurseForge.network.GameplayConfigPacket(
                             net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig.FOOD_HABIT.get(),
-                            net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig.FULL_STACK_UPGRADE.get()));
+                            net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig.FULL_STACK_UPGRADE.get(),
+                            net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig.SHIFT_CRAWL.get()));
             SscAdvancementTriggers.ON_FIRST_JOIN_WITH_MOD.trigger(player);
             ModNetwork.sendFormSync(player);
             MovementPowerService.synchronizeForcedSneaking(player);

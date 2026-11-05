@@ -127,7 +127,7 @@ public final class CrawlingScaleService {
         if (power == null) {
             return 1.0F;
         }
-        boolean active = isActive(power, player);
+        boolean active = net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.shiftCrawl() && isActive(power, player);
         return FormPowerRuntime.floatValue(power, active ? "active_scale" : "scale",
                 active ? 0.6F : 1.0F);
     }
@@ -138,7 +138,7 @@ public final class CrawlingScaleService {
         if (power == null) {
             return 1.0F;
         }
-        boolean active = isActive(power, player);
+        boolean active = net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.shiftCrawl() && isActive(power, player);
         return FormPowerRuntime.floatValue(power, active ? "active_eye_scale" : "eye_scale",
                 active ? 0.35F : 1.0F);
     }
