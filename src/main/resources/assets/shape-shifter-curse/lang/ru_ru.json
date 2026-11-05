@@ -1,4 +1,5 @@
 {
+    "codex.form.variant_wip": "WIP",
     "screen.shape-shifter-curse.form_attuner.purchase.not_implemented": "This perk is not available yet.",
     "screen.shape-shifter-curse.form_attuner.perk_item_cost": "Glint Prism ×%s",
     "screen.shape-shifter-curse.form_attuner.purchase.insufficient_items": "Not enough Glint Prisms.",

@@ -375,8 +375,8 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
      * form-only bones (calves, tail/neck mounts, hind legs, ...); PAL exposes them through
      * {@code get3DTransform} and the config maps each animated bone onto a GeoBone.
      * Rotation arrives in degrees and is converted with the same Y/Z inversion used for
-     * the vanilla copy; position is stored with all axes negated, matching PAL's Gecko
-     * serializer conventions documented in {@code ProcessExtraBone}.
+     * the vanilla copy. PAL first inverts the JSON position Y axis, then Fabric
+     * negates all three sampled axes in {@code ProcessExtraBone}.
      */
     private void applyExtraBones(ModelAnimationConfig config, FormGeoAnimatable animatable) {
         for (ExtraBoneMapping mapping : config.extraBones) {
@@ -387,7 +387,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             }
             getBone(mapping.geoBone()).ifPresent(bone -> {
                 bone.setPosX(-sample.posX());
-                bone.setPosY(-sample.posY());
+                bone.setPosY(sample.posY());
                 bone.setPosZ(-sample.posZ());
                 bone.setRotX(sample.rotX() * DEG_TO_RAD);
                 bone.setRotY(-sample.rotY() * DEG_TO_RAD);

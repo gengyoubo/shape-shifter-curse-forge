@@ -1,9 +1,12 @@
 package net.onixary.shapeShifterCurseForge.client.codex;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.locale.Language;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
+import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 
 /** Centralized Codex content: headers, status, per-form texts and tier descriptions. */
 public final class CodexData {
@@ -106,8 +109,17 @@ public final class CodexData {
         return getContentText(FormManager.current(player).id(), type);
     }
 
-    public static Component getContentText(net.minecraft.resources.ResourceLocation formId, ContentType type) {
-        return Component.translatable("codex.form." + formId.getNamespace()
-                + "." + formId.getPath() + "." + type.toString().toLowerCase());
+    public static Component getContentText(ResourceLocation formId, ContentType type) {
+        String key = contentKey(formId, type);
+        if (type != ContentType.NAME && FormRegistry.masterFormOf(formId) != null
+                && !Language.getInstance().has(key)) {
+            return Component.translatable("codex.form.variant_wip");
+        }
+        return Component.translatable(key);
+    }
+
+    private static String contentKey(ResourceLocation formId, ContentType type) {
+        return "codex.form." + formId.getNamespace() + "." + formId.getPath()
+                + "." + type.name().toLowerCase(java.util.Locale.ROOT);
     }
 }
