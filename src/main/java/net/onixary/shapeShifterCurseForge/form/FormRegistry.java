@@ -236,54 +236,61 @@ public final class FormRegistry {
                 LOGGER.warn("Ignoring non-object dynamic form {}", resourceId);
                 return;
             }
-            JsonObject data = element.getAsJsonObject();
-            // Deliberately fail the resource reload.  A partially registered form can leave
-            // the player data, Origin powers and client model on different ids, which is much
-            // harder to diagnose than a precise startup/reload error.
-            DynamicFormIds ids = validateDynamicForm(resourceId, data, resourceManager);
-            ResourceLocation formId = ids.formId();
-            if (FORMS.containsKey(formId) && !DYNAMIC_FORMS.contains(formId)) {
-                LOGGER.warn("Ignoring dynamic form {} because it would replace a built-in form", formId);
-                return;
+            try {
+                loadDynamicForm(resourceId, element.getAsJsonObject(), resourceManager);
+            } catch (RuntimeException e) {
+                // Skip only this entry. Validation and parsing run before any registry mutation,
+                // so a rejected form never leaves its ids half-registered.
+                LOGGER.warn("Skipping invalid dynamic form data/{}/ssc_form/{}.json: {}",
+                        resourceId.getNamespace(), resourceId.getPath(), e.getMessage());
             }
-            ResourceLocation groupId = resourceLocation(data, formId);
-            if (groupId == null) {
-                LOGGER.warn("Ignoring dynamic form {} with invalid group", formId);
-                return;
-            }
-            int tier = data.has("stage") ? integer(data, "stage", 1) : integer(data, "tier", 1);
-            int weight = integer(data, "weight", data.has("group_weight") ? integer(data, "group_weight", 1) : 1);
-            FormBodyType bodyType = bodyType(data);
-            float width = number(data, "widthScale", number(data, "width_scale", 1.0F));
-            float height = number(data, "heightScale", number(data, "height_scale", 1.0F));
-            float eye = number(data, "eyeScale", number(data, "eye_scale", 1.0F));
-            float fallProtection = number(data, "fallProtectionDistance",
-                    number(data, "fall_protection_distance", 0.0F));
-            float jumpAddition = number(data, "jumpVelocityAddition",
-                    number(data, "jump_velocity_addition", 0.0F));
-            boolean fullyCustomModel = booleanValue(data, "fullyCustomModel",
-                    booleanValue(data, "fully_custom_model", false));
-            Set<String> flags = flags(data);
-
-            FormDefinition definition = new FormDefinition(formId, groupId, tier, weight, bodyType,
-                    width, height, eye, flags, fallProtection, jumpAddition, fullyCustomModel);
-            FormGroup group = GROUPS.get(groupId);
-            if (group == null) {
-                group = new FormGroup(groupId);
-                GROUPS.put(groupId, group);
-                DYNAMIC_GROUPS.add(groupId);
-            }
-            FormDefinition previous = FORMS.put(formId, definition);
-            if (previous != null) {
-                FormGroup previousGroup = GROUPS.get(previous.groupId());
-                if (previousGroup != null) previousGroup.remove(formId);
-            }
-            group.add(definition);
-            DYNAMIC_FORMS.add(formId);
-            DYNAMIC_ORIGIN_IDS.put(formId, ids.originId());
-            LOGGER.info("Loaded dynamic form {} from {}", formId, resourceId);
         });
         resolveJavaForms();
+    }
+
+    private static void loadDynamicForm(ResourceLocation resourceId, JsonObject data, ResourceManager resourceManager) {
+        DynamicFormIds ids = validateDynamicForm(resourceId, data, resourceManager);
+        ResourceLocation formId = ids.formId();
+        if (FORMS.containsKey(formId) && !DYNAMIC_FORMS.contains(formId)) {
+            LOGGER.warn("Ignoring dynamic form {} because it would replace a built-in form", formId);
+            return;
+        }
+        ResourceLocation groupId = resourceLocation(data, formId);
+        if (groupId == null) {
+            LOGGER.warn("Ignoring dynamic form {} with invalid group", formId);
+            return;
+        }
+        int tier = data.has("stage") ? integer(data, "stage", 1) : integer(data, "tier", 1);
+        int weight = integer(data, "weight", data.has("group_weight") ? integer(data, "group_weight", 1) : 1);
+        FormBodyType bodyType = bodyType(data);
+        float width = number(data, "widthScale", number(data, "width_scale", 1.0F));
+        float height = number(data, "heightScale", number(data, "height_scale", 1.0F));
+        float eye = number(data, "eyeScale", number(data, "eye_scale", 1.0F));
+        float fallProtection = number(data, "fallProtectionDistance",
+                number(data, "fall_protection_distance", 0.0F));
+        float jumpAddition = number(data, "jumpVelocityAddition",
+                number(data, "jump_velocity_addition", 0.0F));
+        boolean fullyCustomModel = booleanValue(data, "fullyCustomModel",
+                booleanValue(data, "fully_custom_model", false));
+        Set<String> flags = flags(data);
+
+        FormDefinition definition = new FormDefinition(formId, groupId, tier, weight, bodyType,
+                width, height, eye, flags, fallProtection, jumpAddition, fullyCustomModel);
+        FormGroup group = GROUPS.get(groupId);
+        if (group == null) {
+            group = new FormGroup(groupId);
+            GROUPS.put(groupId, group);
+            DYNAMIC_GROUPS.add(groupId);
+        }
+        FormDefinition previous = FORMS.put(formId, definition);
+        if (previous != null) {
+            FormGroup previousGroup = GROUPS.get(previous.groupId());
+            if (previousGroup != null) previousGroup.remove(formId);
+        }
+        group.add(definition);
+        DYNAMIC_FORMS.add(formId);
+        DYNAMIC_ORIGIN_IDS.put(formId, ids.originId());
+        LOGGER.info("Loaded dynamic form {} from {}", formId, resourceId);
     }
 
     /**
@@ -514,11 +521,16 @@ public final class FormRegistry {
             throw new IllegalArgumentException("originID must be '" + expectedOriginId
                     + "' for FormID '" + formId + "', but got '" + originId + "'");
         }
-        if (resourceManager != null && resourceManager.getResource(originId).isEmpty()) {
+        if (resourceManager != null && resourceManager.getResource(originDataFile(originId)).isEmpty()) {
             throw new IllegalArgumentException("missing Origin data file 'data/" + originId.getNamespace()
                     + "/origins/" + originId.getPath() + ".json'");
         }
         return new DynamicFormIds(formId, originId);
+    }
+
+    /** Resource-manager location of an Origin's JSON, i.e. {@code data/<ns>/origins/<path>.json}. */
+    static ResourceLocation originDataFile(ResourceLocation originId) {
+        return ResourceLocation.fromNamespaceAndPath(originId.getNamespace(), "origins/" + originId.getPath() + ".json");
     }
 
     private static ResourceLocation expectedOriginId(ResourceLocation formId) {
