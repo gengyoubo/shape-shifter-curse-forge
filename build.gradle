@@ -1,3 +1,9 @@
+buildscript {
+    repositories { mavenCentral() }
+    // Used by remapImmediatelyFastForDev to rewrite SRG names in a dev-only mod jar.
+    dependencies { classpath 'org.ow2.asm:asm-commons:9.7.1' }
+}
+
 plugins {
     id 'java'
     id 'maven-publish'
@@ -77,6 +83,12 @@ repositories {
     }
 }
 
+configurations {
+    immediatelyFastDeobf { transitive = false }
+}
+
+def immediatelyFastDevJar = layout.buildDirectory.file('devMods/immediatelyfast-dev.jar')
+
 dependencies {
     minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
     //前置
@@ -89,11 +101,85 @@ dependencies {
     runtimeOnly fg.deobf("local.runtime:player-animation-lib-forge:1.0.2-rc1+1.20")
     runtimeOnly fg.deobf("local.runtime:cloth-config:11.1.136-forge")
     runtimeOnly fg.deobf("local.runtime:SlashBladeResharped:1.20.1-1.9.65")
+    //兼容
+    // ImmediatelyFast bakes SRG names straight into its mixins without a refmap, so the plain
+    // fg.deobf jar crashes dev runs. Compile against it, but run the remapped copy (see
+    // remapImmediatelyFastForDev below).
+    compileOnly fg.deobf("curse.maven:immediatelyfast-686911:8348481")
+    immediatelyFastDeobf fg.deobf("curse.maven:immediatelyfast-686911:8348481")
+    runtimeOnly files(immediatelyFastDevJar).builtBy('remapImmediatelyFastForDev')
     //latex_form处理
     implementation fg.deobf("curse.maven:changed-minecraft-mod-661527:8217446")//可选依赖
     //mixin
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
+
+/*
+ * ImmediatelyFast (Architectury Loom build) writes SRG names (m_xxx_/f_xxx_) directly into its
+ * mixin annotations and @Shadow members and ships no refmap. fg.deobf only renames bytecode
+ * references to Minecraft members, and mixin.env.remapRefMap only rewrites refmap entries, so
+ * in the official-mapped dev runtime its injections find no targets and the game crashes.
+ * This rewrites every remaining SRG token in the deobf'd jar (member names, annotation strings,
+ * string constants) to the official name using ForgeGradle's SRG->official table. SRG ids are
+ * globally unique, so a flat name lookup is exact. Dev runs only; never shipped.
+ */
+def remapImmediatelyFastForDev = tasks.register('remapImmediatelyFastForDev') {
+    def srgFile = layout.buildDirectory.file('createSrgToMcp/output.srg')
+    dependsOn 'createSrgToMcp'
+    inputs.files(configurations.immediatelyFastDeobf)
+    inputs.file(srgFile)
+    outputs.file(immediatelyFastDevJar)
+    doLast {
+        Map<String, String> names = [:]
+        srgFile.get().asFile.eachLine { String line ->
+            if (line.startsWith('MD: ') || line.startsWith('FD: ')) {
+                String[] parts = line.split(' ')
+                String from = parts[1].substring(parts[1].lastIndexOf('/') + 1)
+                String toPath = line.startsWith('MD: ') ? parts[3] : parts[2]
+                String to = toPath.substring(toPath.lastIndexOf('/') + 1)
+                if (from ==~ /[mf]_\d+_/) names[from] = to
+            }
+        }
+        def remapText = { String text -> text.replaceAll(/[mf]_\d+_/) { String token -> names[token] ?: token } }
+        def remapper = new org.objectweb.asm.commons.Remapper() {
+            @Override
+            String mapMethodName(String owner, String name, String descriptor) { names[name] ?: name }
+            @Override
+            String mapFieldName(String owner, String name, String descriptor) { names[name] ?: name }
+            @Override
+            Object mapValue(Object value) { value instanceof String ? remapText(value) : super.mapValue(value) }
+        }
+
+        File input = configurations.immediatelyFastDeobf.singleFile
+        File output = immediatelyFastDevJar.get().asFile
+        output.parentFile.mkdirs()
+        int changed = 0
+        new java.util.jar.JarFile(input).withCloseable { jar ->
+            new java.util.zip.ZipOutputStream(new FileOutputStream(output)).withCloseable { out ->
+                jar.entries().each { java.util.jar.JarEntry entry ->
+                    // Rewriting classes invalidates any signature files.
+                    if (entry.name ==~ /META-INF\/[^\/]+\.(SF|RSA|DSA|EC)/) return
+                    byte[] bytes = jar.getInputStream(entry).bytes
+                    if (entry.name.endsWith('.class')) {
+                        def reader = new org.objectweb.asm.ClassReader(bytes)
+                        def writer = new org.objectweb.asm.ClassWriter(0)
+                        reader.accept(new org.objectweb.asm.commons.ClassRemapper(writer, remapper), 0)
+                        byte[] remapped = writer.toByteArray()
+                        if (!Arrays.equals(bytes, remapped)) changed++
+                        bytes = remapped
+                    }
+                    out.putNextEntry(new java.util.zip.ZipEntry(entry.name))
+                    out.write(bytes)
+                    out.closeEntry()
+                }
+            }
+        }
+        logger.lifecycle("Remapped SRG names in ${changed} ImmediatelyFast classes -> ${output}")
+    }
+}
+
+// IDE run configurations read the runtime classpath directly; make sure the jar exists.
+tasks.matching { it.name == 'prepareRuns' }.configureEach { dependsOn remapImmediatelyFastForDev }
 
 processResources {
     inputs.property 'version', project.version

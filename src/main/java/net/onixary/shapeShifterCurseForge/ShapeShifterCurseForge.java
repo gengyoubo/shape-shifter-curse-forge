@@ -18,6 +18,7 @@ import net.onixary.shapeShifterCurseForge.registry.ModMenuTypes;
 import net.onixary.shapeShifterCurseForge.registry.ModRecipeSerializers;
 import net.onixary.shapeShifterCurseForge.registry.ModEffects;
 import net.onixary.shapeShifterCurseForge.registry.ModPotions;
+import net.onixary.shapeShifterCurseForge.registry.ModSounds;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,6 +47,7 @@ public final class ShapeShifterCurseForge {
         ModRecipeSerializers.TYPES.register(modBus);
         ModEffects.EFFECTS.register(modBus);
         ModPotions.POTIONS.register(modBus);
+        ModSounds.SOUNDS.register(modBus);
         modBus.addListener(this::commonSetup);
         net.onixary.shapeShifterCurseForge.other.initial.InitialFormService.initialize();
         SscAdvancementTriggers.initialize();

@@ -152,6 +152,9 @@ public final class FormPowerRegistry {
             addAll(removed, dynamicPowerRemoves.get(originKey));
         }
         assigned.addAll(SscJavaRegistries.powersForForm(formId));
+        // Sub-forms reshape the inherited master set (Fabric ISubForm#afterApplyLayer: add, then remove).
+        assigned.addAll(FormRegistry.subFormPowerAdds(formId));
+        FormRegistry.subFormPowerRemoves(formId).forEach(assigned::remove);
         assigned.removeAll(removed);
         return List.copyOf(assigned);
     }

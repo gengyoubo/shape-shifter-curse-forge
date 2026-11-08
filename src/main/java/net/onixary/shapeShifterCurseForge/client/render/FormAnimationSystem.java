@@ -50,6 +50,20 @@ public final class FormAnimationSystem {
                     // therefore defined with the form that owns the behavior.
                     .animation("axolotl_3_rush_jump", "axolotl_3_rush_jump", "axolotl_3_rush_jump", 1.0F, 10)
                     .fallback(SHARED_ANIMATIONS)
+                    .build(),
+            // Form_Bat3_Sub_Avali: walk/run controllers blend over 4 ticks (model time x2, speed x2).
+            "bat_3_sub_avali", AnimationProfile.builder()
+                    .animation("avali_walk", "avali_walk", "avali_walk", 3.0F, 4)
+                    .animation("avali_run", "avali_run", "avali_run", 3.0F, 4)
+                    .fallback(SHARED_ANIMATIONS)
+                    .build(),
+            // Form_SnowFox3_Sub_MarbledPolecat
+            "snow_fox_3_sub_marbled_polecat", AnimationProfile.builder()
+                    .animation("weasel_walk", "weasel_walk", "weasel_walk", 2.6F, 4)
+                    .animation("weasel_run", "weasel_run", "weasel_run", 3.5F, 4)
+                    .animation("weasel_idle_stay", "weasel_idle_stay", "weasel_idle_stay", 1.0F, 4)
+                    .animation("weasel_fall", "weasel_fall", "weasel_fall", 1.0F, 4)
+                    .fallback(SHARED_ANIMATIONS)
                     .build()
     );
     private static final Map<UUID, TransitionSnapshot> TRANSITIONS = new HashMap<>();
@@ -216,8 +230,12 @@ public final class FormAnimationSystem {
         if (!onGround) {
             if (player.getAbilities().flying) return State.FLYING;
             if (player.isFallFlying()) return State.FALL_FLYING;
+            // Fabric InAirFSM: falling needs a slow-fall form or a self-tracked drop > 0.6.
+            // Vanilla fallDistance is unusable here: slow-falling powers keep resetting it.
+            FormDefinition current = FormManager.current(player);
             if (motion.verticalDelta < 0.0D
-                    && (FormManager.current(player).hasFlag("slow_fall") || player.fallDistance > 0.6F)) {
+                    && (current.hasFlag("slow_fall") || current.hasFlag("slow_fall_animation")
+                    || motion.fallDistance > 0.6D)) {
                 return State.FALL;
             }
             return State.JUMP;
@@ -420,10 +438,12 @@ public final class FormAnimationSystem {
             case FALL, CRAWL, FLYING -> add(result, "avali_slow_falling");
             case JUMP -> add(result, "avali_jump");
             case RIDE -> add(result, "avali_ride");
-            case SWIM -> add(result, "avali_water_float");
+            // SwimAnimController(float, null): active swimming falls through to vanilla.
+            case SWIM -> add(result, isSwimmingAnimation(player) ? null : "avali_water_float");
             case WALK -> add(result, sneak ? "avali_sneak_walk" : "avali_walk");
             case SPRINT -> add(result, sneak ? "avali_sneak_walk" : "avali_run");
-            case IDLE -> add(result, sneak ? "avali_sneak_idle" : "avali_idle");
+            // Fabric maps USE_ITEM to the idle controller.
+            case IDLE, USE_ITEM -> add(result, sneak ? "avali_sneak_idle" : "avali_idle");
             case MINING -> add(result, "avali_digging");
             case ATTACK -> add(result, "avali_attack");
             case FALL_FLYING -> add(result, "avali_elytra_fly");
@@ -441,12 +461,14 @@ public final class FormAnimationSystem {
             case SWIM -> add(result, isSwimmingAnimation(player) ? "weasel_swim" : "weasel_float");
             case WALK -> add(result, sneak ? "weasel_sneak_walk" : "weasel_walk");
             case SPRINT -> add(result, sneak ? "weasel_sneak_walk" : "weasel_run");
-            case IDLE -> add(result, !sneak && motionOf(player).idleTicks >= 100 ? "weasel_idle_stay" : sneak ? "weasel_sneak_idle" : "weasel_idle");
+            // UseItemAnimControllerPro(idle, idle, sneak_idle, sneak_walk)
+            case USE_ITEM -> add(result, !sneak ? "weasel_idle"
+                    : motionOf(player).moving ? "weasel_sneak_walk" : "weasel_sneak_idle");
             case MINING -> add(result, "weasel_dig");
             case ATTACK -> add(result, "weasel_attack");
             case FALL_FLYING, FLYING -> add(result, "weasel_elytra_fly");
-            case CRAWL -> add(result, sneak ? "weasel_sneak_idle" : "weasel_idle");
-            default -> { }
+            // Fabric's default branch (IDLE, CRAWL, RIDE, BLOCK...) is the idle-stay controller.
+            default -> add(result, !sneak && motionOf(player).idleTicks >= 100 ? "weasel_idle_stay" : sneak ? "weasel_sneak_idle" : "weasel_idle");
         }
     }
 
@@ -573,6 +595,10 @@ public final class FormAnimationSystem {
             net.minecraft.world.phys.Vec3 position = player.position();
             boolean moving = !snapshot.lastPosition.equals(position);
             snapshot.verticalDelta = position.y - snapshot.lastPosition.y;
+            // Fabric AnimSystem: highest point since leaving the ground minus current height.
+            snapshot.fallStartY = groundedForAnimation(player)
+                    ? position.y : Math.max(snapshot.fallStartY, position.y);
+            snapshot.fallDistance = snapshot.fallStartY - position.y;
             if (player.swinging) {
                 snapshot.swingTicks = snapshot.swinging ? snapshot.swingTicks + 1 : 1;
             } else {
@@ -607,9 +633,12 @@ public final class FormAnimationSystem {
         private boolean idle;
         private boolean moving;
         private double verticalDelta;
+        private double fallStartY;
+        private double fallDistance;
 
         private MotionSnapshot(net.minecraft.world.phys.Vec3 lastPosition) {
             this.lastPosition = lastPosition;
+            this.fallStartY = lastPosition.y;
         }
     }
 }
