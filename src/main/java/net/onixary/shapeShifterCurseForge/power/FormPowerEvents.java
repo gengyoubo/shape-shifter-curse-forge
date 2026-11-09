@@ -113,6 +113,7 @@ public final class FormPowerEvents {
                     tickClientMovementAction(player, id, power, currentMovementActions));
             Map<ResourceLocation, Integer> phases = CLIENT_MOVEMENT_ACTION_PHASES.get(player.getUUID());
             if (phases != null) phases.keySet().retainAll(currentMovementActions);
+            CustomPowerTypeService.clientTick(player);
             logAxolotlMovementState(player);
             enforceSprinting(player);
             applyClimbing(player);
@@ -130,6 +131,7 @@ public final class FormPowerEvents {
         enforceSprinting(player);
         adjustFoodHealTimer(player);
         SscJavaRegistries.tickActivePowers(player);
+        CustomPowerTypeService.tick((net.minecraft.server.level.ServerPlayer) player);
         FormPowerRegistry.visitActive(player, (id, power) -> tickPower(player, id, power));
         applyClimbing(player);
         maintainBreathingAndImmunity(player);
@@ -143,6 +145,7 @@ public final class FormPowerEvents {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
                 BatAttachService.forget(player);
                 PowerAnimationService.forget(player);
+                CustomPowerTypeService.forget(player);
             }
         }
     }

@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 
@@ -79,7 +80,7 @@ public final class FormActivePowerService {
 
     public static void setKeyPressed(ServerPlayer player, String key, boolean pressed) {
         if (!key.startsWith("key.shape-shifter-curse.") && !"key.jump".equals(key)
-                && !"key.sprint".equals(key)) {
+                && !"key.sprint".equals(key) && !SscJavaRegistries.isPowerKey(key)) {
             return;
         }
         Map<String, Boolean> keys = PRESSED_KEYS.computeIfAbsent(player.getUUID(), ignored -> new HashMap<>());
@@ -92,7 +93,12 @@ public final class FormActivePowerService {
                     FormManager.current(player).id(), player.getFluidHeight(FluidTags.WATER),
                     player.isEyeInFluid(FluidTags.WATER), player.getDeltaMovement());
         }
+        if (!pressed && wasPressed) {
+            CustomPowerTypeService.keyReleased(player, key);
+        }
         if (pressed && !wasPressed) {
+            // Add-on power types see every press of their key, before SSC's built-in handling.
+            CustomPowerTypeService.keyPressed(player, key);
             if (toggle(player, key)) {
                 return;
             }
@@ -158,6 +164,7 @@ public final class FormActivePowerService {
             if (pressed) {
                 triggerContinuousActive(serverPlayer, key);
                 charge(serverPlayer, key);
+                CustomPowerTypeService.keyHeld(serverPlayer, key);
             }
         });
     }

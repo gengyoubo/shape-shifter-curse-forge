@@ -53,6 +53,13 @@ public final class FormKeyInputEvents {
                 }
             }
         }
+        for (KeyMapping key : SscClientKeys.keys()) {
+            boolean pressed = key.isDown();
+            if (pressed != LAST_STATE.getOrDefault(key, false)) {
+                ModNetwork.CHANNEL.sendToServer(new ActivePowerKeyPacket(key.getName(), pressed));
+                LAST_STATE.put(key, pressed);
+            }
+        }
         KeyMapping jump = minecraft.options.keyJump;
         net.onixary.shapeShifterCurseForge.power.LevitatePowerService.tick(minecraft.player, jump.isDown());
         boolean pressed = jump.isDown();
