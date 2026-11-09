@@ -38,12 +38,19 @@ import java.util.concurrent.ConcurrentHashMap;
  *     (player, target, json) -> target.push(0.0, 0.5, 0.0));
  * SscJavaRegistries.registerPower(id("aura"), player -> { ... });
  * SscJavaRegistries.attachPower(id("my_form"), id("aura"));
+ * // A data-defined power type: every power JSON with "type": "my_mod:pulse" uses this behaviour.
+ * SscJavaRegistries.registerPowerType(id("pulse"), new SscPowerType() { ... });
+ * // Lets power JSON use "key": {"key": "key.my_mod.dash"}; register the client KeyMapping
+ * // with SscClientKeys so its state reaches the server.
+ * SscJavaRegistries.registerPowerKey("key.my_mod.dash");
  * }</pre>
  */
 public final class SscJavaRegistries {
     private static final Map<ResourceLocation, SscCondition> CONDITIONS = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, SscAction> ACTIONS = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, SscPower> POWERS = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, SscPowerType> POWER_TYPES = new ConcurrentHashMap<>();
+    private static final Set<String> POWER_KEYS = ConcurrentHashMap.newKeySet();
     private static final Map<ResourceLocation, Perk> PERKS = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, PerkTree> PERK_TREES = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, ResourceLocation> PERK_TREE_IDS = new ConcurrentHashMap<>();
@@ -67,6 +74,43 @@ public final class SscJavaRegistries {
 
     public static void registerPower(ResourceLocation id, SscPower power) {
         register(POWERS, id, power, "power");
+    }
+
+    /**
+     * Registers the behaviour of a data-defined power type. {@code type} is the value of the power
+     * JSON's {@code "type"} field; it must not be one of SSC's built-in types.
+     */
+    public static void registerPowerType(ResourceLocation type, SscPowerType powerType) {
+        register(POWER_TYPES, type, powerType, "power type");
+    }
+
+    /**
+     * Allows an add-on key name in power JSON ({@code "key": {"key": "key.my_mod.dash"}}) and in
+     * client key packets. SSC's own {@code key.shape-shifter-curse.*}, {@code key.jump} and
+     * {@code key.sprint} need no registration. Names are limited to 96 characters.
+     */
+    public static void registerPowerKey(String keyName) {
+        Objects.requireNonNull(keyName, "key name");
+        if (keyName.isEmpty() || keyName.length() > 96) {
+            throw new IllegalArgumentException("SSC power key name must be 1-96 characters: '" + keyName + "'");
+        }
+        if (!POWER_KEYS.add(keyName)) {
+            throw new IllegalStateException("Duplicate SSC power key registration: '" + keyName + "'");
+        }
+    }
+
+    public static Optional<SscPowerType> powerType(ResourceLocation type) {
+        return Optional.ofNullable(POWER_TYPES.get(type));
+    }
+
+    /** True when any add-on power type is registered; lets the per-tick scan exit early. */
+    public static boolean hasPowerTypes() {
+        return !POWER_TYPES.isEmpty();
+    }
+
+    /** True for add-on key names registered with {@link #registerPowerKey}. */
+    public static boolean isPowerKey(String keyName) {
+        return keyName != null && POWER_KEYS.contains(keyName);
     }
 
     /** Registers one immutable Perk definition. Tree layout is declared separately through {@link #registerPerkTree}. */
