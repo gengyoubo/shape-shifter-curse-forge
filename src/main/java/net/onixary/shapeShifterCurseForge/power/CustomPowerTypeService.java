@@ -1,5 +1,6 @@
 package net.onixary.shapeShifterCurseForge.power;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,9 +22,11 @@ import java.util.UUID;
  * Drives add-on {@link SscPowerType} implementations for the data-defined powers on each player's
  * current form. Server state is touched only on the server thread.
  *
- * <p>An instance is one power JSON object of a registered type. Children of {@code apoli:multiple}
- * are separate instances that share the parent's power id. Instances are compared by power id and
- * JSON object identity, so a data reload replaces them (remove, then add) as Apoli did.</p>
+ * <p>An instance is one power JSON object of a registered type. A child of {@code apoli:multiple}
+ * gets Apoli's sub-power id, {@code <parent id>_<child key>} (for example
+ * {@code my_mod:form_x_skill_activate}), so add-ons can key state and cooldowns exactly as on
+ * Fabric. Instances are compared by power id and JSON object identity, so a data reload replaces
+ * them (remove, then add) as Apoli did.</p>
  */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class CustomPowerTypeService {
@@ -38,6 +41,7 @@ public final class CustomPowerTypeService {
         void run(SscPowerType type, ResourceLocation powerId, JsonObject data);
     }
 
+    private static final String MULTIPLE = "apoli:multiple";
     private static final Map<UUID, List<Instance>> ACTIVE = new HashMap<>();
 
     private CustomPowerTypeService() {
@@ -46,11 +50,25 @@ public final class CustomPowerTypeService {
     private static List<Instance> scan(Player player) {
         if (!SscJavaRegistries.hasPowerTypes()) return List.of();
         List<Instance> found = new ArrayList<>();
-        FormPowerRegistry.visitActive(player, (id, power) -> {
-            ResourceLocation type = ResourceLocation.tryParse(FormPowerRegistry.typeOf(power));
-            if (type != null) SscJavaRegistries.powerType(type).ifPresent(t -> found.add(new Instance(id, t, power)));
-        });
+        for (ResourceLocation id : FormPowerRegistry.idsFor(player)) {
+            FormPowerDefinition definition = FormPowerRegistry.get(id);
+            if (definition != null) collect(id, definition.data(), found);
+        }
         return found;
+    }
+
+    /** Same traversal as {@link FormPowerRegistry#visitActive}, but naming children with Apoli sub-power ids. */
+    private static void collect(ResourceLocation id, JsonObject power, List<Instance> found) {
+        String typeName = FormPowerRegistry.typeOf(power);
+        ResourceLocation type = ResourceLocation.tryParse(typeName);
+        if (type != null) SscJavaRegistries.powerType(type).ifPresent(t -> found.add(new Instance(id, t, power)));
+        if (!MULTIPLE.equals(typeName)) return;
+        for (Map.Entry<String, JsonElement> entry : power.entrySet()) {
+            if (entry.getValue().isJsonObject() && entry.getValue().getAsJsonObject().has("type")) {
+                ResourceLocation childId = ResourceLocation.tryParse(id + "_" + entry.getKey());
+                if (childId != null) collect(childId, entry.getValue().getAsJsonObject(), found);
+            }
+        }
     }
 
     /** Server player tick: reconcile added/removed powers, then tick every active instance. */

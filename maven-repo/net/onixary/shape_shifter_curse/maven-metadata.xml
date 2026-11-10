@@ -3,8 +3,8 @@
   <groupId>net.onixary</groupId>
   <artifactId>shape_shifter_curse</artifactId>
   <versioning>
-    <latest>1.10.0.5</latest>
-    <release>1.10.0.5</release>
+    <latest>1.10.0.6</latest>
+    <release>1.10.0.6</release>
     <versions>
       <version>1.9.3</version>
       <version>1.9.3.1</version>
@@ -23,7 +23,8 @@
       <version>1.10.0.3</version>
       <version>1.10.0.4</version>
       <version>1.10.0.5</version>
+      <version>1.10.0.6</version>
     </versions>
-    <lastUpdated>20261109015957</lastUpdated>
+    <lastUpdated>20261110013209</lastUpdated>
   </versioning>
 </metadata>

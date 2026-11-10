@@ -10,7 +10,8 @@ import net.minecraft.world.entity.player.Player;
  *
  * <p>Register one instance per type id with {@link SscJavaRegistries#registerPowerType}. SSC then
  * finds every power of that type on the player's current form (including children of
- * {@code apoli:multiple}) and drives the callbacks below. {@code powerId} is the power file id;
+ * {@code apoli:multiple}) and drives the callbacks below. {@code powerId} is the power file id, or
+ * for a child of {@code apoli:multiple} Apoli's sub-power id {@code <parent id>_<child key>};
  * {@code data} is that power's JSON object, which must be treated as read-only.</p>
  *
  * <p>A power type object is shared registration data: never store one player's state in its
