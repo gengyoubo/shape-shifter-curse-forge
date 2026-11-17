@@ -1,7 +1,6 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.client.Minecraft;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 
 import java.lang.reflect.Constructor;
@@ -19,7 +18,7 @@ public final class PlayerAnimatorCompat {
     /** Null for normal world/vanilla-hand rendering, including every remote player. */
     public static ArmVisibility firstPersonArms(Player player) {
         if (!net.onixary.shapeShifterCurseForge.other.config.SscClientConfig.BETTER_COMBAT_FIX.get()
-                || API == null || failed || player != Minecraft.getInstance().player || !API.playerType.isInstance(player)) {
+                || API == null || failed || !FirstPersonModelCompat.isLocalFirstPerson(player) || !API.playerType.isInstance(player)) {
             return null;
         }
         try {

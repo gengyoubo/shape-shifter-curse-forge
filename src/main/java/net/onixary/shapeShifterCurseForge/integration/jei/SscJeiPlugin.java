@@ -3,17 +3,19 @@ package net.onixary.shapeShifterCurseForge.integration.jei;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.recipe.RecipeType;
+import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import net.onixary.shapeShifterCurseForge.registry.ModBlocks;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * JEI integration, only loaded when JEI is present. The dependency is compileOnly,
- * so the plugin class is never touched on JEI-less clients.
+ * Optional integration discovered by JEI when present.
  */
 @JeiPlugin
 public class SscJeiPlugin implements IModPlugin {
@@ -38,7 +40,14 @@ public class SscJeiPlugin implements IModPlugin {
     public void registerRecipes(IRecipeRegistration registration) {
         IIngredientManager ingredientManager = registration.getIngredientManager();
         registration.addRecipes(WEB_COMPOSTING, WebComposterRecipe.getRecipes(ingredientManager));
-        var resourceManager = Minecraft.getInstance().getResourceManager();
-        registration.addRecipes(ALTAR_RECIPES, MachineJeiRecipe.load(resourceManager));
+        var level = Minecraft.getInstance().level;
+        if (level != null) {
+            registration.addRecipes(ALTAR_RECIPES, MachineJeiRecipe.load(level.getRecipeManager(), level.registryAccess()));
+        }
+    }
+
+    @Override
+    public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
+        registration.addRecipeCatalyst(new ItemStack(ModBlocks.ALTAR.get()), ALTAR_RECIPES);
     }
 }

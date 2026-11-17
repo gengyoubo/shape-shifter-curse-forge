@@ -6,7 +6,7 @@ import net.minecraft.world.level.Level;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 
 /**
- * Client readout for the Codex. The server packet is authoritative while connected;
+ * Client state for the Codex and sky rendering. The server packet is authoritative while connected;
  * the common phase list is only used as a safe fallback before the first packet.
  */
 public final class CursedMoonData {
@@ -49,6 +49,11 @@ public final class CursedMoonData {
 
     public static void setServerCursedMoonDay(boolean cursedMoonDay) {
         serverCursedMoonDay = cursedMoonDay;
+        middayMessageSent = false;
+    }
+
+    static void clearServerState() {
+        serverCursedMoonDay = null;
         middayMessageSent = false;
     }
 

@@ -53,6 +53,9 @@
     "client": [
         "client.FormGogglesArmorMixin",
         "client.AbstractClientPlayerSkinMixin",
+        "client.PlayerSpeedFovMixin",
+        "client.CursedMoonSkyMixin",
+        "client.CursedMoonLightTextureMixin",
         "accessor.ItemInHandRendererInvoker",
         "client.CameraBobbingMixin",
         "client.HurtCameraMixin",

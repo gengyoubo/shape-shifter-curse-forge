@@ -31,7 +31,7 @@ public final class ClientParticlePowerEvents {
             if (!FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) return;
             if (player.isInvisibleTo(viewer)
                     && !FormPowerRuntime.booleanValue(power, "visible_while_invisible", false)) return;
-            if (player == viewer && minecraft.options.getCameraType().isFirstPerson()
+            if (FirstPersonModelCompat.isLocalFirstPerson(player)
                     && !FormPowerRuntime.booleanValue(power, "visible_in_first_person", false)) return;
             int frequency = Math.max(1, FormPowerRuntime.intValue(power, "frequency", 1));
             int count = FormPowerRuntime.intValue(power, "count", 1);

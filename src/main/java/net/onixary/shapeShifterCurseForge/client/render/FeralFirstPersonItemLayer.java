@@ -37,10 +37,9 @@ public final class FeralFirstPersonItemLayer
                        float netHeadYaw, float headPitch) {
         Minecraft minecraft = Minecraft.getInstance();
         ItemStack stack = player.getMainHandItem();
-        if (player != minecraft.player || stack.isEmpty()
-                || !minecraft.options.getCameraType().isFirstPerson()
+        if (stack.isEmpty() || !FirstPersonModelCompat.isLocalFirstPerson(player)
                 || FormManager.current(player).bodyType() != FormBodyType.FERAL
-                || !FirstPersonModelCompat.isEnabled()
+                || !FirstPersonModelCompat.isRenderingPlayer()
                 || (minecraft.screen != null && packedLight == LightTexture.FULL_BRIGHT)) {
             return;
         }

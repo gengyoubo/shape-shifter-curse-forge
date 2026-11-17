@@ -25,6 +25,7 @@ import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
+import software.bernie.geckolib.cache.object.GeoBone;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -74,9 +75,9 @@ public final class FormClientRenderEvents {
         // Vanilla never renders the camera entity's body in first person; the form's
         // first-person arms are handled separately by FormFirstPersonArmEvents.
         // First-person Model does render it, and that body must be the form.
-        boolean selfFirstPerson = !inventoryPreview && player == minecraft.player
-                && minecraft.options.getCameraType().isFirstPerson() && animatedArms == null;
-        if (selfFirstPerson && !FirstPersonModelCompat.isEnabled()) {
+        boolean selfFirstPerson = !inventoryPreview && animatedArms == null
+                && FirstPersonModelCompat.isLocalFirstPerson(player);
+        if (selfFirstPerson && !FirstPersonModelCompat.isRenderingPlayer()) {
             setAllPartsVisible(vanillaModel);
             logRenderOutcome(player, form, "skip:first-person-self");
             return;
@@ -99,7 +100,9 @@ public final class FormClientRenderEvents {
         // before vanilla ran, stranding the player invisible with no recovery signal.
         PoseStack poseStack = event.getPoseStack();
         FirstPersonGeoVisibility armVisibility = null;
-        software.bernie.geckolib.cache.object.GeoBone hiddenNeck = null;
+        GeoBone hiddenHead = null;
+        boolean headWasHidden = false;
+        boolean headChildrenWereHidden = false;
         poseStack.pushPose();
         try {
             renderer.setPlayer(player);
@@ -133,8 +136,12 @@ public final class FormClientRenderEvents {
             if (selfFirstPerson) {
                 FormGeoModel geoModel = (FormGeoModel) renderer.getGeoModel();
                 geoModel.getBakedModel(geoModel.modelResource());
-                hiddenNeck = geoModel.neckRootBone().orElse(null);
-                if (hiddenNeck != null) hiddenNeck.setHidden(true);
+                hiddenHead = geoModel.neckRootBone().or(() -> geoModel.getBone("bipedHead")).orElse(null);
+                if (hiddenHead != null) {
+                    headWasHidden = hiddenHead.isHidden();
+                    headChildrenWereHidden = hiddenHead.isHidingChildren();
+                    hiddenHead.setHidden(true);
+                }
             }
             // Forge posts RenderPlayerEvent.Pre before LivingEntityRenderer performs its entity
             // transforms.  Fabric's FormRenderFeature runs after them, so recreate the full
@@ -166,7 +173,10 @@ public final class FormClientRenderEvents {
             reportRenderFailure(player, form, exception);
         } finally {
             if (armVisibility != null) armVisibility.close();
-            if (hiddenNeck != null) hiddenNeck.setHidden(false);
+            if (hiddenHead != null) {
+                hiddenHead.setHidden(headWasHidden);
+                hiddenHead.setChildrenHidden(headChildrenWereHidden);
+            }
             poseStack.popPose();
         }
     }

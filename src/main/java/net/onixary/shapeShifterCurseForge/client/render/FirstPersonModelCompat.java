@@ -3,6 +3,7 @@ package net.onixary.shapeShifterCurseForge.client.render;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -16,6 +17,7 @@ import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /**
  * Fabric's First-person Model (FPM) linkage: feral forms shift FPM's body X offsets so the
@@ -28,8 +30,8 @@ public final class FirstPersonModelCompat {
     private static final int RESET_TICKS = 20;
     private static boolean resolved;
     private static Field instanceField;
-    private static java.lang.reflect.Method getConfig;
-    private static java.lang.reflect.Method isEnabled;
+    private static Method getConfig;
+    private static Method isRenderingPlayer;
     private static boolean newVersion;
     private static boolean versionCheckFailed;
     private static ResourceLocation lastForm;
@@ -40,7 +42,8 @@ public final class FirstPersonModelCompat {
 
     @SubscribeEvent
     public static void tick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !SscClientConfig.CHANGE_FPM_CONFIG.get() || !resolve()) {
+        if (event.phase != TickEvent.Phase.END || !SscClientConfig.CHANGE_FPM_CONFIG.get()
+                || !resolve() || getConfig == null) {
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();
@@ -58,23 +61,29 @@ public final class FirstPersonModelCompat {
             resetTicks--;
             setOffsets(0);
         }
-        if (form.bodyType() == FormBodyType.FERAL && minecraft.options.getCameraType().isFirstPerson()
-                && !versionCheckFailed) {
+        if (form.bodyType() == FormBodyType.FERAL && isLocalFirstPerson(minecraft.player)
+                && !versionCheckFailed && getConfig != null) {
             setOffsets(newVersion ? 12 : -25);
         }
     }
 
-    /** Whether First-person Model is installed and currently drawing the player's body. */
-    public static boolean isEnabled() {
-        if (!resolve()) {
+    static boolean isLocalFirstPerson(Player player) {
+        Minecraft minecraft = Minecraft.getInstance();
+        return player == minecraft.player && player == minecraft.getCameraEntity()
+                && minecraft.options.getCameraType().isFirstPerson();
+    }
+
+    /** Whether the current player render is First-person Model's body pass. */
+    static boolean isRenderingPlayer() {
+        if (!resolve() || isRenderingPlayer == null) {
             return false;
         }
         try {
             Object core = instanceField.get(null);
-            return core != null && (boolean) isEnabled.invoke(core);
+            return core != null && (boolean) isRenderingPlayer.invoke(core);
         } catch (ReflectiveOperationException | RuntimeException exception) {
-            LogUtils.getLogger().warn("Disabling First-person Model integration", exception);
-            instanceField = null;
+            LogUtils.getLogger().warn("Disabling First-person Model render-pass detection", exception);
+            isRenderingPlayer = null;
             return false;
         }
     }
@@ -91,9 +100,9 @@ public final class FirstPersonModelCompat {
             Class<?> core = Class.forName("dev.tr7zw.firstperson.FirstPersonModelCore");
             instanceField = core.getField("instance");
             getConfig = core.getMethod("getConfig");
-            isEnabled = core.getMethod("isEnabled");
-        } catch (ReflectiveOperationException exception) {
-            LogUtils.getLogger().warn("First-person Model is loaded but its config API was not found", exception);
+            isRenderingPlayer = core.getMethod("isRenderingPlayer");
+        } catch (ReflectiveOperationException | LinkageError exception) {
+            LogUtils.getLogger().warn("First-person Model is loaded but its integration API was not found", exception);
             instanceField = null;
             return false;
         }
@@ -122,7 +131,7 @@ public final class FirstPersonModelCompat {
             type.getField("sneakXOffset").setInt(config, offset);
         } catch (ReflectiveOperationException | RuntimeException exception) {
             LogUtils.getLogger().warn("Disabling First-person Model offset sync", exception);
-            instanceField = null;
+            getConfig = null;
         }
     }
 }
