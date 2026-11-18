@@ -74,8 +74,18 @@ public final class FormActivePowerService {
         TOGGLES.remove(id);
         SPRINTING.remove(id);
         SPRINT_TO_SNEAK_TRIGGERED.remove(id);
-        // Fabric's ManaTypePower fills the active pool when the form gains it.
-        if (WEB_RESOURCE.equals(manaType(player))) setMana(player, maximumMana(player));
+        // Fabric's ManaTypePower#onGained fills the active pool, whatever its type, whenever a
+        // form gains it (every transformation, including commands).
+        fillActiveManaPool(player);
+    }
+
+    /** Fabric's ManaTypePower#onRespawn also refills the active pool. */
+    public static void onRespawn(ServerPlayer player) {
+        fillActiveManaPool(player);
+    }
+
+    private static void fillActiveManaPool(Player player) {
+        if (!player.level().isClientSide && hasActiveManaType(player)) setMana(player, maximumMana(player));
     }
 
     public static void setKeyPressed(ServerPlayer player, String key, boolean pressed) {

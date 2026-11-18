@@ -885,13 +885,25 @@ public final class FormPowerEvents {
         return ids;
     }
 
+    /** Ends a sprint already in progress when a prevent_sprinting power becomes active. */
     private static void enforceSprinting(Player player) {
+        if (player.isSprinting() && preventsSprinting(player)) player.setSprinting(false);
+    }
+
+    /**
+     * Whether an active apoli:prevent_sprinting power applies. Apoli makes the client's
+     * "can sprint" check fail, so sprinting never starts; Forge blocks setSprinting(true) for
+     * the same result (PreventSprintingMixin), on both logical sides.
+     */
+    public static boolean preventsSprinting(Player player) {
+        final boolean[] prevent = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
-            if ("apoli:prevent_sprinting".equals(FormPowerRegistry.typeOf(power))
+            if (!prevent[0] && "apoli:prevent_sprinting".equals(FormPowerRegistry.typeOf(power))
                     && FormPowerRuntime.test(player, player, power.getAsJsonObject("condition"))) {
-                player.setSprinting(false);
+                prevent[0] = true;
             }
         });
+        return prevent[0];
     }
 
     private static boolean matchesProjectile(Projectile projectile, JsonObject condition) {

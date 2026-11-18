@@ -86,6 +86,7 @@ public final class PlayerCapabilityEvents {
             ModNetwork.sendSkinSync(player);
             SscApi.currentForm(player).ifPresent(data -> ModNetwork.sendItemStores(player, data.getItemStores()));
             CursedMoonService.sendDaySync(player);
+            FormActivePowerService.onRespawn(player);
             FormActivePowerService.synchronizeMana(player);
             InstinctService.synchronizeHud(player);
         }

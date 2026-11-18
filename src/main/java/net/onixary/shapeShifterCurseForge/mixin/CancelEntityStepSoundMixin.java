@@ -1,12 +1,15 @@
 package net.onixary.shapeShifterCurseForge.mixin;
 
+import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRegistry;
 import net.onixary.shapeShifterCurseForge.power.FormPowerRuntime;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -14,17 +17,32 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @SuppressWarnings("StatementWithEmptyBody")
 @Mixin(Entity.class)
 public abstract class CancelEntityStepSoundMixin {
+    @Unique
+    private boolean ssc$longStepInterval;
+
     @Inject(method = "nextStep", at = @At("RETURN"), cancellable = true)
     private void ssc$stepDistance(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Float> cir) {
         if (!((Object) this instanceof Player player)) return;
-        com.google.gson.JsonObject[] first = {null};
+        JsonObject[] first = {null};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (first[0] == null && "shape-shifter-curse:modify_footstep_sound_speed".equals(FormPowerRegistry.typeOf(power))) first[0] = power;
         });
-        if (first[0] == null) return;
+        if (first[0] == null) {
+            ssc$longStepInterval = false;
+            return;
+        }
         boolean running = FormPowerRuntime.booleanValue(first[0], "adjust_run_individually", false) && player.isSprinting();
         float multiplier = FormPowerRuntime.floatValue(first[0], running ? "run_speed_multiplier" : "speed_multiplier", 1.0F);
-        cir.setReturnValue(player.moveDist + 1.0F / multiplier);
+        if (multiplier <= 0.0F) multiplier = 1.0F;
+        if (player.isSwimming()) {
+            ssc$longStepInterval = false;
+            cir.setReturnValue(player.moveDist + 1.0F / multiplier);
+            return;
+        }
+        float offset = Mth.clamp(FormPowerRuntime.floatValue(first[0], "step_sound_offset", 0.0F), 0.0F, 0.99F);
+        float distance = (1.0F / multiplier) * (1.0F + (ssc$longStepInterval ? offset : -offset));
+        cir.setReturnValue(player.moveDist + distance);
+        ssc$longStepInterval = !ssc$longStepInterval;
     }
 
     @Inject(method = "playStepSound", at = @At("HEAD"), cancellable = true)

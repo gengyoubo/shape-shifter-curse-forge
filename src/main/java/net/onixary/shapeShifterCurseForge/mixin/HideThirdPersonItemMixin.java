@@ -22,6 +22,13 @@ public abstract class HideThirdPersonItemMixin {
                                    HumanoidArm arm, PoseStack poseStack, MultiBufferSource buffer,
                                    int packedLight, CallbackInfo ci) {
         if (!(entity instanceof net.minecraft.world.entity.player.Player player)) return;
+        // Fabric AdjustItemHoldFeatureRendererMixin: feral forms carry items in the mouth and on
+        // the back (FeralMouthItemLayer), never in the vanilla hand positions.
+        if (net.onixary.shapeShifterCurseForge.form.FormManager.current(player).bodyType()
+                == net.onixary.shapeShifterCurseForge.form.FormBodyType.FERAL) {
+            ci.cancel();
+            return;
+        }
         final boolean[] hide = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if (!hide[0] && "shape-shifter-curse:hide_tp_held_item".equals(FormPowerRegistry.typeOf(power))

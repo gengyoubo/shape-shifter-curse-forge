@@ -167,6 +167,15 @@ public final class FormPowerRegistry {
         return idsFor(player).contains(id);
     }
 
+    /** Whether any active (including nested {@code apoli:multiple}) power has this type. */
+    public static boolean hasActiveType(Player player, String type) {
+        final boolean[] found = {false};
+        visitActive(player, (id, power) -> {
+            if (!found[0] && type.equals(typeOf(power))) found[0] = true;
+        });
+        return found[0];
+    }
+
     public static void visitActive(Player player, BiConsumer<ResourceLocation, JsonObject> visitor) {
         ResourceLocation formId = FormManager.current(player).id();
         List<ResourceLocation> ids = idsFor(player);

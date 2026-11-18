@@ -138,7 +138,8 @@ public final class FormPowerRuntime {
                     && (!condition.has("entity_condition")
                     || testEntity(actor, target, condition.getAsJsonObject("entity_condition")));
             case "apoli:raycast" -> raycast(actor, condition);
-            case "shape-shifter-curse:barehand_digging" -> barehandDigging(actor);
+            case "shape-shifter-curse:barehand_digging", "shape-shifter-curse:can_barehand_digging"
+                    -> barehandDigging(actor);
             case "shape-shifter-curse:chance" -> new java.util.Random().nextFloat()
                     < floatValue(condition, "chance", 0.0F);
             case "shape-shifter-curse:can_render_gui" -> canRenderGui();
@@ -169,6 +170,7 @@ public final class FormPowerRuntime {
                     >= doubleValue(condition, "mana_percent", 0.0D);
             case "shape-shifter-curse:instinct_value" -> compare(InstinctService.value(actor), condition);
             case "shape-shifter-curse:is_sleep" -> actor.isSleeping();
+            case "shape-shifter-curse:is_spectator" -> actor.isSpectator();
             case "shape-shifter-curse:check_stored_item" -> ItemStoreService.check(
                     target instanceof Player targetPlayer ? targetPlayer : actor, condition);
             case "apoli:target_condition" -> target != null && testEntity(actor, target, condition.getAsJsonObject("condition"));
@@ -437,6 +439,7 @@ public final class FormPowerRuntime {
             }
             case "shape-shifter-curse:recall_wolf_minions" -> AnubisMinionService.recall(actor);
             case "apoli:execute_command" -> executeCommand(actor, recipient, action);
+            case "apoli:delay" -> scheduleDelayed(actor, recipient, action);
             case "apoli:spawn_particles" -> spawnParticles(actor, recipient, action);
             case "apoli:area_of_effect" -> {
                 if (!recipient.level().isClientSide) {
@@ -1744,6 +1747,19 @@ public final class FormPowerRuntime {
         }
     }
 
+    private static void scheduleDelayed(Player actor, LivingEntity recipient, JsonObject action) {
+        if (actor.level().isClientSide || !(actor.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return;
+        }
+        JsonObject delayed = action.getAsJsonObject("action");
+        if (delayed == null) return;
+        int ticks = Math.max(0, intValue(action, "ticks", 0));
+        serverLevel.getServer().tell(new net.minecraft.server.TickTask(ticks, () -> {
+            if (actor.isRemoved()) return;
+            execute(actor, recipient.isRemoved() ? actor : recipient, delayed);
+        }));
+    }
+
     private static void spawnParticles(Player actor, LivingEntity recipient, JsonObject action) {
         if (!(recipient.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) return;
         JsonElement particle = action.get("particle");
@@ -1941,6 +1957,7 @@ public final class FormPowerRuntime {
                     dx * knockback, dy * knockback, dz * knockback));
             if (candidate instanceof LivingEntity living) {
                 execute(actor, living, action.getAsJsonObject("entity_action"));
+                executeBiEntity(actor, living, action.getAsJsonObject("bientity_action"));
             }
             candidate.hurtMarked = true;
         }

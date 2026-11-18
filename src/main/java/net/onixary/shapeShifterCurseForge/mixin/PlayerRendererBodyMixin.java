@@ -33,6 +33,22 @@ import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 @Mixin(value = net.minecraft.client.renderer.entity.player.PlayerRenderer.class, priority = 1100)
 public abstract class PlayerRendererBodyMixin {
     /**
+     * Feral forms carry items in the mouth (FeralMouthItemLayer), like vanilla's fox, so the
+     * humanoid hand poses (item, block, bow, crossbow...) must not reach the front legs. Feral
+     * clips that only move a leg keep its vanilla rotation (PAL semantics), which otherwise
+     * lifted the right front paw whenever an item was held. Runs before RenderPlayerEvent.Pre,
+     * so the Geo pre-pass and the vanilla pass both see it.
+     */
+    @Inject(method = "setModelProperties(Lnet/minecraft/client/player/AbstractClientPlayer;)V", at = @At("RETURN"))
+    private void ssc$feralArmPoses(AbstractClientPlayer player, CallbackInfo ci) {
+        if (FormManager.current(player).bodyType() != FormBodyType.FERAL) return;
+        net.minecraft.client.model.PlayerModel<AbstractClientPlayer> model =
+                ((net.minecraft.client.renderer.entity.player.PlayerRenderer) (Object) this).getModel();
+        model.rightArmPose = net.minecraft.client.model.HumanoidModel.ArmPose.EMPTY;
+        model.leftArmPose = net.minecraft.client.model.HumanoidModel.ArmPose.EMPTY;
+    }
+
+    /**
      * Fabric's {@code FeralPlayerEntityRendererMixin}: feral clips author their own crouch, so
      * vanilla's 2px sneak drop must not lower the form, armor and held items again.
      */

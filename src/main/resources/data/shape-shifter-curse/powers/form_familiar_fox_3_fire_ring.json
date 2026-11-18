@@ -74,13 +74,13 @@
                         {
                             "type": "apoli:set_on_fire",
                             "duration": 10
-                        },
-                        {
-                            "type": "apoli:damage",
-                            "amount": 8,
-                            "damage_type": "minecraft:on_fire"
                         }
                     ]
+                },
+                "bientity_action": {
+                    "type": "apoli:damage",
+                    "amount": 8,
+                    "damage_type": "minecraft:on_fire"
                 },
                 "explosion_damage_entity" : false
             },

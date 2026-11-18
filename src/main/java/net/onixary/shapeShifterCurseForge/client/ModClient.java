@@ -58,6 +58,7 @@ public final class ModClient {
             net.minecraft.client.renderer.entity.player.PlayerRenderer renderer = event.getSkin(skin);
             if (renderer != null) {
                 renderer.addLayer(new net.onixary.shapeShifterCurseForge.client.render.FeralFirstPersonItemLayer(renderer));
+                renderer.addLayer(new net.onixary.shapeShifterCurseForge.client.render.FeralMouthItemLayer(renderer));
                 renderer.addLayer(new net.onixary.shapeShifterCurseForge.client.render.SpiderExtraHandItemLayer(renderer));
             }
         }
