@@ -553,7 +553,7 @@ public final class FormActivePowerService {
                 FormPowerRuntime.execute(player, player, power.getAsJsonObject("start_action"));
                 state = new ChargeState();
                 states.put(id, state);
-                syncCharge(player, id, true);
+                syncCharge(player, id, power, true, 0);
             }
             state.lastUseTick = player.tickCount;
             state.ticks++;
@@ -576,6 +576,7 @@ public final class FormActivePowerService {
                                 FormPowerRuntime.execute(player, player, power.getAsJsonObject(prefix + "charge_complete_action"));
                                 state.tier = tier;
                                 justCompleted = true;
+                                syncCharge(player, id, power, true, tier);
                             }
                         }
                     }
@@ -590,7 +591,7 @@ public final class FormActivePowerService {
                 if (justCompleted && autoFire != null && FormPowerRuntime.test(player, player, autoFire)) {
                     fireCharge(player, id, power, state);
                     states.remove(id);
-                    syncCharge(player, id, false);
+                    syncCharge(player, id, power, false, 0);
                     break;
                 }
             }
@@ -611,7 +612,7 @@ public final class FormActivePowerService {
             if (!keys.getOrDefault(key, false) && player.tickCount - state.lastUseTick > 2) {
                 if (!isOnCooldown(player, id)) fireCharge(serverPlayer, id, power, state);
                 states.remove(id);
-                syncCharge(serverPlayer, id, false);
+                syncCharge(serverPlayer, id, power, false, 0);
             }
         });
     }
@@ -631,11 +632,14 @@ public final class FormActivePowerService {
         var states = CLIENT_CHARGES.computeIfAbsent(player.getUUID(), ignored -> new java.util.HashSet<>());
         if (charging) states.add(id); else states.remove(id);
     }
-    private static void syncCharge(ServerPlayer player, ResourceLocation id, boolean charging) {
+    /** Also carries the completed tier under the power's {@code charge_power_id} for the HUD. */
+    private static void syncCharge(ServerPlayer player, ResourceLocation id, JsonObject power,
+                                   boolean charging, int tier) {
+        String chargeKey = FormPowerRuntime.stringValue(power, "charge_power_id", id.toString());
         if (player.connection != null && player.connection.connection.isConnected())
             net.onixary.shapeShifterCurseForge.network.ModNetwork.CHANNEL.send(
                     net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player),
-                    new net.onixary.shapeShifterCurseForge.network.ChargeStatePacket(id, charging));
+                    new net.onixary.shapeShifterCurseForge.network.ChargeStatePacket(id, charging, chargeKey, tier));
     }
 
     private static void fireCharge(ServerPlayer player, ResourceLocation id, JsonObject power, ChargeState state) {

@@ -6,7 +6,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenuV2;
 import net.onixary.shapeShifterCurseForge.client.codex.NormalFormSelectScreen;
-import net.onixary.shapeShifterCurseForge.client.screen.FormAttunerScreen;
+import net.onixary.shapeShifterCurseForge.client.screen.FormUpgradeScreen;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.Set;
 import java.util.UUID;
@@ -25,9 +26,11 @@ import java.util.UUID;
 // TODO[C-S] Any new server->client packet must route its client-only work through this helper
 //   (never reference Minecraft/Screen subclasses directly), or the dedicated server crashes on load.
 public final class ClientPacketHandlers {
-    public static void setChargeState(net.minecraft.resources.ResourceLocation id, boolean charging) {
+    public static void setChargeState(net.minecraft.resources.ResourceLocation id, boolean charging,
+                                      String chargeKey, int tier) {
         var player = Minecraft.getInstance().player;
         if (player != null) net.onixary.shapeShifterCurseForge.power.FormActivePowerService.acceptClientCharge(player, id, charging);
+        ManaClientState.setChargeTier(chargeKey, charging ? tier : 0);
     }
     public static void setPowerResource(net.minecraft.resources.ResourceLocation id, double value) {
         var player = Minecraft.getInstance().player;
@@ -53,10 +56,21 @@ public final class ClientPacketHandlers {
         }
     }
 
+    /** Like Fabric, the attuner opens the skill tree directly; refreshes update it in place. */
     public static void openFormAttuner(int level, int maxLevel, String formGroupId,
                                        Set<String> unlockedPerks, String statusKey) {
-        Minecraft.getInstance().setScreen(new FormAttunerScreen(
-                level, maxLevel, formGroupId, unlockedPerks, statusKey));
+        ResourceLocation groupId = ResourceLocation.tryParse(formGroupId == null ? "" : formGroupId);
+        Set<ResourceLocation> unlocked = new java.util.LinkedHashSet<>();
+        if (unlockedPerks != null) for (String perkId : unlockedPerks) {
+            ResourceLocation id = ResourceLocation.tryParse(perkId);
+            if (id != null) unlocked.add(id);
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen instanceof FormUpgradeScreen open && java.util.Objects.equals(open.formGroupId(), groupId)) {
+            open.update(level, unlocked, statusKey);
+            return;
+        }
+        minecraft.setScreen(new FormUpgradeScreen(level, groupId, unlocked, statusKey));
     }
 
     public static void setInstinct(float value, float rate, boolean visible, boolean locked) {

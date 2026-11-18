@@ -7,10 +7,6 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.entity.AxolotlRenderer;
-import net.minecraft.client.renderer.entity.BatRenderer;
-import net.minecraft.client.renderer.entity.OcelotRenderer;
-import net.minecraft.client.renderer.entity.SpiderRenderer;
 import net.minecraft.client.renderer.entity.WolfRenderer;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
@@ -44,10 +40,14 @@ public final class ModClient {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.MANA_RESERVOIR.get(), context -> new net.minecraft.client.renderer.entity.ThrownItemRenderer<>(context, 1.0F, true));
         event.registerEntityRenderer(ModEntities.ANUBIS_WOLF_MINION.get(), AnubisWolfMinionRenderer::new);
-        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_BAT.get(), BatRenderer::new);
-        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_AXOLOTL.get(), AxolotlRenderer::new);
-        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_OCELOT.get(), OcelotRenderer::new);
-        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_SPIDER.get(), SpiderRenderer::new);
+        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_BAT.get(),
+                net.onixary.shapeShifterCurseForge.client.render.TransformativeMobRenderers.TransformativeBat::new);
+        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_AXOLOTL.get(),
+                net.onixary.shapeShifterCurseForge.client.render.TransformativeMobRenderers.Axolotl::new);
+        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_OCELOT.get(),
+                net.onixary.shapeShifterCurseForge.client.render.TransformativeMobRenderers.Ocelot::new);
+        event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_SPIDER.get(),
+                net.onixary.shapeShifterCurseForge.client.render.TransformativeMobRenderers.Spider::new);
         event.registerEntityRenderer(ModEntities.TRANSFORMATIVE_WOLF.get(), WolfRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.FORM_ATTUNER.get(), FormAttunerBeamRenderer::new);
     }

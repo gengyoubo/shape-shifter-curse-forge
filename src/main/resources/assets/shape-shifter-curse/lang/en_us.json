@@ -1006,5 +1006,6 @@
     "key.shape-shifter-curse.scroll_active_skill": "Hold to scroll skills",
     "key.shape-shifter-curse.prev_active_skill": "Previous active skill",
     "key.shape-shifter-curse.next_active_skill": "Next active skill",
-    "key.shape-shifter-curse.active_skill": "Use selected skill"
+    "key.shape-shifter-curse.active_skill": "Use selected skill",
+  "gui.shape_shifter_curse.altar.remaining_moondust": "Remaining Moondust fuel: %s / %s"
 }

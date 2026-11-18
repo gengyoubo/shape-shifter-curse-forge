@@ -13,18 +13,19 @@ public class AltarMenu extends AbstractContainerMenu {
     public AltarMenu(int id, Inventory inv, Container container, ContainerData data) {
         super(ModMenuTypes.ALTAR.get(), id);
         this.container = container; this.data = data;
+        // Slot positions match Fabric's AltarCraftUIHandler and altar_craft_ui.png.
         // 3x3 input 0-8
-        for (int y=0;y<3;y++) for(int x=0;x<3;x++) addSlot(new Slot(container, x+y*3, 30 + x*18, 17 + y*18));
+        for (int y=0;y<3;y++) for(int x=0;x<3;x++) addSlot(new Slot(container, x+y*3, 26 + x*18, 17 + y*18));
         // Catalyst and fuel have separate slots.
-        addSlot(new Slot(container, 9, 8, 57));
-        addSlot(new Slot(container, 10, 152, 57) {
+        addSlot(new Slot(container, 9, 97, 22));
+        addSlot(new Slot(container, 10, 84, 53) {
             @Override public boolean mayPlace(ItemStack s) { return net.onixary.shapeShifterCurseForge.block.entity.AltarBlockEntity.canFuel(s); }
         });
-        addSlot(new Slot(container, 11, 124, 35) { @Override public boolean mayPlace(ItemStack s){ return false; }
+        addSlot(new Slot(container, 11, 134, 35) { @Override public boolean mayPlace(ItemStack s){ return false; }
         });
         // player
-        for(int y=0;y<3;y++) for(int x=0;x<9;x++) addSlot(new Slot(inv, x+y*9+9, 8+x*18, 84+y*18));
-        for(int x=0;x<9;x++) addSlot(new Slot(inv, x, 8+x*18, 142));
+        for(int y=0;y<3;y++) for(int x=0;x<9;x++) addSlot(new Slot(inv, x+y*9+9, 7+x*18, 83+y*18));
+        for(int x=0;x<9;x++) addSlot(new Slot(inv, x, 7+x*18, 141));
         addDataSlots(data);
     }
 

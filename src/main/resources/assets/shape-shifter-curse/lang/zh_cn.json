@@ -1006,5 +1006,6 @@
     "key.shape-shifter-curse.scroll_active_skill": "按住并滚轮切换技能",
     "key.shape-shifter-curse.prev_active_skill": "上一个主动技能",
     "key.shape-shifter-curse.next_active_skill": "下一个主动技能",
-    "key.shape-shifter-curse.active_skill": "使用所选技能"
+    "key.shape-shifter-curse.active_skill": "使用所选技能",
+  "gui.shape_shifter_curse.altar.remaining_moondust": "剩余月尘燃料：%s / %s"
 }

@@ -16,7 +16,7 @@ import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 public final class InstinctService {
     private static final float MAX_INSTINCT = 100.0F;
     // Fabric uses 180s (3600 ticks) to fill 0->100; 180_000 ticks would be 2.5h and is ms-vs-ticks confusion.
-    private static final float BASE_RATE = MAX_INSTINCT / 3600.0F;
+    public static final float BASE_RATE = MAX_INSTINCT / 3600.0F;
 
     private InstinctService() { }
 
