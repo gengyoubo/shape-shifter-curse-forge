@@ -608,12 +608,14 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
     }
 
     private void applyBlink(ModelAnimationConfig config, Player player, float partialTick) {
-        if (config.eyeBone == null) {
+        if (config.eyeBones.isEmpty()) {
             return;
         }
         BlinkState blink = blinkStates.computeIfAbsent(player.getUUID(), ignored -> new BlinkState());
         float scale = blink.scale(player, partialTick, config.openEyeScale, config.closedEyeScale);
-        getBone(config.eyeBone).ifPresent(bone -> bone.setScaleY(scale));
+        for (String eyeBone : config.eyeBones) {
+            getBone(eyeBone).ifPresent(bone -> bone.setScaleY(scale));
+        }
     }
 
     private static final class TailState {
@@ -744,6 +746,12 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         return getBone(neck.chain.isEmpty() ? neck.headBone : neck.chain.get(0));
     }
 
+    /** Head at the end of the long-neck chain; helmets and head items follow it. */
+    public java.util.Optional<software.bernie.geckolib.cache.object.GeoBone> neckHeadBone() {
+        NeckConfig neck = renderConfig().neck;
+        return neck == null ? java.util.Optional.empty() : getBone(neck.headBone);
+    }
+
     private record ExtraBoneMapping(String animBone, String geoBone) { }
 
     /**
@@ -833,12 +841,26 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
 
     private record ModelAnimationConfig(List<List<String>> tailChains, List<List<String>> headTailChains,
                                         List<List<String>> leftWingChains, List<List<String>> rightWingChains,
-                                        String eyeBone, float openEyeScale, float closedEyeScale,
+                                        List<String> eyeBones, float openEyeScale, float closedEyeScale,
                                         Set<String> hiddenParts, List<ExtraBoneMapping> extraBones,
                                         String firstPersonLeftArm, String firstPersonRightArm,
                                         NeckConfig neck, ResourceLocation textureMask, boolean useMultiplyMask) {
         private static final ModelAnimationConfig EMPTY = new ModelAnimationConfig(List.of(), List.of(), List.of(),
-                List.of(), null, 1.0F, 0.01F, Set.of(), List.of(), null, null, null, null, false);
+                List.of(), List.of(), 1.0F, 0.01F, Set.of(), List.of(), null, null, null, null, false);
+
+        /** Fabric accepts {@code "eye"} as one bone name or an array (Spider 3 has two eye groups). */
+        private static List<String> eyeBones(JsonObject blink) {
+            if (blink == null || !blink.has("eye")) return List.of();
+            JsonElement eye = blink.get("eye");
+            if (eye.isJsonPrimitive()) return List.of(eye.getAsString());
+            List<String> bones = new ArrayList<>();
+            if (eye.isJsonArray()) {
+                for (JsonElement entry : eye.getAsJsonArray()) {
+                    if (entry.isJsonPrimitive()) bones.add(entry.getAsString());
+                }
+            }
+            return List.copyOf(bones);
+        }
 
         private static ModelAnimationConfig parse(JsonObject root) {
             Set<String> hidden = new HashSet<>();
@@ -854,7 +876,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             boolean useMultiplyMask = root.has("use_multiply_mask") && root.get("use_multiply_mask").isJsonPrimitive()
                     && root.get("use_multiply_mask").getAsBoolean();
             if (!root.has("animation_system_config") || !root.get("animation_system_config").isJsonObject()) {
-                return new ModelAnimationConfig(List.of(), List.of(), List.of(), List.of(), null, 1.0F, 0.01F,
+                return new ModelAnimationConfig(List.of(), List.of(), List.of(), List.of(), List.of(), 1.0F, 0.01F,
                         Set.copyOf(hidden), List.of(), null, null, null, textureMask, useMultiplyMask);
             }
             JsonObject config = root.getAsJsonObject("animation_system_config");
@@ -888,7 +910,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             }
             return new ModelAnimationConfig(chains(object(config, "tail")), chains(object(config, "head_tail")),
                     chains(object(config, "wing_l")), chains(object(config, "wing_r")),
-                    blink == null || !blink.has("eye") ? null : blink.get("eye").getAsString(),
+                    eyeBones(blink),
                     number(blink, "open_scale", 1.0F), number(blink, "close_scale", 0.01F),
                     Set.copyOf(hidden), List.copyOf(extraBones), firstPersonLeft, firstPersonRight, neck,
                     textureMask, useMultiplyMask);
@@ -896,7 +918,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
 
         private boolean isEmpty() {
             return tailChains.isEmpty() && headTailChains.isEmpty() && leftWingChains.isEmpty()
-                    && rightWingChains.isEmpty() && eyeBone == null && extraBones.isEmpty() && neck == null;
+                    && rightWingChains.isEmpty() && eyeBones.isEmpty() && extraBones.isEmpty() && neck == null;
         }
 
         private void resetDynamicBones(FormGeoModel model) {
@@ -904,7 +926,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             for (List<String> chain : headTailChains) resetChain(model, chain);
             for (List<String> chain : leftWingChains) resetChain(model, chain);
             for (List<String> chain : rightWingChains) resetChain(model, chain);
-            if (eyeBone != null) {
+            for (String eyeBone : eyeBones) {
                 model.getBone(eyeBone).ifPresent(bone -> bone.setScaleY(bone.getInitialSnapshot().getScaleY()));
             }
         }

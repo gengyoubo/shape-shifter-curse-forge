@@ -150,6 +150,9 @@ public final class FormClientRenderEvents {
             // vanilla's scale(-1,-1,1). That scale conjugates (negates) the body X/Y
             // rotations, so the transform must stay ahead of it to match Fabric exactly.
             poseStack.scale(form.widthScale(), form.heightScale(), form.widthScale());
+            // Changed's exoskeleton lifts the vanilla root at LivingEntityRenderer#setupRotations
+            // HEAD (after SSC's scale); the Geo root must receive the same lift.
+            ChangedExoskeletonCompat.applyWearerPose(player, vanillaModel, poseStack);
             applyVanillaPlayerTransforms(player, poseStack, event.getPartialTick(),
                     renderer.getAnimatable().suppressesVanillaSwimRotation());
             applyPlayerAnimationBodyTransform(renderer.getAnimatable().getExternalBodyTransform(), poseStack);
