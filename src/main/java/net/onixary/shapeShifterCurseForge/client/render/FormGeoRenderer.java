@@ -1,6 +1,9 @@
 package net.onixary.shapeShifterCurseForge.client.render;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.resources.ResourceLocation;
+import software.bernie.geckolib.cache.object.GeoBone;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.world.entity.player.Player;
 import software.bernie.geckolib.renderer.GeoObjectRenderer;
@@ -46,6 +49,14 @@ public final class FormGeoRenderer extends GeoObjectRenderer<FormGeoAnimatable> 
 
     public void setInventoryPreview(boolean inventoryPreview) {
         this.formAnimatable.setInventoryPreview(inventoryPreview);
+    }
+
+    /** The PoseStack here holds the bone's full render transform; equipment layers reuse it. */
+    @Override
+    public void renderCubesOfBone(PoseStack poseStack, GeoBone bone, VertexConsumer buffer, int packedLight,
+                                  int packedOverlay, float red, float green, float blue, float alpha) {
+        GeoBonePose.capture(formAnimatable.getPlayer(), bone, poseStack);
+        super.renderCubesOfBone(poseStack, bone, buffer, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
     @Override

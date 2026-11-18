@@ -104,6 +104,8 @@ public final class FormClientRenderEvents {
         boolean headWasHidden = false;
         boolean headChildrenWereHidden = false;
         poseStack.pushPose();
+        // Bone matrices captured by this Geo pass are read by this player's vanilla layers.
+        GeoBonePose.beginFrame(player);
         try {
             renderer.setPlayer(player);
             renderer.setVanillaPlayerModel(vanillaModel);
@@ -189,6 +191,7 @@ public final class FormClientRenderEvents {
     @SubscribeEvent
     public static void renderPlayerPost(RenderPlayerEvent.Post event) {
         if (event.getEntity() instanceof Player) {
+            GeoBonePose.endFrame();
             setAllPartsVisible(event.getRenderer().getModel());
             Minecraft minecraft = Minecraft.getInstance();
             boolean inventoryPreview = minecraft.screen != null && event.getEntity() == minecraft.player
