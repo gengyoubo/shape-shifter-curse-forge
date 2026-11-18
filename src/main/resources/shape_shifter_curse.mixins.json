@@ -55,6 +55,7 @@
         "integration.ChangedExoskeletonVisorAccessor",
         "integration.ChangedExoskeletonLegsAccessor",
         "integration.ChangedExoskeletonRenderMixin",
+        "integration.ChangedExoskeletonPoseMixin",
         "integration.TaczThirdPersonMixin",
         "integration.TaczActionAnimationMixin",
         "client.FormGogglesArmorMixin",

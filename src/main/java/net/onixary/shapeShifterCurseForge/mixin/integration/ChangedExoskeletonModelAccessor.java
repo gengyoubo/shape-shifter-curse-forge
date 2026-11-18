@@ -10,4 +10,19 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface ChangedExoskeletonModelAccessor {
     @Accessor("HeadSupport")
     ModelPart ssc$getHeadSupport();
+
+    @Accessor("Torso")
+    ModelPart ssc$getTorso();
+
+    @Accessor("RightArm")
+    ModelPart ssc$getRightArm();
+
+    @Accessor("LeftArm")
+    ModelPart ssc$getLeftArm();
+
+    @Accessor("RightLeg")
+    ModelPart ssc$getRightLeg();
+
+    @Accessor("LeftLeg")
+    ModelPart ssc$getLeftLeg();
 }

@@ -39,9 +39,23 @@ public final class GeoBonePose {
     public static final String RIGHT_LEG = "bipedRightLeg";
     public static final String LEFT_HIND_LEG = "bipedLeftHindLeg";
     public static final String RIGHT_HIND_LEG = "bipedRightHindLeg";
-    private static final Set<String> TRACKED = Set.of(LEFT_LEG, RIGHT_LEG, LEFT_HIND_LEG, RIGHT_HIND_LEG);
+    public static final String BODY = "bipedBody";
+    public static final String LEFT_ARM = "bipedLeftArm";
+    public static final String RIGHT_ARM = "bipedRightArm";
+    private static final Set<String> TRACKED = Set.of(LEFT_LEG, RIGHT_LEG, LEFT_HIND_LEG, RIGHT_HIND_LEG,
+            BODY, LEFT_ARM, RIGHT_ARM);
 
-    private static final float ARMOR_LEG_LENGTH = 12.0F;
+    /**
+     * The vanilla box an equipment part was designed around, in vanilla part pixels relative
+     * to the part pivot (y down, -z front). {@code bottom} aligns the box's lowest edge with
+     * the form limb (legs, so feet meet the ground); otherwise the top edge (arms, torso).
+     */
+    public record PartBox(float x0, float x1, float y0, float y1, float z0, float z1, boolean bottom) {
+        public static final PartBox LEG = new PartBox(-2, 2, 0, 12, -2, 2, true);
+        public static final PartBox BODY = new PartBox(-4, 4, 0, 12, -2, 2, false);
+        public static final PartBox RIGHT_ARM = new PartBox(-3, 1, -2, 10, -2, 2, false);
+        public static final PartBox LEFT_ARM = new PartBox(-1, 3, -2, 10, -2, 2, false);
+    }
 
     private static Player framePlayer;
     private static final Map<String, Matrix4f> FRAME_MATRICES = new HashMap<>();
@@ -77,34 +91,62 @@ public final class GeoBonePose {
         FRAME_BONES.put(bone.getName(), bone);
     }
 
+    /** Whether the Geo form is being drawn for {@code player} in the current render. */
+    public static boolean isFramePlayer(Player player) {
+        return player != null && player == framePlayer;
+    }
+
+    /** Whether a Geo form is being drawn in the current player render (any player). */
+    public static boolean hasFramePlayer() {
+        return framePlayer != null;
+    }
+
+    /** Whether the Geo pass for {@code player} has drawn and captured its bones this frame. */
+    public static boolean hasCapturedBones(Player player) {
+        return player == framePlayer && !FRAME_MATRICES.isEmpty();
+    }
+
     /** Whether this frame drew a four-legged Geo form for {@code player}. */
     public static boolean hasHindLegs(Player player) {
         return player == framePlayer
                 && (FRAME_MATRICES.containsKey(LEFT_HIND_LEG) || FRAME_MATRICES.containsKey(RIGHT_HIND_LEG));
     }
 
-    /**
-     * The armor-leg frame for a captured leg bone, relative to {@code layerPose}, or null.
-     *
-     * <p>The visible leg is a group of cubes that GeckoLib draws with its own cube transform
-     * {@code T(pivot)·Rz·Ry·Rx·T(-pivot)} on top of the bone matrix (Spider 3's legs are tilted
-     * about 10° and 25° this way). The frame reproduces that transform, moves to the centre of
-     * the group's cubes 12px above their lowest point, and turns from Geo axes (y up, +z front)
-     * into vanilla part axes (y down, -z front), a 180° turn about X. A 4x12x4 armor leg drawn
-     * at its origin with an identity {@code ModelPart} pose then covers the leg.</p>
-     */
+    /** Armor legs: a 4x12x4 box whose bottom meets the form's foot. */
     public static Matrix4f legArmorFrame(Player player, String boneName, Matrix4f layerPose) {
+        return partFrame(player, boneName, layerPose, PartBox.LEG);
+    }
+
+    /**
+     * The frame, relative to {@code layerPose}, in which an equipment part drawn with an
+     * identity {@code ModelPart} pose covers the captured bone; null when the bone wasn't drawn.
+     *
+     * <p>The visible limb is a group of cubes that GeckoLib draws with its own cube transform
+     * {@code T(pivot)·Rz·Ry·Rx·T(-pivot)} on top of the bone matrix (Spider 3's legs are tilted
+     * about 10° and 25° this way). The frame reproduces that transform, moves to the point
+     * where {@code box} lines up with the group (centred in x/z, top or bottom edge aligned),
+     * and turns from Geo axes (y up, +z front) into vanilla part axes (y down, -z front), a
+     * 180° turn about X. A bone without cubes of its own keeps the vanilla mapping (its pivot).</p>
+     */
+    public static Matrix4f partFrame(Player player, String boneName, Matrix4f layerPose, PartBox box) {
         if (player != framePlayer) return null;
         Matrix4f boneMatrix = FRAME_MATRICES.get(boneName);
         GeoBone bone = FRAME_BONES.get(boneName);
         if (boneMatrix == null || bone == null) return null;
-        LegFit fit = LEG_FITS.computeIfAbsent(bone, GeoBonePose::fitLeg);
-        if (fit == null) return null;
-        return new Matrix4f(layerPose).invert().mul(boneMatrix)
-                .translate(fit.pivot.x() / 16.0F, fit.pivot.y() / 16.0F, fit.pivot.z() / 16.0F)
-                .rotateZ(fit.rotation.z()).rotateY(fit.rotation.y()).rotateX(fit.rotation.x())
-                .translate((fit.anchor.x() - fit.pivot.x()) / 16.0F, (fit.anchor.y() - fit.pivot.y()) / 16.0F,
-                        (fit.anchor.z() - fit.pivot.z()) / 16.0F)
+        Matrix4f frame = new Matrix4f(layerPose).invert().mul(boneMatrix);
+        CubeGroup group = CUBE_GROUPS.computeIfAbsent(bone, GeoBonePose::mainCubeGroup);
+        if (group == CubeGroup.NONE) {
+            return frame.translate(bone.getPivotX() / 16.0F, bone.getPivotY() / 16.0F, bone.getPivotZ() / 16.0F)
+                    .rotateX((float) Math.PI);
+        }
+        // Box edges in the Geo frame relative to its pivot are (x, -y, -z) of the vanilla box.
+        float anchorX = (group.min.x() + group.max.x()) * 0.5F - (box.x0() + box.x1()) * 0.5F;
+        float anchorY = box.bottom() ? group.min.y() + box.y1() : group.max.y() + box.y0();
+        float anchorZ = (group.min.z() + group.max.z()) * 0.5F + (box.z0() + box.z1()) * 0.5F;
+        return frame.translate(group.pivot.x() / 16.0F, group.pivot.y() / 16.0F, group.pivot.z() / 16.0F)
+                .rotateZ(group.rotation.z()).rotateY(group.rotation.y()).rotateX(group.rotation.x())
+                .translate((anchorX - group.pivot.x()) / 16.0F, (anchorY - group.pivot.y()) / 16.0F,
+                        (anchorZ - group.pivot.z()) / 16.0F)
                 .rotateX((float) Math.PI);
     }
 
@@ -116,19 +158,22 @@ public final class GeoBonePose {
     }
 
     /**
-     * The leg body: the cubes sharing one cube pivot and rotation with the largest total volume
-     * (Spider 3: upper leg, lower leg and knee). Claw cubes have their own rotation and are
-     * left out, so they no longer pull the armor off the leg.
+     * The limb body: the bone's cubes sharing one cube pivot and rotation with the largest
+     * total volume (Spider 3's leg: upper leg, lower leg and knee). Claws and small details
+     * with their own rotation are left out, so they don't pull equipment off the limb.
      *
      * @param pivot    cube pivot in absolute baked Geo pixels, as GeckoLib stores it
      * @param rotation cube rotation in radians, as GeckoLib stores it
-     * @param anchor   armor pivot in absolute baked Geo pixels, in the group's unrotated space
+     * @param min      lowest corner of the group's unrotated cubes, baked Geo pixels
+     * @param max      highest corner of the group's unrotated cubes, baked Geo pixels
      */
-    private record LegFit(Vector3f pivot, Vector3f rotation, Vector3f anchor) { }
+    private record CubeGroup(Vector3f pivot, Vector3f rotation, Vector3f min, Vector3f max) {
+        private static final CubeGroup NONE = new CubeGroup(new Vector3f(), new Vector3f(), new Vector3f(), new Vector3f());
+    }
 
-    private static final Map<GeoBone, LegFit> LEG_FITS = new WeakHashMap<>();
+    private static final Map<GeoBone, CubeGroup> CUBE_GROUPS = new WeakHashMap<>();
 
-    private static LegFit fitLeg(GeoBone bone) {
+    private static CubeGroup mainCubeGroup(GeoBone bone) {
         Map<List<Double>, List<GeoCube>> groups = new HashMap<>();
         for (GeoCube cube : bone.getCubes()) {
             List<Double> key = List.of(cube.pivot().x, cube.pivot().y, cube.pivot().z,
@@ -145,16 +190,16 @@ public final class GeoBonePose {
                 body = group;
             }
         }
-        if (body == null) return null;
+        if (body == null) return CubeGroup.NONE;
         float[] bounds = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
                 -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
         for (GeoCube cube : body) addBounds(cube, bounds);
+        if (bounds[0] > bounds[3]) return CubeGroup.NONE;
         GeoCube first = body.get(0);
-        return new LegFit(
+        return new CubeGroup(
                 new Vector3f((float) first.pivot().x, (float) first.pivot().y, (float) first.pivot().z),
                 new Vector3f((float) first.rotation().x, (float) first.rotation().y, (float) first.rotation().z),
-                new Vector3f((bounds[0] + bounds[3]) * 0.5F, bounds[1] + ARMOR_LEG_LENGTH,
-                        (bounds[2] + bounds[5]) * 0.5F));
+                new Vector3f(bounds[0], bounds[1], bounds[2]), new Vector3f(bounds[3], bounds[4], bounds[5]));
     }
 
     /** Baked vertices are in blocks, unrotated, in the same (x-negated) Geo space as pivots. */
