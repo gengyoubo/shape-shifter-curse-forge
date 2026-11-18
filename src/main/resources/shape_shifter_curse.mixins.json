@@ -51,6 +51,8 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "integration.TaczThirdPersonMixin",
+        "integration.TaczActionAnimationMixin",
         "client.FormGogglesArmorMixin",
         "client.AbstractClientPlayerSkinMixin",
         "client.PlayerSpeedFovMixin",
@@ -63,6 +65,7 @@
         "client.PowerEntityGlowMixin",
         "client.PowerEntityGlowColorMixin",
         "client.KeepSneakingInputMixin",
+        "client.ElytraFlightLocalPlayerMixin",
         "PlayerModelAnimMixin",
         "client.ElytraLayerMixin",
         "PlayerRendererBodyMixin",

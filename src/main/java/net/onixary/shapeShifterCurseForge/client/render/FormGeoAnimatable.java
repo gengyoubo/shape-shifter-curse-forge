@@ -8,6 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.client.PowerAnimationClientHandler;
+import net.onixary.shapeShifterCurseForge.form.FormBodyType;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animatable.instance.SingletonAnimatableInstanceCache;
@@ -160,7 +162,15 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 ? null : PowerAnimationClientHandler.active(player, partialTick);
         FormAnimationSystem.Selection selection = transition != null ? transition : powerAnimation == null
                 ? FormAnimationSystem.select(player) : powerAnimation.selection();
-        return applyFormAnimation(model, selection, partialTick, powerAnimation);
+        // TACZ applies its fallback gun pose inside HumanoidModel.setupAnim, before SSC.
+        // Keep that upper-body pose while SSC supplies the form's locomotion.
+        PlayerModelPose gunPose = FormManager.current(player).bodyType() != FormBodyType.FERAL
+                && TaczAnimationCompat.isGun(player.getMainHandItem()) ? PlayerModelPose.capture(model) : null;
+        BedrockAnimationPlayer.BodyTransform transform = applyFormAnimation(model, selection, partialTick, powerAnimation);
+        if (gunPose != null) {
+            gunPose.applyUpperBody(model);
+        }
+        return transform;
     }
 
     /** Restore SSC's base once; PlayerAnimator applies its layers afterwards, once per pass. */

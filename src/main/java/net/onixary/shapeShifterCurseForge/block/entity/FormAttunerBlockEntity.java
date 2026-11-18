@@ -13,7 +13,6 @@ import net.minecraft.world.level.block.BeaconBeamBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.onixary.shapeShifterCurseForge.other.cursedmoon.CursedMoonService;
 import net.onixary.shapeShifterCurseForge.registry.ModBlockEntities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -68,7 +67,7 @@ public final class FormAttunerBlockEntity extends BlockEntity {
     }
 
     public List<BeamSegment> getBeamSegments() {
-        // Fabric hides the beam while the attuner is inactive (no valid base / not cursed moon).
+        // An inactive attuner has no valid base or an obstructed beam.
         return level == 0 ? List.of() : beamSegments;
     }
 
@@ -122,7 +121,7 @@ public final class FormAttunerBlockEntity extends BlockEntity {
     }
 
     private static int calculateLevel(Level level, BlockPos origin) {
-        if (level.dimension() != Level.OVERWORLD || !CursedMoonService.isInCursedMoon(level)) {
+        if (level.dimension() != Level.OVERWORLD) {
             return 0;
         }
         int result = 0;

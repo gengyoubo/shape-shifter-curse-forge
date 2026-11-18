@@ -14,12 +14,16 @@ public record PlayerModelPose(PartPose head, PartPose body, PartPose rightArm,
     }
 
     public void apply(PlayerModel<?> model) {
+        applyUpperBody(model);
+        rightLeg.apply(model.rightLeg);
+        leftLeg.apply(model.leftLeg);
+    }
+
+    public void applyUpperBody(PlayerModel<?> model) {
         head.apply(model.head);
         body.apply(model.body);
         rightArm.apply(model.rightArm);
         leftArm.apply(model.leftArm);
-        rightLeg.apply(model.rightLeg);
-        leftLeg.apply(model.leftLeg);
         model.hat.copyFrom(model.head);
     }
 

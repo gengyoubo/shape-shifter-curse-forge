@@ -20,8 +20,9 @@ public class CuriosMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.contains("integration.ToughAsNails")
-                || mixinClassName.contains("integration.Changed")) {
-            String modId = mixinClassName.contains("integration.Changed") ? "changed" : "toughasnails";
+                || mixinClassName.contains("integration.Changed") || mixinClassName.contains("integration.Tacz")) {
+            String modId = mixinClassName.contains("integration.Tacz") ? "tacz"
+                    : mixinClassName.contains("integration.Changed") ? "changed" : "toughasnails";
             // Mixin preparation can run before Forge creates the runtime ModList.
             ModList runtimeMods = ModList.get();
             if (runtimeMods != null) {
