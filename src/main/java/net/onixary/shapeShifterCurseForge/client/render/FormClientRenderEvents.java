@@ -55,7 +55,8 @@ public final class FormClientRenderEvents {
         Minecraft minecraft = Minecraft.getInstance();
         // Both survival and creative inventories render their player preview full-bright.  This
         // is stable across the two screen classes, unlike instanceof InventoryScreen.
-        boolean inventoryPreview = minecraft.screen != null && player == minecraft.player
+        boolean inventoryPreview = !ShaderRenderCompat.isShadowPass()
+                && minecraft.screen != null && player == minecraft.player
                 && event.getPackedLight() == LightTexture.FULL_BRIGHT;
         FormDefinition form = renderedForm(player, inventoryPreview);
         if (player.isSpectator() || player.isInvisible()) {
@@ -72,6 +73,8 @@ public final class FormClientRenderEvents {
 
         PlayerAnimatorCompat.ArmVisibility animatedArms = inventoryPreview ? null
                 : PlayerAnimatorCompat.firstPersonArms(player);
+        // Shader shadows are world renders even with a first-person camera. The shared
+        // first-person checks exclude them, preserving the full form, head and equipment.
         // Vanilla never renders the camera entity's body in first person; the form's
         // first-person arms are handled separately by FormFirstPersonArmEvents.
         // First-person Model does render it, and that body must be the form.
@@ -191,7 +194,8 @@ public final class FormClientRenderEvents {
             GeoBonePose.endFrame();
             setAllPartsVisible(event.getRenderer().getModel());
             Minecraft minecraft = Minecraft.getInstance();
-            boolean inventoryPreview = minecraft.screen != null && event.getEntity() == minecraft.player
+            boolean inventoryPreview = !ShaderRenderCompat.isShadowPass()
+                    && minecraft.screen != null && event.getEntity() == minecraft.player
                     && event.getPackedLight() == LightTexture.FULL_BRIGHT;
             FormGeoRenderer renderer = rendererFor(renderedForm(event.getEntity(), inventoryPreview));
             if (renderer != null) renderer.getAnimatable().clearPreparedPose();

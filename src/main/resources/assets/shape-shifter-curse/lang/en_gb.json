@@ -1,5 +1,6 @@
 {
-    "item.shape-shifter-curse.ripple_mirror.tooltip": "As you gaze into the mirror, you see images of other creatures...",
+    "item.shape-shifter-curse.ripple_mirror.tooltip": "Hold use to gaze into the mirror and switch variants of your current form",
+    "message.shape-shifter-curse.ripple_mirror.no_variants": "Your current form has no available variants",
     "item.shape-shifter-curse.morphscale_core.tooltip": "Used at a smithing table to craft and upgrade Morphscale equipment.",
     "codex.form.shape-shifter-curse.bat_3_sub_avali.title": "\nYour current posture resembles a raptor covered in feathers. You can control your four broad ears atop your head to turn independently towards different directions.",
     "codex.form.shape-shifter-curse.bat_3_sub_avali.equip": "[Charm Of Night Crystal], [Charm Of Hollow Fang], [Attach Hook], [Diamond Mining Claw]",

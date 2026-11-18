@@ -1,5 +1,6 @@
 {
-    "item.shape-shifter-curse.ripple_mirror.tooltip": "凝视镜面时，你会看到其他生物的影像...",
+    "item.shape-shifter-curse.ripple_mirror.tooltip": "长按右键凝视镜面，切换当前形态的子形态",
+    "message.shape-shifter-curse.ripple_mirror.no_variants": "当前形态没有可切换的子形态",
     "item.shape-shifter-curse.morphscale_core.tooltip": "用于在锻造台制作和升级幻形鳞装备。",
     "codex.form.shape-shifter-curse.bat_3_sub_avali.title": "\n你如今的姿态有点像被羽毛覆盖的猛禽。你可以控制头顶的四只宽阔耳朵独立转向不同的方位",
     "codex.form.shape-shifter-curse.bat_3_sub_avali.equip": "[黑夜水晶吊坠],[空心牙吊坠],[固着抓钩],[金刚石握爪]",

@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class ModNetwork {
-    private static final String PROTOCOL_VERSION = "13";
+    private static final String PROTOCOL_VERSION = "14";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(ShapeShifterCurseForge.RESOURCE_NAMESPACE, "main"),
@@ -231,6 +231,16 @@ public final class ModNetwork {
         CHANNEL.registerMessage(28, ChargeStatePacket.class,
                 ChargeStatePacket::encode, ChargeStatePacket::decode, ChargeStatePacket::handle,
                 Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(29, OpenRippleMirrorPacket.class,
+                OpenRippleMirrorPacket::encode, OpenRippleMirrorPacket::decode, OpenRippleMirrorPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(30, SelectMirrorFormPacket.class,
+                SelectMirrorFormPacket::encode, SelectMirrorFormPacket::decode, SelectMirrorFormPacket::handle,
+                Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER));
+    }
+
+    public static void sendOpenRippleMirror(ServerPlayer player, java.util.List<ResourceLocation> forms) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new OpenRippleMirrorPacket(forms));
     }
 
     public static void sendFormSync(ServerPlayer player) {

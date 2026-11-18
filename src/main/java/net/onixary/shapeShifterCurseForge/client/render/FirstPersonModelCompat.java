@@ -67,15 +67,16 @@ public final class FirstPersonModelCompat {
         }
     }
 
+    /** Camera/body rendering only: a shader shadow needs the complete world model. */
     static boolean isLocalFirstPerson(Player player) {
         Minecraft minecraft = Minecraft.getInstance();
         return player == minecraft.player && player == minecraft.getCameraEntity()
-                && minecraft.options.getCameraType().isFirstPerson();
+                && minecraft.options.getCameraType().isFirstPerson() && !ShaderRenderCompat.isShadowPass();
     }
 
     /** Whether the current player render is First-person Model's body pass. */
     static boolean isRenderingPlayer() {
-        if (!resolve() || isRenderingPlayer == null) {
+        if (ShaderRenderCompat.isShadowPass() || !resolve() || isRenderingPlayer == null) {
             return false;
         }
         try {

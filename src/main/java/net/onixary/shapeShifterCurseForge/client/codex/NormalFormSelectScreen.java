@@ -37,11 +37,11 @@ public class NormalFormSelectScreen extends Screen {
         this.targetUUID = targetUUID;
     }
 
-    private List<ResourceLocation> getAvailableForms() {
+    protected List<ResourceLocation> getAvailableForms() {
         return new ArrayList<>(FormRegistry.forms().keySet());
     }
 
-    private void sendSetForm(ResourceLocation formId) {
+    protected void sendSetForm(ResourceLocation formId) {
         ModNetwork.CHANNEL.sendToServer(new SetFormPacket(this.targetUUID, formId, false));
     }
 

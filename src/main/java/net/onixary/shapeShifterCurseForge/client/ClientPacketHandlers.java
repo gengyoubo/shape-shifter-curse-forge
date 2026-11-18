@@ -48,6 +48,14 @@ public final class ClientPacketHandlers {
                 Component.literal("FormSelectScreen"), targetName, targetUUID));
     }
 
+    public static void openRippleMirror(java.util.List<ResourceLocation> forms) {
+        var minecraft = Minecraft.getInstance();
+        if (minecraft.player != null) {
+            minecraft.setScreen(new net.onixary.shapeShifterCurseForge.client.codex.RippleMirrorSelectScreen(
+                    minecraft.player.getGameProfile().getName(), minecraft.player.getUUID(), forms));
+        }
+    }
+
     public static void openColorMenu() {
         if (FormColorSelectMenuV2.instance == null && Minecraft.getInstance().player != null) {
             Minecraft.getInstance().setScreen(new FormColorSelectMenuV2(
