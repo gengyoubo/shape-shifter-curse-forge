@@ -37,19 +37,19 @@ public final class ModBlocks {
             "web_composter",
             () -> new net.onixary.shapeShifterCurseForge.block.WebComposterBlock(
                     BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(1.5F)
-                            .sound(net.minecraft.world.level.block.SoundType.WOOD))
+                            .sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion().forceSolidOff())
     );
 
     public static final RegistryObject<Block> ALTAR = BLOCKS.register(
             "altar",
-            () -> new net.onixary.shapeShifterCurseForge.block.AltarBlock(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0F).sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion())
+            () -> new net.onixary.shapeShifterCurseForge.block.AltarBlock(BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.0F).sound(net.minecraft.world.level.block.SoundType.WOOD).noOcclusion().forceSolidOff())
     );
 
     public static final RegistryObject<Block> FORM_ATTUNER = BLOCKS.register(
             "form_attuner",
             () -> new net.onixary.shapeShifterCurseForge.block.FormAttunerBlock(
                     BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.5F)
-                            .sound(net.minecraft.world.level.block.SoundType.METAL).noOcclusion())
+                            .sound(net.minecraft.world.level.block.SoundType.METAL).noOcclusion().forceSolidOff())
     );
 
     private ModBlocks() {

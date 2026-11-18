@@ -744,6 +744,9 @@
     "text.cloth-config.boolean.value.true": "Вкл",
     "text.cloth-config.boolean.value.false": "Выкл",
     "gui.shape_shifter_curse.category.altar": "Алтарь",
-    "gui.shape_shifter_curse.jei.machine_details": "Время: %s сек.; топливо: %s"
+    "gui.shape_shifter_curse.jei.machine_details": "Время: %s сек.; топливо: %s",
+    "gui.shape_shifter_curse.jei.altar.recipe_id": "Рецепт: %s",
+    "gui.shape_shifter_curse.jei.altar.time": "Время: %s сек.",
+    "gui.shape_shifter_curse.jei.altar.moondust": "Расход лунной пыли: %s"
 
 }

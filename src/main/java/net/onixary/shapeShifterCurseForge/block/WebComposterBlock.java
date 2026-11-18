@@ -14,24 +14,47 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.onixary.shapeShifterCurseForge.registry.ModItems;
 
 /** Fabric's three-meat nutrient cocoon composter. */
 @SuppressWarnings("deprecation")
 public final class WebComposterBlock extends Block {
     public static final IntegerProperty LEVEL = IntegerProperty.create("level", 0, 4);
+    private static final VoxelShape[] SHAPES = java.util.stream.IntStream.of(2, 3, 9, 15, 15)
+            .mapToObj(height -> Shapes.join(Shapes.block(), Block.box(2, height, 2, 14, 16, 14), BooleanOp.ONLY_FIRST))
+            .toArray(VoxelShape[]::new);
     private static final TagKey<Item> MEAT = TagKey.create(Registries.ITEM,
             ResourceLocation.fromNamespaceAndPath("shape-shifter-curse", "meat"));
 
     public WebComposterBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(LEVEL, 0));
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPES[state.getValue(LEVEL)];
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPES[0];
+    }
+
+    @Override
+    public VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
+        return Shapes.block();
     }
 
     @Override

@@ -225,10 +225,15 @@ public final class FormPowerRuntime {
         return net.onixary.shapeShifterCurseForge.client.ClientHudState.canDisplayGui();
     }
 
-    private static boolean barehandDigging(Player actor) {        ItemStack stack = actor.getMainHandItem();
+    /**
+     * Fabric's DiggingBareHandCondition: an empty hand, any non-tool item, or a tool whose tier
+     * level is 0 or below (wood/gold) all count as digging bare-handed.
+     */
+    private static boolean barehandDigging(Player actor) {
+        ItemStack stack = actor.getMainHandItem();
         if (stack.isEmpty()) return true;
-        return stack.getItem() instanceof net.minecraft.world.item.TieredItem tiered
-                && tiered.getTier().getLevel() <= 0;
+        return !(stack.getItem() instanceof net.minecraft.world.item.TieredItem tiered)
+                || tiered.getTier().getLevel() <= 0;
     }
 
     private static boolean itemInCooldown(Player actor, JsonObject condition) {
