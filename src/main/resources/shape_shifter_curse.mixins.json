@@ -51,6 +51,10 @@
         "integration.ToughAsNailsDrinkInWorldPacketMixin"
     ],
     "client": [
+        "integration.ChangedExoskeletonModelAccessor",
+        "integration.ChangedExoskeletonVisorAccessor",
+        "integration.ChangedExoskeletonLegsAccessor",
+        "integration.ChangedExoskeletonRenderMixin",
         "integration.TaczThirdPersonMixin",
         "integration.TaczActionAnimationMixin",
         "client.FormGogglesArmorMixin",
