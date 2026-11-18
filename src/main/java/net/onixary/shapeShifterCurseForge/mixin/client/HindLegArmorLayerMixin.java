@@ -9,6 +9,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.onixary.shapeShifterCurseForge.client.render.GeoBonePose;
+import net.onixary.shapeShifterCurseForge.form.FormManager;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -43,10 +44,13 @@ public abstract class HindLegArmorLayerMixin {
         throw new AssertionError();
     }
 
+    /** Spider forms only for now; other forms keep the ordinary vanilla-leg binding. */
     @Unique
     private static boolean ssc$isQuadrupedLegSlot(LivingEntity entity, EquipmentSlot slot) {
         return (slot == EquipmentSlot.LEGS || slot == EquipmentSlot.FEET)
-                && entity instanceof Player player && GeoBonePose.hasHindLegs(player);
+                && entity instanceof Player player
+                && FormManager.current(player).id().getPath().startsWith("spider_")
+                && GeoBonePose.hasHindLegs(player);
     }
 
     @Inject(method = "renderArmorPiece", at = @At(value = "INVOKE",

@@ -42,7 +42,6 @@ public final class GeoBonePose {
     private static final Set<String> TRACKED = Set.of(LEFT_LEG, RIGHT_LEG, LEFT_HIND_LEG, RIGHT_HIND_LEG);
 
     private static final float ARMOR_LEG_LENGTH = 12.0F;
-    private static final Map<GeoBone, Vector3f> LEG_ANCHORS = new WeakHashMap<>();
 
     private static Player framePlayer;
     private static final Map<String, Matrix4f> FRAME_MATRICES = new HashMap<>();
@@ -73,9 +72,8 @@ public final class GeoBonePose {
      */
     static void capture(Player player, GeoBone bone, PoseStack poseStack) {
         if (player == null || player != framePlayer || !TRACKED.contains(bone.getName())) return;
-        Matrix4f atPivot = new Matrix4f(poseStack.last().pose())
-                .translate(bone.getPivotX() / 16.0F, bone.getPivotY() / 16.0F, bone.getPivotZ() / 16.0F);
-        FRAME_MATRICES.put(bone.getName(), atPivot);
+        // Exactly the matrix GeckoLib draws this bone's cubes with (absolute Geo coordinates).
+        FRAME_MATRICES.put(bone.getName(), new Matrix4f(poseStack.last().pose()));
         FRAME_BONES.put(bone.getName(), bone);
     }
 
@@ -87,19 +85,26 @@ public final class GeoBonePose {
 
     /**
      * The armor-leg frame for a captured leg bone, relative to {@code layerPose}, or null.
-     * A 4x12x4 vanilla armor leg drawn at the origin of this frame (with an identity
-     * {@code ModelPart} pose) covers the form leg: the frame is moved to the centre of the
-     * leg's cubes, 12px above its lowest point, then turned from Geo axes (y up, +z front)
-     * into vanilla part axes (y down, -z front), which is a 180° turn about X.
+     *
+     * <p>The visible leg is a group of cubes that GeckoLib draws with its own cube transform
+     * {@code T(pivot)·Rz·Ry·Rx·T(-pivot)} on top of the bone matrix (Spider 3's legs are tilted
+     * about 10° and 25° this way). The frame reproduces that transform, moves to the centre of
+     * the group's cubes 12px above their lowest point, and turns from Geo axes (y up, +z front)
+     * into vanilla part axes (y down, -z front), a 180° turn about X. A 4x12x4 armor leg drawn
+     * at its origin with an identity {@code ModelPart} pose then covers the leg.</p>
      */
     public static Matrix4f legArmorFrame(Player player, String boneName, Matrix4f layerPose) {
         if (player != framePlayer) return null;
         Matrix4f boneMatrix = FRAME_MATRICES.get(boneName);
         GeoBone bone = FRAME_BONES.get(boneName);
         if (boneMatrix == null || bone == null) return null;
-        Vector3f anchor = LEG_ANCHORS.computeIfAbsent(bone, GeoBonePose::legAnchor);
+        LegFit fit = LEG_FITS.computeIfAbsent(bone, GeoBonePose::fitLeg);
+        if (fit == null) return null;
         return new Matrix4f(layerPose).invert().mul(boneMatrix)
-                .translate(anchor.x() / 16.0F, anchor.y() / 16.0F, anchor.z() / 16.0F)
+                .translate(fit.pivot.x() / 16.0F, fit.pivot.y() / 16.0F, fit.pivot.z() / 16.0F)
+                .rotateZ(fit.rotation.z()).rotateY(fit.rotation.y()).rotateX(fit.rotation.x())
+                .translate((fit.anchor.x() - fit.pivot.x()) / 16.0F, (fit.anchor.y() - fit.pivot.y()) / 16.0F,
+                        (fit.anchor.z() - fit.pivot.z()) / 16.0F)
                 .rotateX((float) Math.PI);
     }
 
@@ -110,34 +115,62 @@ public final class GeoBonePose {
         last.normal().mul(new Matrix3f(frame).normal());
     }
 
-    /** Leg anchor in the bone's local Geo frame (pixels, relative to the bone pivot). */
-    private static Vector3f legAnchor(GeoBone bone) {
-        float[] bounds = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
-                -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
-        collectBounds(bone, bounds);
-        if (bounds[0] > bounds[3]) return new Vector3f(0.0F, 0.0F, 0.0F);
-        return new Vector3f((bounds[0] + bounds[3]) * 0.5F - bone.getPivotX(),
-                bounds[1] + ARMOR_LEG_LENGTH - bone.getPivotY(),
-                (bounds[2] + bounds[5]) * 0.5F - bone.getPivotZ());
-    }
+    /**
+     * The leg body: the cubes sharing one cube pivot and rotation with the largest total volume
+     * (Spider 3: upper leg, lower leg and knee). Claw cubes have their own rotation and are
+     * left out, so they no longer pull the armor off the leg.
+     *
+     * @param pivot    cube pivot in absolute baked Geo pixels, as GeckoLib stores it
+     * @param rotation cube rotation in radians, as GeckoLib stores it
+     * @param anchor   armor pivot in absolute baked Geo pixels, in the group's unrotated space
+     */
+    private record LegFit(Vector3f pivot, Vector3f rotation, Vector3f anchor) { }
 
-    /** Baked vertices are in blocks, in the same (x-negated) Geo space as the bone pivots. */
-    private static void collectBounds(GeoBone bone, float[] bounds) {
+    private static final Map<GeoBone, LegFit> LEG_FITS = new WeakHashMap<>();
+
+    private static LegFit fitLeg(GeoBone bone) {
+        Map<List<Double>, List<GeoCube>> groups = new HashMap<>();
         for (GeoCube cube : bone.getCubes()) {
-            for (GeoQuad quad : cube.quads()) {
-                if (quad == null) continue;
-                for (GeoVertex vertex : quad.vertices()) {
-                    Vector3f p = vertex.position();
-                    bounds[0] = Math.min(bounds[0], p.x() * 16.0F);
-                    bounds[1] = Math.min(bounds[1], p.y() * 16.0F);
-                    bounds[2] = Math.min(bounds[2], p.z() * 16.0F);
-                    bounds[3] = Math.max(bounds[3], p.x() * 16.0F);
-                    bounds[4] = Math.max(bounds[4], p.y() * 16.0F);
-                    bounds[5] = Math.max(bounds[5], p.z() * 16.0F);
-                }
+            List<Double> key = List.of(cube.pivot().x, cube.pivot().y, cube.pivot().z,
+                    cube.rotation().x, cube.rotation().y, cube.rotation().z);
+            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(cube);
+        }
+        List<GeoCube> body = null;
+        double bodyVolume = -1.0D;
+        for (List<GeoCube> group : groups.values()) {
+            double volume = 0.0D;
+            for (GeoCube cube : group) volume += cube.size().x * cube.size().y * cube.size().z;
+            if (volume > bodyVolume) {
+                bodyVolume = volume;
+                body = group;
             }
         }
-        for (GeoBone child : bone.getChildBones()) collectBounds(child, bounds);
+        if (body == null) return null;
+        float[] bounds = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE,
+                -Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+        for (GeoCube cube : body) addBounds(cube, bounds);
+        GeoCube first = body.get(0);
+        return new LegFit(
+                new Vector3f((float) first.pivot().x, (float) first.pivot().y, (float) first.pivot().z),
+                new Vector3f((float) first.rotation().x, (float) first.rotation().y, (float) first.rotation().z),
+                new Vector3f((bounds[0] + bounds[3]) * 0.5F, bounds[1] + ARMOR_LEG_LENGTH,
+                        (bounds[2] + bounds[5]) * 0.5F));
+    }
+
+    /** Baked vertices are in blocks, unrotated, in the same (x-negated) Geo space as pivots. */
+    private static void addBounds(GeoCube cube, float[] bounds) {
+        for (GeoQuad quad : cube.quads()) {
+            if (quad == null) continue;
+            for (GeoVertex vertex : quad.vertices()) {
+                Vector3f p = vertex.position();
+                bounds[0] = Math.min(bounds[0], p.x() * 16.0F);
+                bounds[1] = Math.min(bounds[1], p.y() * 16.0F);
+                bounds[2] = Math.min(bounds[2], p.z() * 16.0F);
+                bounds[3] = Math.max(bounds[3], p.x() * 16.0F);
+                bounds[4] = Math.max(bounds[4], p.y() * 16.0F);
+                bounds[5] = Math.max(bounds[5], p.z() * 16.0F);
+            }
+        }
     }
 
     // ---- ModelPart path (only where a layer reads the part itself) -------------------------
