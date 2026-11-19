@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.form.TransformManager;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 
 import java.util.function.Supplier;
@@ -34,7 +35,7 @@ public record ValidateStartBookPacket() {
             }
             ResourceLocation current = FormManager.current(player).id();
             if (FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(current)) {
-                FormManager.setForm(player, FormRegistry.ORIGINAL_SHIFTER);
+                TransformManager.startTransform(player, FormRegistry.ORIGINAL_SHIFTER);
                 SscAdvancementTriggers.ON_ENABLE_MOD.trigger(player);
                 player.sendSystemMessage(Component.translatable(
                         "info.shape-shifter-curse.on_enable_mod"
