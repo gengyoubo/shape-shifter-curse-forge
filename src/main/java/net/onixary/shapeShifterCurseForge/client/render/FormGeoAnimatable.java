@@ -7,6 +7,8 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.InteractionHand;
 import net.onixary.shapeShifterCurseForge.client.PowerAnimationClientHandler;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
@@ -164,13 +166,40 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                 ? FormAnimationSystem.select(player) : powerAnimation.selection();
         // TACZ applies its fallback gun pose inside HumanoidModel.setupAnim, before SSC.
         // Keep that upper-body pose while SSC supplies the form's locomotion.
-        PlayerModelPose gunPose = FormManager.current(player).bodyType() != FormBodyType.FERAL
+        boolean locomotion = transition == null && powerAnimation == null;
+        PlayerModelPose gunPose = locomotion && FormManager.current(player).bodyType() != FormBodyType.FERAL
                 && TaczAnimationCompat.isGun(player.getMainHandItem()) ? PlayerModelPose.capture(model) : null;
-        BedrockAnimationPlayer.BodyTransform transform = applyFormAnimation(model, selection, partialTick, powerAnimation);
+        // These full-body clips must keep their root/legs while vanilla supplies
+        // the active hand (including offhand and two-handed item poses).
+        boolean environmentalActions = locomotion && selection != null && FormAnimationSystem.preservesArmActions(player);
+        boolean crawlItemActions = locomotion && selection != null && player.isUsingItem()
+                && ("axolotl_3_crawling_idle".equals(selection.id())
+                || "axolotl_2_crawling_idle_new".equals(selection.id()));
+        PlayerModelPose actionPose = !inventoryPreview && (environmentalActions || crawlItemActions)
+                ? PlayerModelPose.capture(model) : null;
+        BedrockAnimationPlayer.BodyTransform transform = applyFormAnimation(model, selection, partialTick, powerAnimation,
+                transition != null);
+        if (actionPose != null) {
+            float pitchOffset = crawlItemActions ? Mth.PI : 0.0F;
+            if (player.isUsingItem()) {
+                HumanoidArm arm = armForHand(player, player.getUsedItemHand());
+                actionPose.applyArmRotation(model, arm, pitchOffset);
+                if (model.rightArmPose.isTwoHanded() || model.leftArmPose.isTwoHanded()) {
+                    actionPose.applyArmRotation(model, arm.getOpposite(), pitchOffset);
+                }
+            }
+            if (environmentalActions && (player.swinging || player.getAttackAnim(partialTick) > 0.0F)) {
+                actionPose.applyArmRotation(model, armForHand(player, player.swingingArm), 0.0F);
+            }
+        }
         if (gunPose != null) {
             gunPose.applyUpperBody(model);
         }
         return transform;
+    }
+
+    private static HumanoidArm armForHand(Player player, InteractionHand hand) {
+        return hand == InteractionHand.OFF_HAND ? player.getMainArm().getOpposite() : player.getMainArm();
     }
 
     /** Restore SSC's base once; PlayerAnimator applies its layers afterwards, once per pass. */
@@ -206,9 +235,19 @@ public final class FormGeoAnimatable implements GeoAnimatable {
      * of that same root transform.
      */
     public boolean usesAxolotlCrawlBodyTransform() {
-        return extraPrimary != null
-                && ("axolotl_3_crawling".equals(extraPrimary.id())
-                || "axolotl_3_crawling_idle".equals(extraPrimary.id()));
+        return usesAxolotlCrawlBodyTransform(extraPrimary)
+                || extraBlend < 1.0F && usesAxolotlCrawlBodyTransform(extraSecondary);
+    }
+
+    private static boolean usesAxolotlCrawlBodyTransform(FormAnimationSystem.Selection selection) {
+        if (selection == null) return false;
+        return switch (selection.id()) {
+            case "axolotl_3_crawling", "axolotl_3_crawling_idle",
+                    "axolotl_2_crawling_new", "axolotl_2_crawling_idle_new",
+                    "axolotl_2_crawling_jump", "axolotl_2_crawling_attack_once",
+                    "axolotl_2_crawling_tool_swing" -> true;
+            default -> false;
+        };
     }
 
     /**
@@ -216,19 +255,28 @@ public final class FormGeoAnimatable implements GeoAnimatable {
      * Vanilla's interpolated swimming/crawling rotation must not be stacked on top.
      */
     public boolean suppressesVanillaSwimRotation() {
-        return usesAxolotlCrawlBodyTransform()
-                || extraPrimary != null && ("axolotl_2_crawling_jump".equals(extraPrimary.id())
-                || "bat_3_attach_bottom".equals(extraPrimary.id())
-                || "bat_3_attach_side".equals(extraPrimary.id())
-                || "avali_attach_side".equals(extraPrimary.id())
-                || "form_feral_common_climb".equals(extraPrimary.id())
-                || "form_feral_common_climb_idle".equals(extraPrimary.id()));
+        return suppressesVanillaSwimRotation(extraPrimary)
+                || extraBlend < 1.0F && suppressesVanillaSwimRotation(extraSecondary);
+    }
+
+    private static boolean suppressesVanillaSwimRotation(FormAnimationSystem.Selection selection) {
+        if (usesAxolotlCrawlBodyTransform(selection)) return true;
+        if (selection == null) return false;
+        if (selection.id().startsWith("player_on_transform")) return true;
+        return switch (selection.id()) {
+            case "bat_3_attach_bottom", "bat_3_attach_side", "avali_attach_side",
+                    "bat_3_climb", "avali_climb", "spider_3_climb", "spider_3_climb_idle", "ocelot_2_climbing",
+                    "form_feral_common_climb", "form_feral_common_climb_idle",
+                    "weasel_climb", "weasel_climb_idle" -> true;
+            default -> false;
+        };
     }
 
     private BedrockAnimationPlayer.BodyTransform applyFormAnimation(PlayerModel<?> model,
                                                                       FormAnimationSystem.Selection selection,
                                                                       float partialTick,
-                                                                      PowerAnimationClientHandler.ActiveAnimation power) {
+                                                                      PowerAnimationClientHandler.ActiveAnimation power,
+                                                                      boolean transitionPlaying) {
         if (player == null || selection == null) {
             discardTimeline();
             stashExtraContext(null, 0.0F, false, null, 0.0F, 1.0F);
@@ -244,7 +292,8 @@ public final class FormGeoAnimatable implements GeoAnimatable {
         }
         double now = player.level().getGameTime() + partialTick;
         AnimationTimeline timeline = timelines.computeIfAbsent(player, ignored -> new AnimationTimeline());
-        Object playbackKey = power == null ? null : power.clock();
+        Object playbackKey = power != null ? power.clock()
+                : transitionPlaying ? FormAnimationSystem.transitionClock(player) : null;
         boolean forceLoop = power != null && power.forceLoop();
         if (!selection.equals(timeline.animation) || timeline.playbackKey != playbackKey) {
             if (timeline.animation != null) {
@@ -258,9 +307,11 @@ public final class FormGeoAnimatable implements GeoAnimatable {
                     timeline.previousAnimation = null;
                 }
             }
-            timeline.fadeStartedAt = now;
+            float transitionTime = transitionPlaying ? FormAnimationSystem.transitionTimeSeconds(player, partialTick) : 0.0F;
+            timeline.fadeStartedAt = now - transitionTime * 20.0D;
             timeline.animation = selection;
-            timeline.startedAt = power == null ? now : now - power.timeSeconds() * 20.0D / selection.speed();
+            timeline.startedAt = power != null ? now - power.timeSeconds() * 20.0D / selection.speed()
+                    : now - transitionTime * 20.0D;
             timeline.forceLoop = forceLoop;
             timeline.playbackKey = playbackKey;
         }
@@ -325,16 +376,21 @@ public final class FormGeoAnimatable implements GeoAnimatable {
      * the bone; the caller then leaves the GeoBone at its reset pose.
      */
     public BedrockAnimationPlayer.BoneSample sampleExtraBone(String animBoneName) {
-        if (extraPrimary == null) {
-            return null;
-        }
+        return sampleExtraBone(animBoneName, null);
+    }
+
+    public BedrockAnimationPlayer.BoneSample sampleExtraBone(String animBoneName,
+                                                              BedrockAnimationPlayer.BoneSample fallback) {
+        if (extraPrimary == null) return fallback;
         BedrockAnimationPlayer.BoneSample primary =
                 sampleWithFallback(extraPrimary, animBoneName, extraPrimaryTime, extraPrimaryForceLoop);
+        if (primary == null) primary = fallback;
         if (extraBlend >= 1.0F) {
             return primary;
         }
         BedrockAnimationPlayer.BoneSample secondary =
                 sampleWithFallback(extraSecondary, animBoneName, extraSecondaryTime, extraSecondaryForceLoop);
+        if (secondary == null) secondary = fallback;
         if (primary == null && secondary == null) return null;
         BedrockAnimationPlayer.BoneSample identity = new BedrockAnimationPlayer.BoneSample(0, 0, 0, 0, 0, 0);
         return BedrockAnimationPlayer.BoneSample.lerp(secondary == null ? identity : secondary,

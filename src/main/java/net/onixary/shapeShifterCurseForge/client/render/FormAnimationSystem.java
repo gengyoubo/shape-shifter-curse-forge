@@ -199,8 +199,9 @@ public final class FormAnimationSystem {
             return null;
         }
         String animation = "player_on_transform";
-        if (snapshot.previousBodyType == FormBodyType.FERAL && snapshot.currentBodyType != FormBodyType.FERAL) {
-            animation = "player_on_transform_feral_to_normal";
+        if (snapshot.previousBodyType == FormBodyType.FERAL) {
+            animation = snapshot.currentBodyType == FormBodyType.FERAL
+                    ? "player_on_transform_feral_to_feral" : "player_on_transform_feral_to_normal";
         } else if (snapshot.previousBodyType == FormBodyType.NORMAL && snapshot.currentBodyType == FormBodyType.FERAL) {
             animation = "player_on_transform_normal_to_feral";
         }
@@ -217,6 +218,24 @@ public final class FormAnimationSystem {
             return null;
         }
         return selection;
+    }
+
+    /** Shared across form renderers so the midpoint model switch cannot restart the clip. */
+    static Object transitionClock(Player player) {
+        return TRANSITIONS.get(player.getUUID());
+    }
+
+    static float transitionTimeSeconds(Player player, float partialTick) {
+        TransitionSnapshot snapshot = TRANSITIONS.get(player.getUUID());
+        return snapshot == null ? 0.0F
+                : (float) Math.max(0.0D, (player.tickCount + partialTick - snapshot.changedAt) / 20.0D);
+    }
+
+    /** Environmental poses have priority over ATTACK/USE_ITEM in the locomotion FSM. */
+    static boolean preservesArmActions(Player player) {
+        boolean onGround = groundedForAnimation(player);
+        return !player.isSleeping() && !player.isPassenger()
+                && (isTouchingWater(player) || !onGround || isClimbingForAnimation(player, onGround));
     }
 
     private static State stateOf(Player player) {
@@ -293,7 +312,7 @@ public final class FormAnimationSystem {
                     add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
                 else if (player.isVisuallyCrawling() || sneak && net.onixary.shapeShifterCurseForge.other.config.GameplayConfigState.shiftCrawl()) {
                     switch (state) {
-                        case IDLE -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
+                        case IDLE, USE_ITEM, BLOCK -> add(result, "axolotl_2_crawling_idle_new", "axolotl_2_crawling_idle");
                         // Form_Axolotl2 only overrides WALK. Sprint, physical crawling and
                         // falling deliberately inherit the normal-form controller.
                         case WALK -> add(result, "axolotl_2_crawling_new");
@@ -311,6 +330,8 @@ public final class FormAnimationSystem {
                     case SWIM ->
                             add(result, isSwimmingAnimation(player) ? "axolotl_2_swimming" : "axolotl_2_swimming_idle");
                     case IDLE -> add(result, crawlSneak ? "axolotl_3_crawling_idle" : "axolotl_3_idle");
+                    case USE_ITEM, BLOCK -> add(result, crawlSneak || player.isVisuallyCrawling()
+                            ? "axolotl_3_crawling_idle" : null);
                     case WALK -> add(result, crawlSneak ? "axolotl_3_crawling" : "axolotl_3_walk");
                     case SPRINT -> add(result, crawlSneak ? "axolotl_3_crawling" : "axolotl_3_run");
                     case JUMP -> add(result, player.isVisuallyCrawling() ? "axolotl_2_crawling_jump"
@@ -319,8 +340,10 @@ public final class FormAnimationSystem {
                             ? "axolotl_3_crawling_idle" : "axolotl_3_jump");
                     // The Fabric WithSneak controllers intentionally have no normal
                     // attack/mining animation for Axolotl 3.
-                    case ATTACK -> add(result, crawlSneak ? "axolotl_2_crawling_attack_once" : null);
-                    case MINING -> add(result, crawlSneak ? "axolotl_2_crawling_tool_swing" : null);
+                    case ATTACK -> add(result, crawlSneak || player.isVisuallyCrawling()
+                            ? "axolotl_2_crawling_attack_once" : null);
+                    case MINING -> add(result, crawlSneak || player.isVisuallyCrawling()
+                            ? "axolotl_2_crawling_tool_swing" : null);
                     case FLYING, FALL_FLYING -> add(result, "axolotl_3_creative_flight");
                     case SLEEP -> add(result, "axolotl_3_sleep");
                     // One-block clearance triggers the same form Geo crawl as a

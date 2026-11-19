@@ -189,6 +189,12 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             copyVanillaPosition("bipedLeftArm", vanillaModel.leftArm, 5.0F, 2.0F);
             copyVanillaPosition("bipedRightLeg", vanillaModel.rightLeg, -2.0F, 12.0F);
             copyVanillaPosition("bipedLeftLeg", vanillaModel.leftLeg, 2.0F, 12.0F);
+            copyVanillaScale("bipedHead", vanillaModel.head);
+            copyVanillaScale("bipedBody", vanillaModel.body);
+            copyVanillaScale("bipedRightArm", vanillaModel.rightArm);
+            copyVanillaScale("bipedLeftArm", vanillaModel.leftArm);
+            copyVanillaScale("bipedRightLeg", vanillaModel.rightLeg);
+            copyVanillaScale("bipedLeftLeg", vanillaModel.leftLeg);
         } else {
             // Safe fallback for non-player preview callers that do not provide a renderer model.
             setRotation("bipedHead", headPitch * DEG_TO_RAD,
@@ -257,6 +263,14 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
 
     private void copyVanillaPosition(String boneName, ModelPart part, float offsetX, float offsetY) {
         setPosition(boneName, -part.x + offsetX, -part.y + offsetY, -part.z + (float) 0.0);
+    }
+
+    private void copyVanillaScale(String boneName, ModelPart part) {
+        getBone(boneName).ifPresent(bone -> {
+            bone.setScaleX(bone.getScaleX() * part.xScale);
+            bone.setScaleY(bone.getScaleY() * part.yScale);
+            bone.setScaleZ(bone.getScaleZ() * part.zScale);
+        });
     }
 
     private void setPosition(String boneName, float x, float y, float z) {
@@ -380,8 +394,17 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
      */
     private void applyExtraBones(ModelAnimationConfig config, FormGeoAnimatable animatable) {
         for (ExtraBoneMapping mapping : config.extraBones) {
-            BedrockAnimationPlayer.BoneSample sample = animatable.sampleExtraBone(mapping.animBone());
             resetToInitial(mapping.geoBone());
+            BedrockAnimationPlayer.BoneSample fallback = null;
+            if (mapping.fallbackDriver() != null) {
+                var driver = getBone(mapping.fallbackDriver());
+                var target = getBone(mapping.geoBone());
+                if (driver.isPresent() && target.isPresent()
+                        && driver.get().getParent() == target.get().getParent()) {
+                    fallback = GeoBoneAttachment.follow(driver.get(), target.get());
+                }
+            }
+            BedrockAnimationPlayer.BoneSample sample = animatable.sampleExtraBone(mapping.animBone(), fallback);
             if (sample == null) {
                 continue;
             }
@@ -752,7 +775,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         return neck == null ? java.util.Optional.empty() : getBone(neck.headBone);
     }
 
-    private record ExtraBoneMapping(String animBone, String geoBone) { }
+    private record ExtraBoneMapping(String animBone, String geoBone, String fallbackDriver) { }
 
     /**
      * Long-neck look distribution, mirroring Fabric's {@code NeckConfig}.
@@ -886,7 +909,11 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             if (extraParts != null) {
                 for (Map.Entry<String, JsonElement> entry : extraParts.entrySet()) {
                     if (entry.getValue().isJsonPrimitive()) {
-                        extraBones.add(new ExtraBoneMapping(entry.getKey(), entry.getValue().getAsString()));
+                        extraBones.add(new ExtraBoneMapping(entry.getKey(), entry.getValue().getAsString(), null));
+                    } else if (entry.getValue().isJsonObject()) {
+                        JsonObject mapping = entry.getValue().getAsJsonObject();
+                        extraBones.add(new ExtraBoneMapping(entry.getKey(), mapping.get("bone").getAsString(),
+                                mapping.has("fallback_driver") ? mapping.get("fallback_driver").getAsString() : null));
                     }
                 }
             }

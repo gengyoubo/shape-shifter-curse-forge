@@ -49,6 +49,24 @@ items and extra hind-leg bones share the body's fade.
 
 ## Equipment pose follow-up
 
+Environmental poses (flight, swimming, climbing and airborne movement) retain their
+body/root/leg animation while active vanilla hand actions supply the arm rotations.
+Offhand and two-handed item poses are preserved; transform and power clips retain
+priority over these actions and TACZ's fallback gun pose. Crawl/climb/attachment
+rotation suppression also follows the outgoing clip during a fade.
+
+Transform clips use the per-player transition clock across the midpoint form/model
+switch, including late first renders. The four normal/feral source/target combinations
+select their corresponding clips. Limb scale channels participate in playback,
+pose snapshots, fades, reset and the Geo copy.
+
+An `extra_parts_map` value may still be a bone-name string, or an object such as
+`{"bone":"lowerBody","fallback_driver":"bipedBody"}`. When a clip has no track
+for that extra bone, the driver transforms its baked pose as a virtual parent;
+both bones must share a parent. Explicit tracks take precedence and fade against
+the attached pose. Polecat lower-body/neck roots and Spider 3's extra hind legs
+use this fallback so generic transform clips move the whole model.
+
 The Geo overlay already suppressed vanilla swim/crawl root rotation for clips that
 supply their own body rotation. PlayerRenderer now uses the same decision, preventing
 armor and held-item layers from receiving an extra vanilla rotation/translation.

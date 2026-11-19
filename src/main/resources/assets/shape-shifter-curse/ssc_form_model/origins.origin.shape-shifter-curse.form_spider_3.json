@@ -30,8 +30,8 @@
   "animation_system": "shape-shifter-curse:default",
   "animation_system_config": {
     "extra_parts_map": {
-      "bipedRightHindLeg": "bipedRightHindLeg",
-      "bipedLeftHindLeg": "bipedLeftHindLeg"
+      "bipedRightHindLeg": {"bone": "bipedRightHindLeg", "fallback_driver": "bipedRightLeg"},
+      "bipedLeftHindLeg": {"bone": "bipedLeftHindLeg", "fallback_driver": "bipedLeftLeg"}
     },
     "first_person_render": {
       "left_arm": "bipedLeftArm",

@@ -29,8 +29,8 @@
   "animation_system": "shape-shifter-curse:default",
   "animation_system_config": {
     "extra_parts_map": {
-      "lowerBody": "lowerBody",
-      "neckMount": "neckMount",
+      "lowerBody": {"bone": "lowerBody", "fallback_driver": "bipedBody"},
+      "neckMount": {"bone": "neckMount", "fallback_driver": "bipedHead"},
       "tailMount": "tailMount"
     },
     "tail": {
