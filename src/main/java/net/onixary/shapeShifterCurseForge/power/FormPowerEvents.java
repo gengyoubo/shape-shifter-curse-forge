@@ -159,6 +159,7 @@ public final class FormPowerEvents {
         tickCustomWaterBreathing(player);
         if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
             MovementPowerService.synchronizeForcedSneakingIfChanged(serverPlayer);
+            FormActivePowerService.refreshMana(serverPlayer);
         }
 
     }

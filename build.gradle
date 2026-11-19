@@ -109,7 +109,7 @@ dependencies {
     immediatelyFastDeobf fg.deobf("curse.maven:immediatelyfast-686911:8348481")
     runtimeOnly files(immediatelyFastDevJar).builtBy('remapImmediatelyFastForDev')
     //latex_form处理
-    implementation fg.deobf("curse.maven:changed-minecraft-mod-661527:8217446")//可选依赖
+    compileOnly fg.deobf("curse.maven:changed-minecraft-mod-661527:8217446")//可选依赖
     //mixin
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }

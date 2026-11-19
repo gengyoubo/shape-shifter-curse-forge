@@ -9,15 +9,58 @@ SSC 法力池。接口随主模组发布，依赖配置见 [Power API](addon-pow
 | --- | --- |
 | `hasManaPool(player)` | 是否有激活的法力池 |
 | `manaType(player)` | 当前法力类型，返回 `Optional<ResourceLocation>` |
-| `mana(player)` / `maximumMana(player)` | 当前值 / 包含能力与饰品加成的上限 |
+| `mana(player)` / `maximumMana(player)` | 当前有效值 / 包含内置加成与附属上限事件的上限 |
 | `manaPercent(player)` | 当前值与上限之比；无法力池时为零 |
 | `hasMana(player, amount)` | 是否足够支付指定数量 |
 | `consumeMana(player, amount)` | 足够时扣除并返回 `true`；不足或无法力池时返回 `false` |
 | `gainMana(player, amount)` | 请求回复法力，经过回复事件 |
 | `setMana(player, value)` | 直接设置数值，绕过回复事件，可用于退款或管理操作 |
+| `synchronizeMana(player)` | 立即重新计算上限、裁剪超额法力并同步 HUD |
 
 数量必须是有限的非负浮点数，否则抛出 `IllegalArgumentException`。
 `setMana` 允许有限的负数，按零处理；超过上限的值按上限处理。
+
+## 按条件修改法力上限
+
+`SscManaMaximumEvent` 在服务器计算当前激活法力池上限时发布到 **Forge 事件总线**。
+`getOriginalMaximum()` 是包含内置 `mana_attribute.max_mana_modifier.add` 的上限；
+`getMaximum()` / `setMaximum(float)` 用于读取和修改经过前序监听器处理的上限。
+可以叠加、乘算或直接替换，修改值必须有限，全部监听器执行后最终上限至少为 `1`。
+无法力池时不发布此事件，`SscManaApi.maximumMana` 仍返回零。
+
+附属的 `ssc_addon:conditional_mana_attribute` 可以在监听器中遍历玩家拥有的该类型
+Power，判断各自条件，并把 `max_mana_modifier` 的结果应用到事件。下面演示单项
+条件加成；`meetsAddonCondition` 需替换为附属的实际条件判断：
+
+```java
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.onixary.shapeShifterCurseForge.api.SscManaMaximumEvent;
+
+// 将此监听器实例注册到 MinecraftForge.EVENT_BUS。
+public final class ConditionalManaHandler {
+    @SubscribeEvent
+    public void onManaMaximum(SscManaMaximumEvent event) {
+        if (meetsAddonCondition(event.getEntity())) {
+            event.setMaximum(event.getMaximum() + 25.0F);
+        }
+    }
+}
+```
+
+例如内置上限为 `125` 时，以上条件成立得到 `150`，失效后恢复为 `125`。
+多个 Power 应逐项基于当前值计算，避免用 `getOriginalMaximum()` 覆盖其他 Power
+或监听器的结果；需要规定监听器之间的加算/乘算顺序时，使用 Forge 事件优先级。
+SSC 不会自动解释附属命名空间的 Power，附属仍负责类型注册、条件与修饰符语义。
+
+上限事件按查询重新计算，不累积保存修改量；条件变化后，下次查询立即使用新上限。
+服务器每个玩家 tick 末尾会检查当前法力池，仅在类型、数值或上限变化时同步 HUD。
+降低上限会裁剪超出的已存储法力，提高上限不会自动增加当前法力。
+`mana`、支付判断、回复限制、百分比、变形和重生补满均使用修改后的上限。
+需要立即裁剪并同步时可调用 `SscManaApi.synchronizeMana(player)`。
+
+监听器只应计算数值，不要修改玩家状态或在回调中调用 `synchronizeMana`、`setMana`、
+`gainMana`。同一玩家在上限事件中再次查询上限或法力百分比时，内层查询使用 SSC
+内置上限，不再发布事件，避免条件判断递归；这类条件不依赖正在计算的最终上限。
 
 ## 在通用法阵充能期间暂停回复
 

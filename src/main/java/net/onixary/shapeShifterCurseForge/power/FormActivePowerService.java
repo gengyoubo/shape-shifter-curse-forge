@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.api.SscManaMaximumEvent;
 import net.onixary.shapeShifterCurseForge.api.SscManaRecoveryEvent;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
@@ -25,6 +26,9 @@ public final class FormActivePowerService {
     private static final String FAMILIAR_FOX_MANA = "shape-shifter-curse:familiar_fox_mana";
     private static final String WEB_RESOURCE = "shape-shifter-curse:web_resource";
     private static final float FAMILIAR_FOX_MAX_MANA = 100.0F;
+    private record ManaSnapshot(String type, float amount, float maximum) {}
+    private static final Map<UUID, ManaSnapshot> LAST_MANA_SYNC = new HashMap<>();
+    private static final java.util.Set<UUID> CALCULATING_MAXIMUM_MANA = new java.util.HashSet<>();
     private static final Map<UUID, Map<String, Boolean>> PRESSED_KEYS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, Integer>> COOLDOWNS = new HashMap<>();
     private static final Map<UUID, Map<ResourceLocation, ChargeState>> CHARGES = new HashMap<>();
@@ -61,6 +65,7 @@ public final class FormActivePowerService {
         FrostDiveService.clear(player);
         TargetPounceService.stop(player);
         SurfaceGrappleService.cancel(player);
+        if (!player.level().isClientSide) LAST_MANA_SYNC.remove(id);
     }
 
     /** An Origin replacement removes its power instances; discard the matching runtime state. */
@@ -366,6 +371,10 @@ public final class FormActivePowerService {
     }
 
     public static float mana(Player player) {
+        return Math.max(0.0F, Math.min(maximumMana(player), storedMana(player)));
+    }
+
+    private static float storedMana(Player player) {
         String type = manaType(player);
         float initial = FAMILIAR_FOX_MANA.equals(type) ? 0.0F
                 : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
@@ -389,7 +398,16 @@ public final class FormActivePowerService {
                 bonus[0] += FormPowerRuntime.floatValue(power.getAsJsonObject("max_mana_modifier"), "add", 0);
             }
         });
-        return Math.max(1.0F, base + bonus[0]);
+        float maximum = Math.max(1.0F, base + bonus[0]);
+        if (!(player instanceof ServerPlayer serverPlayer) || !hasActiveManaType(player)
+                || !CALCULATING_MAXIMUM_MANA.add(player.getUUID())) return maximum;
+        try {
+            SscManaMaximumEvent event = new SscManaMaximumEvent(serverPlayer, ResourceLocation.parse(type), maximum);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+            return Math.max(1.0F, event.getMaximum());
+        } finally {
+            CALCULATING_MAXIMUM_MANA.remove(player.getUUID());
+        }
     }
 
     /** Direct assignment, bypassing recovery hooks (also used for refills and refunds). */
@@ -400,18 +418,38 @@ public final class FormActivePowerService {
         float clamped = Math.max(0.0F, Math.min(maximum, value));
         SscApi.currentForm(player).ifPresent(data -> data.setManaPool(type, clamped));
         if (player instanceof ServerPlayer serverPlayer) {
-            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(serverPlayer, type, clamped, maximum);
+            sendManaSnapshot(serverPlayer, new ManaSnapshot(type, clamped, maximum), true);
         }
     }
 
     /** Pushes the active pool after login, respawn, dimension changes and form swaps. */
     public static void synchronizeMana(ServerPlayer player) {
+        synchronizeMana(player, true);
+    }
+
+    /** End-of-tick update for conditional capacity changes, without sending unchanged snapshots. */
+    public static void refreshMana(ServerPlayer player) {
+        synchronizeMana(player, false);
+    }
+
+    private static void synchronizeMana(ServerPlayer player, boolean force) {
         if (!hasActiveManaType(player)) {
-            net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(player, "", 0.0F, DEFAULT_MANA);
+            sendManaSnapshot(player, new ManaSnapshot("", 0.0F, DEFAULT_MANA), force);
             return;
         }
         String type = manaType(player);
-        net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(player, type, mana(player), maximumMana(player));
+        float maximum = maximumMana(player);
+        float current = storedMana(player);
+        float clamped = Math.max(0.0F, Math.min(maximum, current));
+        if (current != clamped) SscApi.currentForm(player).ifPresent(data -> data.setManaPool(type, clamped));
+        sendManaSnapshot(player, new ManaSnapshot(type, clamped, maximum), force);
+    }
+
+    private static void sendManaSnapshot(ServerPlayer player, ManaSnapshot snapshot, boolean force) {
+        if (!force && snapshot.equals(LAST_MANA_SYNC.get(player.getUUID()))) return;
+        net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(
+                player, snapshot.type(), snapshot.amount(), snapshot.maximum());
+        LAST_MANA_SYNC.put(player.getUUID(), snapshot);
     }
 
     public static boolean hasActiveManaType(Player player) {

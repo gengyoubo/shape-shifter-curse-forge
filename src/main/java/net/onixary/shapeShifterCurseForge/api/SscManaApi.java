@@ -28,6 +28,7 @@ public final class SscManaApi {
         return hasManaPool(player) ? FormActivePowerService.mana(player) : 0.0F;
     }
 
+    /** Includes built-in modifiers and add-on adjustments from {@link SscManaMaximumEvent}. */
     public static float maximumMana(ServerPlayer player) {
         return hasManaPool(player) ? FormActivePowerService.maximumMana(player) : 0.0F;
     }
@@ -59,6 +60,11 @@ public final class SscManaApi {
         if (!hasMana(player, amount)) return false;
         FormActivePowerService.consumeMana(player, amount);
         return true;
+    }
+
+    /** Recalculate capacity, clamp excess mana and immediately update the owning client's HUD. */
+    public static void synchronizeMana(ServerPlayer player) {
+        FormActivePowerService.synchronizeMana(Objects.requireNonNull(player, "player"));
     }
 
     private static void requireAmount(float amount) {
