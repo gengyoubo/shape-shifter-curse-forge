@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
+import net.onixary.shapeShifterCurseForge.api.SscManaRecoveryEvent;
 import net.onixary.shapeShifterCurseForge.api.registry.SscJavaRegistries;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
@@ -268,15 +269,18 @@ public final class FormActivePowerService {
     }
 
     public static void consumeMana(Player player, float amount) {
-        if (!hasMana(player, amount)) {
+        if (player.level().isClientSide || !Float.isFinite(amount) || amount < 0.0F || !hasMana(player, amount)) {
             return;
         }
         setMana(player, mana(player) - amount);
     }
 
-    /** Adds mana to the currently selected mana pool, clamped to that pool's maximum. */
+    /** Recover mana through the add-on hook, clamped to the currently selected pool's maximum. */
     public static void gainMana(Player player, float amount) {
-        setMana(player, mana(player) + amount);
+        if (!(player instanceof ServerPlayer serverPlayer) || !Float.isFinite(amount) || amount <= 0.0F) return;
+        SscManaRecoveryEvent event = new SscManaRecoveryEvent(serverPlayer, ResourceLocation.parse(manaType(player)), amount);
+        if (net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event) || event.getAmount() == 0.0F) return;
+        setMana(player, mana(player) + event.getAmount());
     }
 
     private static JsonObject resourceDefinition(ResourceLocation id) {
@@ -374,7 +378,7 @@ public final class FormActivePowerService {
         return mana(player) / maximumMana(player);
     }
 
-    private static float maximumMana(Player player) {
+    public static float maximumMana(Player player) {
         String type = manaType(player);
         float base = FAMILIAR_FOX_MANA.equals(type) ? FAMILIAR_FOX_MAX_MANA
                 : WEB_RESOURCE.equals(type) ? 100.0F : DEFAULT_MANA;
@@ -388,7 +392,9 @@ public final class FormActivePowerService {
         return Math.max(1.0F, base + bonus[0]);
     }
 
-    private static void setMana(Player player, float value) {
+    /** Direct assignment, bypassing recovery hooks (also used for refills and refunds). */
+    public static void setMana(Player player, float value) {
+        if (player.level().isClientSide || !Float.isFinite(value)) return;
         String type = manaType(player);
         float maximum = maximumMana(player);
         float clamped = Math.max(0.0F, Math.min(maximum, value));
@@ -408,7 +414,7 @@ public final class FormActivePowerService {
         net.onixary.shapeShifterCurseForge.network.ModNetwork.sendManaSync(player, type, mana(player), maximumMana(player));
     }
 
-    private static boolean hasActiveManaType(Player player) {
+    public static boolean hasActiveManaType(Player player) {
         final boolean[] found = {false};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("shape-shifter-curse:mana_type_power".equals(FormPowerRegistry.typeOf(power)) && power.has("mana_type")) {
@@ -418,7 +424,7 @@ public final class FormActivePowerService {
         return found[0];
     }
 
-    private static String manaType(Player player) {
+    public static String manaType(Player player) {
         final String[] type = {"shape-shifter-curse:generic_mana"};
         FormPowerRegistry.visitActive(player, (id, power) -> {
             if ("shape-shifter-curse:mana_type_power".equals(FormPowerRegistry.typeOf(power)) && power.has("mana_type")) {

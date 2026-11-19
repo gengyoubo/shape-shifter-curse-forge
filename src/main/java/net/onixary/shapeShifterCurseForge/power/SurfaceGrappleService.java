@@ -50,7 +50,7 @@ public final class SurfaceGrappleService {
                 return;
             }
             state.charging = false;
-            if (destination == null) { FormActivePowerService.gainMana(player, FormPowerRuntime.floatValue(state.power, "mana_cost", 10)); STATES.remove(player.getUUID()); return; }
+            if (destination == null) { refund(player, state); STATES.remove(player.getUUID()); return; }
             state.destination = destination;
             state.savedGravity = player.isNoGravity();
             player.getPersistentData().putBoolean(SAVED_GRAVITY, state.savedGravity);
@@ -78,11 +78,15 @@ public final class SurfaceGrappleService {
     public static void cancel(net.minecraft.world.entity.player.Player player) {
         State state = STATES.remove(player.getUUID());
         if (state == null) return;
-        if (state.charging && FormActivePowerService.hasWebMana(player)) FormActivePowerService.gainMana(player, FormPowerRuntime.floatValue(state.power, "mana_cost", 10));
+        if (state.charging && FormActivePowerService.hasWebMana(player)) refund(player, state);
         if (state.destination != null) {
             player.setNoGravity(state.savedGravity); player.getPersistentData().remove(SAVED_GRAVITY);
             player.setDeltaMovement(Vec3.ZERO); player.hurtMarked = true;
         }
+    }
+    private static void refund(net.minecraft.world.entity.player.Player player, State state) {
+        FormActivePowerService.setMana(player, FormActivePowerService.mana(player)
+                + FormPowerRuntime.floatValue(state.power, "mana_cost", 10));
     }
     public static void recoverAfterLogin(net.minecraft.world.entity.player.Player player) {
         if (player.getPersistentData().contains(SAVED_GRAVITY)) {
