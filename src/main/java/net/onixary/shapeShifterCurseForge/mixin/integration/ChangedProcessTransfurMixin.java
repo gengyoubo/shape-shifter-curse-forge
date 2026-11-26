@@ -57,7 +57,7 @@ public abstract class ChangedProcessTransfurMixin {
                                                CallbackInfoReturnable<Boolean> cir) {
         if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
             if (decision != null && decision.transfurProgress() > 0.0F) {
-                ChangedIntegration.notifyBlocked(player);
+                ChangedIntegration.notifyBlockedBySscForm(player);
             }
             cir.setReturnValue(false);
         }
@@ -69,7 +69,7 @@ public abstract class ChangedProcessTransfurMixin {
                                                   CallbackInfoReturnable<Boolean> cir) {
         if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
             if (decision != null && decision.transfurProgress() > 0.0F) {
-                ChangedIntegration.notifyBlocked(player);
+                ChangedIntegration.notifyBlockedBySscForm(player);
             }
             cir.setReturnValue(false);
         }
@@ -81,7 +81,7 @@ public abstract class ChangedProcessTransfurMixin {
                                                   CallbackInfo ci) {
         if (entity instanceof Player player && ChangedIntegration.hasSscVariant(player)) {
             if (decision != null) {
-                ChangedIntegration.notifyBlocked(player);
+                ChangedIntegration.notifyBlockedBySscForm(player);
             }
             ci.cancel();
         }
@@ -95,7 +95,7 @@ public abstract class ChangedProcessTransfurMixin {
                                                    CallbackInfoReturnable<TransfurVariantInstance<?>> cir) {
         // Null assignments must remain available to cure old conflicting saves.
         if (variant != null && ChangedIntegration.hasSscVariant(player)) {
-            ChangedIntegration.notifyBlocked(player);
+            ChangedIntegration.notifyBlockedBySscForm(player);
             cir.setReturnValue(null);
         }
     }

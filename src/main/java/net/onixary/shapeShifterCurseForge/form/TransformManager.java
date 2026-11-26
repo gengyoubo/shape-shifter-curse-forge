@@ -58,7 +58,7 @@ public final class TransformManager {
             return false;
         }
         if (!ChangedIntegration.canTransformTo(player, targetId)) {
-            ChangedIntegration.notifyBlocked(player);
+            ChangedIntegration.notifyBlockedByChangedVariant(player);
             return false;
         }
         if (SscCommonConfig.IMMEDIATE_TRANSFORM.get()) {
@@ -116,7 +116,7 @@ public final class TransformManager {
             }
             // Changed may have transformed the player during SSC's delayed wind-up.
             if (!ChangedIntegration.canTransformTo(player, data.transformEndForm)) {
-                ChangedIntegration.notifyBlocked(player);
+                ChangedIntegration.notifyBlockedByChangedVariant(player);
                 cancel(player);
                 continue;
             }

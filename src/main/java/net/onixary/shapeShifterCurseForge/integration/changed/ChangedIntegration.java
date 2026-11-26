@@ -21,13 +21,14 @@ import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.api.SscApi;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
+import net.onixary.shapeShifterCurseForge.other.config.SscChangedConfig;
 import net.onixary.shapeShifterCurseForge.power.TransformativeEffectService;
 
 /** Mutual exclusion with Changed; SSC wins when loading an existing conflicting state. */
 @Mod.EventBusSubscriber(modid = ShapeShifterCurseForge.MOD_ID)
 public final class ChangedIntegration {
-    private static final Map<Player, Integer> LAST_BLOCKED_MESSAGE_TICKS = new WeakHashMap<>();
-    private static final int BLOCKED_MESSAGE_COOLDOWN = 40;
+    private static final Map<Player, Integer> LAST_SSC_BLOCK_MESSAGE_TICKS = new WeakHashMap<>();
+    private static final Map<Player, Integer> LAST_CHANGED_BLOCK_MESSAGE_TICKS = new WeakHashMap<>();
 
     private ChangedIntegration() {
     }
@@ -70,17 +71,29 @@ public final class ChangedIntegration {
         return isOriginalForm(targetId) || !hasChangedVariant(player);
     }
 
-    public static void notifyBlocked(Player player) {
-        if (!(player instanceof ServerPlayer serverPlayer)) {
+    /** An SSC form stopped a Changed transfur. */
+    public static void notifyBlockedBySscForm(Player player) {
+        notifyBlocked(player, LAST_SSC_BLOCK_MESSAGE_TICKS, SscChangedConfig.SSC_FORM_BLOCKS_CHANGED.get());
+    }
+
+    /** A Changed variant stopped an SSC transformation. */
+    public static void notifyBlockedByChangedVariant(Player player) {
+        notifyBlocked(player, LAST_CHANGED_BLOCK_MESSAGE_TICKS, SscChangedConfig.CHANGED_VARIANT_BLOCKS_SSC.get());
+    }
+
+    private static void notifyBlocked(Player player, Map<Player, Integer> lastTicks, String message) {
+        if (!(player instanceof ServerPlayer serverPlayer) || !SscChangedConfig.SHOW_MESSAGES.get()
+                || message == null || message.isBlank()) {
             return;
         }
-        Integer lastTick = LAST_BLOCKED_MESSAGE_TICKS.get(player);
-        if (lastTick != null && player.tickCount - lastTick < BLOCKED_MESSAGE_COOLDOWN) {
+        Integer lastTick = lastTicks.get(player);
+        if (lastTick != null && player.tickCount - lastTick < SscChangedConfig.MESSAGE_COOLDOWN_TICKS.get()) {
             return;
         }
-        LAST_BLOCKED_MESSAGE_TICKS.put(player, player.tickCount);
-        serverPlayer.sendSystemMessage(Component.translatable(
-                "info.shape-shifter-curse.transform_blocked").withStyle(ChatFormatting.LIGHT_PURPLE));
+        lastTicks.put(player, player.tickCount);
+        // Clients translate a known key and otherwise show the configured text unchanged.
+        serverPlayer.sendSystemMessage(Component.translatableWithFallback(message, message)
+                .withStyle(ChatFormatting.LIGHT_PURPLE));
     }
 
     @SubscribeEvent

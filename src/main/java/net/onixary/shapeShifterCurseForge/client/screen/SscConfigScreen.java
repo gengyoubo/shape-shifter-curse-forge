@@ -10,6 +10,7 @@ import net.onixary.shapeShifterCurseForge.client.ColorAutoSync;
 import net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenu;
 import net.onixary.shapeShifterCurseForge.client.codex.FormColorSelectMenuV2;
 import net.onixary.shapeShifterCurseForge.client.color.FormColorData;
+import net.onixary.shapeShifterCurseForge.other.config.SscChangedConfig;
 import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 
@@ -46,8 +47,24 @@ public final class SscConfigScreen extends Screen {
             catch (NumberFormatException ignored) { }
         }, false));
     }
+    private void text(String key, ForgeConfigSpec.ConfigValue<String> value) {
+        rows.add(new Row(key, value::get, value::set, false));
+    }
+    private static int pageCount() {
+        return 4;
+    }
+    private static String pageKey(int page) {
+        return switch (page) { case 0 -> "client"; case 1 -> "custom"; case 2 -> "common"; default -> "changed"; };
+    }
     private void populate() {
         rows.clear();
+        if (page == 3) {
+            bool("changed_blocked_message_enabled", SscChangedConfig.SHOW_MESSAGES);
+            integer("changed_blocked_message_cooldown", SscChangedConfig.MESSAGE_COOLDOWN_TICKS, 0, 72000);
+            text("changed_ssc_form_blocks_changed", SscChangedConfig.SSC_FORM_BLOCKS_CHANGED);
+            text("changed_variant_blocks_ssc", SscChangedConfig.CHANGED_VARIANT_BLOCKS_SSC);
+            return;
+        }
         if (page == 0) {
             bool("big_screen", SscClientConfig.BIG_CODEX);
             bool("first_person_form_arms", SscClientConfig.FIRST_PERSON_FORM_ARMS);
@@ -133,8 +150,8 @@ public final class SscConfigScreen extends Screen {
                 edit.setMaxLength(2048); edit.setValue(row.value.get()); edit.setResponder(row.set); addRenderableWidget(edit);
             }
         }
-        addRenderableWidget(Button.builder(Component.literal("<"), b -> { page = (page + 2) % 3; offset = 0; rebuildWidgets(); }).bounds(left, 25, 30, 20).build());
-        addRenderableWidget(Button.builder(Component.literal(">"), b -> { page = (page + 1) % 3; offset = 0; rebuildWidgets(); }).bounds(left + 305, 25, 30, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("<"), b -> { page = (page + pageCount() - 1) % pageCount(); offset = 0; rebuildWidgets(); }).bounds(left, 25, 30, 20).build());
+        addRenderableWidget(Button.builder(Component.literal(">"), b -> { page = (page + 1) % pageCount(); offset = 0; rebuildWidgets(); }).bounds(left + 305, 25, 30, 20).build());
         addRenderableWidget(Button.builder(Component.literal("▲"), b -> { offset = Math.max(0, offset - 1); rebuildWidgets(); }).bounds(left + 180, height - 67, 35, 20).build());
         addRenderableWidget(Button.builder(Component.literal("▼"), b -> { offset = Math.min(Math.max(0, rows.size() - visible), offset + 1); rebuildWidgets(); }).bounds(left + 220, height - 67, 35, 20).build());
         if (page == 1) {
@@ -148,7 +165,7 @@ public final class SscConfigScreen extends Screen {
     @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics);
         graphics.drawCenteredString(font, title, width / 2, 8, 0xffffff);
-        graphics.drawCenteredString(font, label(page == 0 ? "client" : page == 1 ? "custom" : "common"), width / 2, 31, 0xffffff);
+        graphics.drawCenteredString(font, label(pageKey(page)), width / 2, 31, 0xffffff);
         int left = Math.max(8, width / 2 - 170), visible = Math.max(1, (height - 125) / 24);
         for (int i = offset; i < Math.min(rows.size(), offset + visible); i++)
             graphics.drawString(font, label(rows.get(i).key), left, 58 + (i - offset) * 24, 0xffffff);
@@ -160,7 +177,7 @@ public final class SscConfigScreen extends Screen {
         rebuildWidgets(); return true;
     }
     @Override public void onClose() {
-        SscClientConfig.SPEC.save(); SscCommonConfig.SPEC.save(); ColorAutoSync.syncNow();
+        SscClientConfig.SPEC.save(); SscCommonConfig.SPEC.save(); SscChangedConfig.SPEC.save(); ColorAutoSync.syncNow();
         var server = minecraft.getSingleplayerServer();
         if (server != null) server.execute(() -> {
             var packet = new net.onixary.shapeShifterCurseForge.network.GameplayConfigPacket(

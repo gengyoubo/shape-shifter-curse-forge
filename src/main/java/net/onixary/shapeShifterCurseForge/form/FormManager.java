@@ -46,7 +46,7 @@ public final class FormManager {
             return false;
         }
         if (!ChangedIntegration.canTransformTo(player, targetId)) {
-            ChangedIntegration.notifyBlocked(player);
+            ChangedIntegration.notifyBlockedByChangedVariant(player);
             return false;
         }
 

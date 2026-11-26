@@ -5,6 +5,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
 import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
+import net.onixary.shapeShifterCurseForge.other.config.SscChangedConfig;
 import net.onixary.shapeShifterCurseForge.other.config.SscCommonConfig;
 import net.onixary.shapeShifterCurseForge.other.advancement.SscAdvancementTriggers;
 import net.onixary.shapeShifterCurseForge.network.ModNetwork;
@@ -36,6 +37,8 @@ public final class ShapeShifterCurseForge {
                 "shape-shifter-curse-client.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SscCommonConfig.SPEC,
                 "shape-shifter-curse-common.toml");
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SscChangedConfig.SPEC,
+                "shape-shifter-curse-changed.toml");
 
         ModItems.ITEMS.register(modBus);
         ModBlocks.BLOCKS.register(modBus);

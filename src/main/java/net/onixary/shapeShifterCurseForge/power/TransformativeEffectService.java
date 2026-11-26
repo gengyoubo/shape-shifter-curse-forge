@@ -40,7 +40,7 @@ public final class TransformativeEffectService {
             return;
         }
         if (ChangedIntegration.hasChangedVariant(player)) {
-            ChangedIntegration.notifyBlocked(player);
+            ChangedIntegration.notifyBlockedByChangedVariant(player);
             return;
         }
         SscApi.currentForm(player).ifPresent(data -> {
@@ -67,7 +67,7 @@ public final class TransformativeEffectService {
 
     public static boolean activate(ServerPlayer player) {
         if (ChangedIntegration.hasChangedVariant(player)) {
-            ChangedIntegration.notifyBlocked(player);
+            ChangedIntegration.notifyBlockedByChangedVariant(player);
             clear(player);
             return false;
         }
