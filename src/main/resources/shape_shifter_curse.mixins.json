@@ -81,6 +81,7 @@
         "client.ElytraFlightLocalPlayerMixin",
         "PlayerModelAnimMixin",
         "client.ElytraLayerMixin",
+        "client.ElytraModelMixin",
         "PlayerRendererBodyMixin",
         "HideThirdPersonItemMixin",
         "client.InventoryScreenMixin",

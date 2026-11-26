@@ -21,6 +21,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
 import net.onixary.shapeShifterCurseForge.form.FormDefinition;
+import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import org.slf4j.Logger;
@@ -470,6 +471,10 @@ public final class FormClientRenderEvents {
                         / Math.sqrt(velocityHorizontal * viewHorizontal);
                 double cross = velocity.x * view.z - velocity.z * view.x;
                 poseStack.mulPose(Axis.YP.rotation((float) (Math.signum(cross) * Math.acos(alignment))));
+                // PlayerRendererBodyMixin#ssc$feralFallFlyingRotation: keep feral bodies level.
+                if (FormManager.current(player).bodyType() == FormBodyType.FERAL) {
+                    poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+                }
             }
         } else if (swimAmount > 0.0F && !suppressVanillaSwimRotation) {
             boolean inSwimmableFluid = player.isInWater()

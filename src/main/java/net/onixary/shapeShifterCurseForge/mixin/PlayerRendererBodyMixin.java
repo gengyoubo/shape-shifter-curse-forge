@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.world.phys.Vec3;
@@ -58,6 +59,23 @@ public abstract class PlayerRendererBodyMixin {
                                             CallbackInfoReturnable<Vec3> cir) {
         if (FormManager.current(player).bodyType() == FormBodyType.FERAL) {
             cir.setReturnValue(Vec3.ZERO);
+        }
+    }
+
+    /**
+     * Fabric {@code PlayerEntityRendererFallFlyingMixin}: a feral body is already horizontal, so
+     * after vanilla's velocity-alignment yaw it is tipped back up by 90 degrees. Without this the
+     * elytra and other vanilla layers point straight down while the form glides.
+     * {@link FormClientRenderEvents} applies the same rotation to the Geo pre-pass.
+     */
+    @Inject(method = "setupRotations(Lnet/minecraft/client/player/AbstractClientPlayer;Lcom/mojang/blaze3d/vertex/PoseStack;FFF)V",
+            at = @At(value = "INVOKE", ordinal = 0, shift = At.Shift.AFTER,
+                    target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionf;)V"),
+            slice = @Slice(from = @At(value = "INVOKE", target = "Ljava/lang/Math;acos(D)D", remap = false)))
+    private void ssc$feralFallFlyingRotation(AbstractClientPlayer player, PoseStack poseStack,
+                                             float age, float bodyYaw, float partialTick, CallbackInfo ci) {
+        if (player.isFallFlying() && FormManager.current(player).bodyType() == FormBodyType.FERAL) {
+            poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
         }
     }
 
