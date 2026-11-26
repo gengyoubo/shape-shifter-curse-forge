@@ -23,13 +23,8 @@ public class CuriosMixinPlugin implements IMixinConfigPlugin {
                 || mixinClassName.contains("integration.Changed") || mixinClassName.contains("integration.Tacz")) {
             String modId = mixinClassName.contains("integration.Tacz") ? "tacz"
                     : mixinClassName.contains("integration.Changed") ? "changed" : "toughasnails";
-            // Mixin preparation can run before Forge creates the runtime ModList.
-            ModList runtimeMods = ModList.get();
-            if (runtimeMods != null) {
-                return runtimeMods.isLoaded(modId);
-            }
-            LoadingModList loadingMods = FMLLoader.getLoadingModList();
-            return loadingMods != null && loadingMods.getModFileById(modId) != null;
+            return isModLoaded(modId) && (!mixinClassName.endsWith(".TaczPlayerAnimatorLayersMixin")
+                    || isModLoaded("playeranimator"));
         }
         if (mixinClassName.contains("accessory.CurioImpl")) {
             try {
@@ -40,6 +35,16 @@ public class CuriosMixinPlugin implements IMixinConfigPlugin {
             }
         }
         return true;
+    }
+
+    private static boolean isModLoaded(String modId) {
+        // Mixin preparation can run before Forge creates the runtime ModList.
+        ModList runtimeMods = ModList.get();
+        if (runtimeMods != null) {
+            return runtimeMods.isLoaded(modId);
+        }
+        LoadingModList loadingMods = FMLLoader.getLoadingModList();
+        return loadingMods != null && loadingMods.getModFileById(modId) != null;
     }
 
     @Override

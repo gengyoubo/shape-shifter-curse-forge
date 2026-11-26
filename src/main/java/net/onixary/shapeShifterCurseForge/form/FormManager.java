@@ -66,6 +66,7 @@ public final class FormManager {
 
         if (changed) {
             if (player instanceof ServerPlayer serverPlayer) {
+                ChangedIntegration.dropInvalidExoskeleton(serverPlayer);
                 FormActivePowerService.onFormChanged(serverPlayer);
                 BatAttachService.clear(serverPlayer);
                 PowerAnimationService.stop(serverPlayer);

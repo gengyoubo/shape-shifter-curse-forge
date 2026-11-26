@@ -98,7 +98,7 @@ dependencies {
     implementation fg.deobf("local.runtime:jei:1.20.1-forge-15.28.0.160")
     // Optional mods for animation compatibility testing in the local development runs.
     //runtimeOnly fg.deobf("local.runtime:bettercombat-forge:1.9.0+1.20.1")
-    runtimeOnly fg.deobf("local.runtime:player-animation-lib-forge:1.0.2-rc1+1.20")
+    implementation fg.deobf("local.runtime:player-animation-lib-forge:1.0.2-rc1+1.20")
     runtimeOnly fg.deobf("local.runtime:cloth-config:11.1.136-forge")
     runtimeOnly fg.deobf("local.runtime:SlashBladeResharped:1.20.1-1.9.65")
     //兼容
@@ -112,6 +112,8 @@ dependencies {
     compileOnly fg.deobf("curse.maven:changed-minecraft-mod-661527:8217446")//可选依赖
     //mixin
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    //tacz兼容
+    implementation fg.deobf("curse.maven:timeless-and-classics-zero-1028108:9623132")
 }
 
 /*

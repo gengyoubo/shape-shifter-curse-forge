@@ -193,7 +193,7 @@ public final class FormGeoAnimatable implements GeoAnimatable {
             }
         }
         if (gunPose != null) {
-            gunPose.applyUpperBody(model);
+            gunPose.applyHeadAndArms(model);
         }
         return transform;
     }

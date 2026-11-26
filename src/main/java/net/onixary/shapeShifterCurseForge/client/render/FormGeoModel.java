@@ -14,6 +14,8 @@ import net.onixary.shapeShifterCurseForge.other.config.SscClientConfig;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
 import net.onixary.shapeShifterCurseForge.ShapeShifterCurseForge;
+import software.bernie.geckolib.cache.object.GeoBone;
+import software.bernie.geckolib.core.state.BoneSnapshot;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoRenderer;
 import software.bernie.geckolib.core.animation.AnimationState;
@@ -222,7 +224,7 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
         getBone(boneName).ifPresent(FormGeoModel::resetToInitial);
     }
 
-    static void resetToInitial(software.bernie.geckolib.cache.object.GeoBone bone) {
+    static void resetToInitial(GeoBone bone) {
         var initial = bone.getInitialSnapshot();
         if (initial == null) {
             bone.setPosX(0.0F);
@@ -236,15 +238,19 @@ public final class FormGeoModel extends GeoModel<FormGeoAnimatable> {
             bone.setScaleZ(1.0F);
             return;
         }
-        bone.setPosX(initial.getOffsetX());
-        bone.setPosY(initial.getOffsetY());
-        bone.setPosZ(initial.getOffsetZ());
-        bone.setRotX(initial.getRotX());
-        bone.setRotY(initial.getRotY());
-        bone.setRotZ(initial.getRotZ());
-        bone.setScaleX(initial.getScaleX());
-        bone.setScaleY(initial.getScaleY());
-        bone.setScaleZ(initial.getScaleZ());
+        applySnapshot(bone, initial);
+    }
+
+    static void applySnapshot(GeoBone bone, BoneSnapshot pose) {
+        bone.setPosX(pose.getOffsetX());
+        bone.setPosY(pose.getOffsetY());
+        bone.setPosZ(pose.getOffsetZ());
+        bone.setRotX(pose.getRotX());
+        bone.setRotY(pose.getRotY());
+        bone.setRotZ(pose.getRotZ());
+        bone.setScaleX(pose.getScaleX());
+        bone.setScaleY(pose.getScaleY());
+        bone.setScaleZ(pose.getScaleZ());
     }
 
     private void setRotation(String boneName, float x, float y, float z) {

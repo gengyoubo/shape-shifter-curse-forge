@@ -10,8 +10,6 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -19,8 +17,6 @@ import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.item.UseAnim;
 import net.onixary.shapeShifterCurseForge.form.FormBodyType;
 import net.onixary.shapeShifterCurseForge.form.FormManager;
-
-import java.util.Set;
 
 /**
  * Third-person held items for feral forms, Forge port of Fabric's {@code MouthItemFeature}
@@ -31,10 +27,6 @@ import java.util.Set;
  */
 public final class FeralMouthItemLayer
         extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
-    /** Fabric's FeralRenderUtils blacklist: items that must not be drawn in the mouth. */
-    private static final Set<ResourceLocation> MOUTH_BLACKLIST = Set.of(
-            ResourceLocation.fromNamespaceAndPath("tacz", "modern_kinetic_gun"));
-
     public FeralMouthItemLayer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
         super(parent);
     }
@@ -57,14 +49,14 @@ public final class FeralMouthItemLayer
         ItemStack offHand = player.getOffhandItem();
         boolean blocking = player.isUsingItem() && player.getUseItem().getUseAnimation() == UseAnim.BLOCK;
         InteractionHand activeHand = player.getUsedItemHand();
-        if (!mainHand.isEmpty()) {
+        if (!mainHand.isEmpty() && !TaczAnimationCompat.isGun(mainHand)) {
             if (blocking && activeHand == InteractionHand.MAIN_HAND && mainHand.getItem() instanceof ShieldItem) {
                 renderShieldOnBack(poseStack, buffer, packedLight, player, mainHand, true);
             } else {
                 renderItemInMouth(poseStack, buffer, packedLight, player, mainHand);
             }
         }
-        if (!offHand.isEmpty()) {
+        if (!offHand.isEmpty() && !TaczAnimationCompat.isGun(offHand)) {
             if (blocking && activeHand == InteractionHand.OFF_HAND && offHand.getItem() instanceof ShieldItem) {
                 renderShieldOnBack(poseStack, buffer, packedLight, player, offHand, false);
             } else {
@@ -80,7 +72,6 @@ public final class FeralMouthItemLayer
      */
     private void renderItemInMouth(PoseStack poseStack, MultiBufferSource buffer, int light,
                                    AbstractClientPlayer player, ItemStack stack) {
-        if (MOUTH_BLACKLIST.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()))) return;
         ModelPart head = getParentModel().head;
         LongNeckHeadAlignment.SavedHead saved = LongNeckHeadAlignment.SavedHead.of(head);
         // Long-neck forms carry the item at the end of the neck (Fabric: IModifyHead_MAS).

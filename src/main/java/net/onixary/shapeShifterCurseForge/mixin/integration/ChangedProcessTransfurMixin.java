@@ -99,4 +99,14 @@ public abstract class ChangedProcessTransfurMixin {
             cir.setReturnValue(null);
         }
     }
+
+    @Inject(method = "setPlayerTransfurVariant(Lnet/minecraft/world/entity/player/Player;Lnet/ltxprogrammer/changed/entity/variant/TransfurVariant;Lnet/ltxprogrammer/changed/entity/TransfurContext;FZLjava/util/function/Consumer;)Lnet/ltxprogrammer/changed/entity/variant/TransfurVariantInstance;",
+            at = @At(value = "INVOKE", target = "Lnet/ltxprogrammer/changed/entity/AccessoryEntities;forceReloadAccessories(Lnet/minecraft/world/entity/LivingEntity;)V"))
+    private static void ssc$dropExoskeletonOnTransfur(Player player, TransfurVariant<?> variant, TransfurContext context,
+                                                     float progress, boolean temporary,
+                                                     Consumer<TransfurVariantInstance<?>> consumer,
+                                                     CallbackInfoReturnable<TransfurVariantInstance<?>> cir) {
+        // The variant is committed. Eject before the accessory reload can move it into inventory.
+        ChangedIntegration.dropInvalidExoskeleton(player);
+    }
 }

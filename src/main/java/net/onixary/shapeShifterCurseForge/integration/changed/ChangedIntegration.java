@@ -3,11 +3,17 @@ package net.onixary.shapeShifterCurseForge.integration.changed;
 import java.util.Map;
 import java.util.WeakHashMap;
 
+import net.ltxprogrammer.changed.data.AccessorySlots;
+import net.ltxprogrammer.changed.init.ChangedAccessorySlots;
+import net.ltxprogrammer.changed.item.ExoskeletonItem;
+import net.ltxprogrammer.changed.process.ProcessTransfur;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
@@ -39,8 +45,25 @@ public final class ChangedIntegration {
     }
 
     public static boolean hasChangedVariant(Player player) {
+        return isChangedLoaded() && ChangedAccess.hasVariant(player);
+    }
+
+    private static boolean isChangedLoaded() {
         ModList mods = ModList.get();
-        return mods != null && mods.isLoaded("changed") && ChangedAccess.hasVariant(player);
+        return mods != null && mods.isLoaded("changed");
+    }
+
+    public static boolean canWearExoskeleton(LivingEntity wearer) {
+        return wearer instanceof Player player && !hasChangedVariant(player)
+                && SscApi.currentForm(player).map(data -> !data.isContentEnabled()
+                        && FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(ResourceLocation.tryParse(data.getFormId())))
+                        .orElse(true);
+    }
+
+    public static void dropInvalidExoskeleton(LivingEntity wearer) {
+        if (!wearer.level().isClientSide && isChangedLoaded() && !canWearExoskeleton(wearer)) {
+            ChangedAccess.dropExoskeleton(wearer);
+        }
     }
 
     public static boolean canTransformTo(Player player, ResourceLocation targetId) {
@@ -78,12 +101,23 @@ public final class ChangedIntegration {
     /** Keep optional Changed classes out of the always-loaded integration's signatures. */
     private static final class ChangedAccess {
         private static boolean hasVariant(Player player) {
-            return net.ltxprogrammer.changed.process.ProcessTransfur.getPlayerTransfurVariant(player) != null;
+            return ProcessTransfur.getPlayerTransfurVariant(player) != null;
         }
 
         private static void removeVariant(Player player) {
-            net.ltxprogrammer.changed.process.ProcessTransfur.removePlayerTransfurVariant(player);
-            net.ltxprogrammer.changed.process.ProcessTransfur.setPlayerTransfurProgress(player, 0.0F);
+            ProcessTransfur.removePlayerTransfurVariant(player);
+            ProcessTransfur.setPlayerTransfurProgress(player, 0.0F);
+        }
+
+        private static void dropExoskeleton(LivingEntity wearer) {
+            AccessorySlots.getForEntity(wearer).ifPresent(slots -> {
+                var slot = ChangedAccessorySlots.FULL_BODY.get();
+                ItemStack stack = slots.getItem(slot).orElse(ItemStack.EMPTY);
+                if (stack.getItem() instanceof ExoskeletonItem<?>) {
+                    slots.setItem(slot, ItemStack.EMPTY);
+                    AccessorySlots.dropItemHandler(wearer).accept(stack);
+                }
+            });
         }
     }
 }

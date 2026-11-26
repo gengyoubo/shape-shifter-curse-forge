@@ -12,8 +12,6 @@ import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.onixary.shapeShifterCurseForge.client.render.GeoBonePose;
-import net.onixary.shapeShifterCurseForge.form.FormManager;
-import net.onixary.shapeShifterCurseForge.form.FormRegistry;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,8 +25,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Worn Changed exoskeleton on SSC forms (issue #21).
  *
- * <p>Head pieces are hidden (Four Addon parity) and the replacement human legs only show on
- * the original form. When the Geo form is drawn for the wearer, each suit part is drawn in
+ * <p>Head pieces are hidden (Four Addon parity). When the Geo form is drawn for the wearer,
+ * this layer replaces Changed's default render and draws each suit part in
  * the full render matrix of its Geo bone, relative to this layer's {@code PoseStack}, with an
  * identity {@code ModelPart} pose: torso on {@code bipedBody}, arms on the arm bones, legs on
  * the leg bones and, for four-legged forms, again on the hind legs. This works for every SSC
@@ -47,7 +45,6 @@ public abstract class ChangedExoskeletonRenderMixin {
             new GeoBonePose.PartBox(-2, 2, 0, 12 + SSC$SUIT_LEG_EXTRA, -2, 2, true);
 
     @Shadow @Final private Cacheable<ExoskeletonModel.VisorModel> suitVisorModel;
-    @Shadow @Final private Cacheable<ExoskeletonModel.ReplacementLimbs> suitLegsModel;
 
     @Shadow public abstract ExoskeletonModel getModel();
 
@@ -64,14 +61,7 @@ public abstract class ChangedExoskeletonRenderMixin {
         parts.ssc$getHeadSupport().visible = false;
         ((ChangedExoskeletonVisorAccessor) (Object) suitVisorModel.get()).ssc$getVisorHead().visible = false;
 
-        boolean showReplacementLegs = !(context.wearer() instanceof Player player)
-                || FormRegistry.ORIGINAL_BEFORE_ENABLE.equals(FormManager.current(player).id());
-        ChangedExoskeletonLegsAccessor legs = (ChangedExoskeletonLegsAccessor) (Object) suitLegsModel.get();
-        legs.ssc$getReplacementRoot().visible = showReplacementLegs;
-        legs.ssc$getReplacementLeftLeg().visible = showReplacementLegs;
-        legs.ssc$getReplacementRightLeg().visible = showReplacementLegs;
-
-        // Without captured bones (Geo pass failed or skipped) Changed's own render runs.
+        // Changed's fallback draws its replacement legs when its pose hides the vanilla legs.
         if (!(context.wearer() instanceof Player player) || !GeoBonePose.hasCapturedBones(player)) return;
         ItemStack stack = context.stack();
         model.prepareMobModel(stack, limbSwing, limbSwingAmount, partialTick);
